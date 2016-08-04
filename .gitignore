@@ -1,0 +1,11 @@
+.cache/
+*.egg-info
+*.pyc
+.coverage
+.tox
+build/
+__pycache__
+dist/
+venv
+tags
+*.swp
