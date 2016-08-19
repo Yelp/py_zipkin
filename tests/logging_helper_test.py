@@ -3,7 +3,7 @@ import mock
 import pytest
 
 from python_zipkin import logging_helper
-from python_zipkin import ZipkinAttrs
+from python_zipkin.zipkin import ZipkinAttrs
 from python_zipkin.exception import ZipkinError
 
 

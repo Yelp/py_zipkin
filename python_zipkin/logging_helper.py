@@ -36,7 +36,6 @@ class ZipkinLoggingContext(object):
     :param span_name:
     :param transport_handler:
     """
-
     def __init__(
         self,
         zipkin_attrs,
@@ -55,7 +54,7 @@ class ZipkinLoggingContext(object):
 
     def __enter__(self):
         """Actions to be taken before request is handled.
-        1) Attach `zipkin_logger` to :class:`ZipkingLoggerHandler` object.
+        1) Attach `zipkin_logger` to :class:`ZipkinLoggerHandler` object.
         2) Record the start timestamp.
         """
         zipkin_logger.removeHandler(null_handler)
