@@ -7,13 +7,13 @@ from setuptools import setup
 __version__ = "0.1.0"
 
 setup(
-    name='python_zipkin',
+    name='py_zipkin',
     version=__version__,
-    provides=["python_zipkin"],
+    provides=["py_zipkin"],
     author='Yelp, Inc.',
-    author_email='opensource+python-zipkin@yelp.com',
+    author_email='opensource+py-zipkin@yelp.com',
     license='Copyright Yelp 2016',
-    url="https://github.com/Yelp/python_zipkin",
+    url="https://github.com/Yelp/py_zipkin",
     description='Library for using Zipkin in Python.',
     packages=find_packages(exclude=('tests*', 'testing*', 'tools*')),
     package_data={'': ['*.thrift']},

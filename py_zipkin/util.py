@@ -41,5 +41,5 @@ def signed_int_to_unsigned_hex(signed_int):
     """
     hex_string = hex(struct.unpack('Q', struct.pack('q', signed_int))[0])[2:]
     if hex_string.endswith('L'):
-        return hex_string[:-1]  # pragma: no cover
+        return hex_string[:-1]
     return hex_string

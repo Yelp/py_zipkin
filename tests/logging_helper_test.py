@@ -9,9 +9,7 @@ from python_zipkin.exception import ZipkinError
 
 # This test _must_ be the first test in this file
 def test_zipkin_doesnt_spew_on_first_log(capfd):
-    import logging
-
-    zipkin_logger = logging.getLogger('python_zipkin.logger')
+    zipkin_logger = logging_helper.zipkin_logger
 
     zipkin_logger.debug({
         'annotations': {'foo': 2},
@@ -222,12 +220,11 @@ def test_zipkin_handler_raises_exception_if_ann_and_bann_not_provided(
 @mock.patch('python_zipkin.logging_helper.thrift_obj_in_bytes', autospec=True)
 def test_log_span(thrift_obj):
     # Not much logic here, so this is basically a smoke test
-    thrift_obj.return_value = 'obj'
 
     def fake_transport_handler(x):
         return x
 
-    span_bytes = logging_helper.log_span(
+    logging_helper.log_span(
         span_id='0000000000000002',
         parent_span_id='0000000000000001',
         trace_id='000000000000000f',
@@ -237,7 +234,6 @@ def test_log_span(thrift_obj):
         transport_handler=fake_transport_handler,
     )
     assert thrift_obj.call_count == 1
-    assert span_bytes == 'obj'
 
 
 @mock.patch('python_zipkin.logging_helper.create_span', autospec=True)

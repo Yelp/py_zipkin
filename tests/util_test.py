@@ -1,4 +1,5 @@
 import mock
+import sys
 
 from python_zipkin import util
 
@@ -25,3 +26,9 @@ def test_signed_int_to_unsigned_hex():
         '17133d482ba4f605'
     assert util.signed_int_to_unsigned_hex(-5270423489115668655) == \
         'b6dbb1c2b362bf51'
+
+    if sys.version_info > (3,):
+        with mock.patch('builtins.hex') as mock_hex:
+            mock_hex.return_value = '0xb6dbb1c2b362bf51L'
+            assert util.signed_int_to_unsigned_hex(-5270423489115668655) == \
+                'b6dbb1c2b362bf51'

@@ -35,7 +35,7 @@ class zipkin_span(object):
     Usage #1: Start a trace with a given sampling rate
 
     This begins the zipkin trace and also records the root span. The required
-    params are service_name, transport_handler, port, and sample_rate.
+    params are service_name, transport_handler, and sample_rate.
 
     # Start a trace with do_stuff() as the root span
     def some_batch_job(a, b):
@@ -74,7 +74,8 @@ class zipkin_span(object):
     Usage #3: Log a span within the context of a zipkin trace
 
     If you're already in a zipkin trace, you can use this to log a span inside. The
-    only required param is service_name.
+    only required param is service_name. If you're not in a zipkin trace, this
+    won't do anything.
 
     # As a decorator
     @zipkin_span(service_name='my_service', span_name='my_function')
@@ -85,13 +86,6 @@ class zipkin_span(object):
     def my_function():
         with zipkin_span(service_name='my_service', span_name='do_stuff'):
             do_stuff()
-
-    :param service_name: Name of the "service" for the to-be-logged span
-    :type service_name: string
-    :param span_name: Name of the span to be logged. Defaults to func.__name__
-    :type span_name: string
-    :param binary_annotations: Additional span binary annotations
-    :type binary_annotations: dict of str -> str
     """
     def __init__(
         self,
@@ -114,6 +108,9 @@ class zipkin_span(object):
         :type span_name: string
         :param zipkin_attrs: Optional set of zipkin attributes to be used
         :type zipkin_attrs: ZipkinAttrs
+        :param transport_handler: Callback function that takes a message parameter
+                                    and handles logging it
+        :type transport_handler: function
         :param annotations: Optional dict of str -> timestamp annotations
         :type annotations: dict of str -> int
         :param binary_annotations: Optional dict of str -> str span attrs
@@ -134,7 +131,12 @@ class zipkin_span(object):
         self.binary_annotations = binary_annotations or {}
         self.port = port
         self.is_service = is_service
-        self.sample_rate = sample_rate
+        if sample_rate is None:
+            self.sample_rate = sample_rate
+        elif 0.0 <= sample_rate <= 100.0:
+            self.sample_rate = sample_rate
+        else:
+            raise ZipkinError('Sample rate must be between 0.0 and 100.0')
         self.logging_context = None
 
     def __call__(self, f):
@@ -145,13 +147,14 @@ class zipkin_span(object):
         return decorated
 
     def __enter__(self):
-        """Enter the new span context. All spans/annotations logged inside this
-        context will be attributed to this span.
+        """Enter the new span context. All annotations logged inside this
+        context will be attributed to this span. All new spans generated
+        inside this context will have this span as their parent.
 
         In the unsampled case, this context still generates new span IDs and
         pushes them onto the threadlocal stack, so downstream services calls
         made will pass the correct headers. However, the logging handler is
-        never attached in the unsampled case, so it is left alone.
+        never attached in the unsampled case, so the spans are never logged.
         """
         self.do_pop_attrs = False
         self.is_root = False
@@ -162,7 +165,9 @@ class zipkin_span(object):
                 raise ZipkinError(
                     'Sample rate requires a transport handler to be given')
             if self.port is None:
-                raise ZipkinError('Port number is required')
+                # Default port to 0 in cases where a port number doesn't make
+                # sense
+                self.port = 0
             self.zipkin_attrs = create_attrs_for_root_span(
                 sample_rate=self.sample_rate,
             )
@@ -212,14 +217,15 @@ class zipkin_span(object):
                 self.log_handler,
                 self.span_name,
                 self.transport_handler,
+                self.binary_annotations,
             )
             self.logging_context.__enter__()
             return self
         else:
             # In the sampled case, patch the ZipkinLoggerHandler.
             if self.zipkin_attrs.is_sampled:
-                # Be defensive about logging setup. Since ZipkinAttrs are local
-                # the a thread, multithreaded frameworks can get in strange states.
+                # Be defensive about logging setup. Since ZipkinAttrs are local to
+                # the thread, multithreaded frameworks can get in strange states.
                 # The logging is not going to be correct in these cases, so we set
                 # a flag that turns off logging on __exit__.
                 if len(zipkin_logger.handlers) > 0:
@@ -250,6 +256,7 @@ class zipkin_span(object):
         # If this is the root span, exit the context (which will handle logging)
         if self.logging_context:
             self.logging_context.__exit__(_exc_type, _exc_value, _exc_traceback)
+            self.logging_context = None
             return
 
         end_timestamp = time.time()

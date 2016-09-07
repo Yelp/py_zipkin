@@ -43,6 +43,7 @@ class ZipkinLoggingContext(object):
         log_handler,
         span_name,
         transport_handler,
+        binary_annotations=None,
     ):
         self.zipkin_attrs = zipkin_attrs
         self.thrift_endpoint = thrift_endpoint
@@ -50,7 +51,7 @@ class ZipkinLoggingContext(object):
         self.span_name = span_name
         self.transport_handler = transport_handler
         self.response_status_code = 0
-        self.binary_annotations_dict = {}
+        self.binary_annotations_dict = binary_annotations or {}
 
     def __enter__(self):
         """Actions to be taken before request is handled.
@@ -164,7 +165,7 @@ class ZipkinLoggingContext(object):
 class ZipkinLoggerHandler(logging.StreamHandler, object):
     """Logger Handler to log span annotations or additional client spans to
     scribe. To connect to the handler, logger name must be
-    'pyramid_zipkin.logger'.
+    'python_zipkin.logger'.
 
     :param zipkin_attrs: ZipkinAttrs namedtuple object
     """
@@ -266,9 +267,7 @@ def log_span(
     binary_annotations,
     transport_handler,
 ):
-    """Creates a span and logs it. Uses the required registry setting of
-    `zipkin.transport_handler` to log the span.
-    """
+    """Creates a span and logs it using the given transport_handler."""
     span = create_span(
         span_id,
         parent_span_id,
@@ -278,5 +277,4 @@ def log_span(
         binary_annotations,
     )
     message = thrift_obj_in_bytes(span)
-
-    return transport_handler(message)
+    transport_handler(message)
