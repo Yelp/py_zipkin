@@ -1,6 +1,6 @@
 import pytest
 
-from python_zipkin.zipkin import ZipkinAttrs
+from py_zipkin.zipkin import ZipkinAttrs
 
 
 @pytest.fixture

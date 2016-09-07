@@ -1,24 +1,24 @@
 import mock
 import pytest
 
-import python_zipkin.zipkin as zipkin
-from python_zipkin.exception import ZipkinError
-from python_zipkin.logging_helper import ZipkinLoggerHandler
-from python_zipkin.logging_helper import zipkin_logger
-from python_zipkin.thread_local import get_zipkin_attrs
-from python_zipkin.thrift import zipkin_core
-from python_zipkin.util import generate_random_64bit_string
-from python_zipkin.zipkin import ZipkinAttrs
+import py_zipkin.zipkin as zipkin
+from py_zipkin.exception import ZipkinError
+from py_zipkin.logging_helper import ZipkinLoggerHandler
+from py_zipkin.logging_helper import zipkin_logger
+from py_zipkin.thread_local import get_zipkin_attrs
+from py_zipkin.thrift import zipkin_core
+from py_zipkin.util import generate_random_64bit_string
+from py_zipkin.zipkin import ZipkinAttrs
 from thriftpy.protocol.binary import TBinaryProtocol
 from thriftpy.transport import TMemoryBuffer
 
 
-@mock.patch('python_zipkin.zipkin.pop_zipkin_attrs', autospec=True)
-@mock.patch('python_zipkin.zipkin.push_zipkin_attrs', autospec=True)
-@mock.patch('python_zipkin.zipkin.create_attrs_for_root_span', autospec=True)
-@mock.patch('python_zipkin.zipkin.create_endpoint')
-@mock.patch('python_zipkin.zipkin.ZipkinLoggerHandler', autospec=True)
-@mock.patch('python_zipkin.zipkin.ZipkinLoggingContext', autospec=True)
+@mock.patch('py_zipkin.zipkin.pop_zipkin_attrs', autospec=True)
+@mock.patch('py_zipkin.zipkin.push_zipkin_attrs', autospec=True)
+@mock.patch('py_zipkin.zipkin.create_attrs_for_root_span', autospec=True)
+@mock.patch('py_zipkin.zipkin.create_endpoint')
+@mock.patch('py_zipkin.zipkin.ZipkinLoggerHandler', autospec=True)
+@mock.patch('py_zipkin.zipkin.ZipkinLoggingContext', autospec=True)
 def test_zipkin_span_for_new_trace(
     logging_context_cls_mock,
     logger_handler_cls_mock,
@@ -54,12 +54,12 @@ def test_zipkin_span_for_new_trace(
     pop_zipkin_attrs_mock.assert_called_once_with()
 
 
-@mock.patch('python_zipkin.zipkin.pop_zipkin_attrs', autospec=True)
-@mock.patch('python_zipkin.zipkin.push_zipkin_attrs', autospec=True)
-@mock.patch('python_zipkin.zipkin.create_attrs_for_root_span', autospec=True)
-@mock.patch('python_zipkin.zipkin.create_endpoint')
-@mock.patch('python_zipkin.zipkin.ZipkinLoggerHandler', autospec=True)
-@mock.patch('python_zipkin.zipkin.ZipkinLoggingContext', autospec=True)
+@mock.patch('py_zipkin.zipkin.pop_zipkin_attrs', autospec=True)
+@mock.patch('py_zipkin.zipkin.push_zipkin_attrs', autospec=True)
+@mock.patch('py_zipkin.zipkin.create_attrs_for_root_span', autospec=True)
+@mock.patch('py_zipkin.zipkin.create_endpoint')
+@mock.patch('py_zipkin.zipkin.ZipkinLoggerHandler', autospec=True)
+@mock.patch('py_zipkin.zipkin.ZipkinLoggingContext', autospec=True)
 def test_zipkin_span_trace_with_0_sample_rate(
     logging_context_cls_mock,
     logger_handler_cls_mock,
@@ -122,12 +122,12 @@ def test_zipkin_invalid_sample_rate():
             pass
 
 
-@mock.patch('python_zipkin.zipkin.pop_zipkin_attrs', autospec=True)
-@mock.patch('python_zipkin.zipkin.push_zipkin_attrs', autospec=True)
-@mock.patch('python_zipkin.zipkin.create_attrs_for_root_span', autospec=True)
-@mock.patch('python_zipkin.zipkin.create_endpoint')
-@mock.patch('python_zipkin.zipkin.ZipkinLoggerHandler', autospec=True)
-@mock.patch('python_zipkin.zipkin.ZipkinLoggingContext', autospec=True)
+@mock.patch('py_zipkin.zipkin.pop_zipkin_attrs', autospec=True)
+@mock.patch('py_zipkin.zipkin.push_zipkin_attrs', autospec=True)
+@mock.patch('py_zipkin.zipkin.create_attrs_for_root_span', autospec=True)
+@mock.patch('py_zipkin.zipkin.create_endpoint')
+@mock.patch('py_zipkin.zipkin.ZipkinLoggerHandler', autospec=True)
+@mock.patch('py_zipkin.zipkin.ZipkinLoggingContext', autospec=True)
 def test_zipkin_span_trace_with_no_sampling(
     logging_context_cls_mock,
     logger_handler_cls_mock,
@@ -195,12 +195,12 @@ def test_zipkin_span_is_service_required_params():
             pass
 
 
-@mock.patch('python_zipkin.zipkin.pop_zipkin_attrs', autospec=True)
-@mock.patch('python_zipkin.zipkin.push_zipkin_attrs', autospec=True)
-@mock.patch('python_zipkin.zipkin.create_attrs_for_root_span', autospec=True)
-@mock.patch('python_zipkin.zipkin.create_endpoint')
-@mock.patch('python_zipkin.zipkin.ZipkinLoggerHandler', autospec=True)
-@mock.patch('python_zipkin.zipkin.ZipkinLoggingContext', autospec=True)
+@mock.patch('py_zipkin.zipkin.pop_zipkin_attrs', autospec=True)
+@mock.patch('py_zipkin.zipkin.push_zipkin_attrs', autospec=True)
+@mock.patch('py_zipkin.zipkin.create_attrs_for_root_span', autospec=True)
+@mock.patch('py_zipkin.zipkin.create_endpoint')
+@mock.patch('py_zipkin.zipkin.ZipkinLoggerHandler', autospec=True)
+@mock.patch('py_zipkin.zipkin.ZipkinLoggingContext', autospec=True)
 def test_zipkin_trace_context_attrs_is_always_popped(
     logging_context_cls_mock,
     logger_handler_cls_mock,
@@ -221,14 +221,14 @@ def test_zipkin_trace_context_attrs_is_always_popped(
     pop_zipkin_attrs_mock.assert_called_once_with()
 
 
-@mock.patch('python_zipkin.zipkin.get_zipkin_attrs', autospec=True)
+@mock.patch('py_zipkin.zipkin.get_zipkin_attrs', autospec=True)
 def test_create_headers_for_new_span_empty_if_no_active_request(get_mock):
     get_mock.return_value = None
     assert {} == zipkin.create_http_headers_for_new_span()
 
 
-@mock.patch('python_zipkin.zipkin.get_zipkin_attrs', autospec=True)
-@mock.patch('python_zipkin.zipkin.generate_random_64bit_string', autospec=True)
+@mock.patch('py_zipkin.zipkin.get_zipkin_attrs', autospec=True)
+@mock.patch('py_zipkin.zipkin.generate_random_64bit_string', autospec=True)
 def test_create_headers_for_new_span_returns_header_if_active_request(
         gen_mock, get_mock):
     get_mock.return_value = mock.Mock(
@@ -244,9 +244,9 @@ def test_create_headers_for_new_span_returns_header_if_active_request(
     assert expected == zipkin.create_http_headers_for_new_span()
 
 
-@mock.patch('python_zipkin.zipkin.pop_zipkin_attrs', autospec=True)
-@mock.patch('python_zipkin.zipkin.push_zipkin_attrs', autospec=True)
-@mock.patch('python_zipkin.zipkin.get_zipkin_attrs', autospec=True)
+@mock.patch('py_zipkin.zipkin.pop_zipkin_attrs', autospec=True)
+@mock.patch('py_zipkin.zipkin.push_zipkin_attrs', autospec=True)
+@mock.patch('py_zipkin.zipkin.get_zipkin_attrs', autospec=True)
 def test_span_context_no_zipkin_attrs(
     get_zipkin_attrs_mock,
     push_zipkin_attrs_mock,
@@ -261,9 +261,9 @@ def test_span_context_no_zipkin_attrs(
     assert not push_zipkin_attrs_mock.called
 
 
-@mock.patch('python_zipkin.thread_local._thread_local', autospec=True)
-@mock.patch('python_zipkin.zipkin.generate_random_64bit_string', autospec=True)
-@mock.patch('python_zipkin.zipkin.zipkin_logger', autospec=True)
+@mock.patch('py_zipkin.thread_local._thread_local', autospec=True)
+@mock.patch('py_zipkin.zipkin.generate_random_64bit_string', autospec=True)
+@mock.patch('py_zipkin.zipkin.zipkin_logger', autospec=True)
 def test_span_context_sampled_no_handlers(
     zipkin_logger_mock,
     generate_string_mock,
@@ -296,9 +296,9 @@ def test_span_context_sampled_no_handlers(
     assert get_zipkin_attrs() == zipkin_attrs
 
 
-@mock.patch('python_zipkin.thread_local._thread_local', autospec=True)
-@mock.patch('python_zipkin.zipkin.generate_random_64bit_string', autospec=True)
-@mock.patch('python_zipkin.zipkin.zipkin_logger', autospec=True)
+@mock.patch('py_zipkin.thread_local._thread_local', autospec=True)
+@mock.patch('py_zipkin.zipkin.generate_random_64bit_string', autospec=True)
+@mock.patch('py_zipkin.zipkin.zipkin_logger', autospec=True)
 def test_span_context(
     zipkin_logger_mock,
     generate_string_mock,
@@ -355,12 +355,12 @@ def test_span_context(
     assert client_span == expected_client_span
 
 
-@mock.patch('python_zipkin.zipkin.pop_zipkin_attrs', autospec=True)
-@mock.patch('python_zipkin.zipkin.push_zipkin_attrs', autospec=True)
-@mock.patch('python_zipkin.zipkin.create_attrs_for_root_span', autospec=True)
-@mock.patch('python_zipkin.zipkin.create_endpoint')
-@mock.patch('python_zipkin.zipkin.ZipkinLoggerHandler', autospec=True)
-@mock.patch('python_zipkin.zipkin.ZipkinLoggingContext', autospec=True)
+@mock.patch('py_zipkin.zipkin.pop_zipkin_attrs', autospec=True)
+@mock.patch('py_zipkin.zipkin.push_zipkin_attrs', autospec=True)
+@mock.patch('py_zipkin.zipkin.create_attrs_for_root_span', autospec=True)
+@mock.patch('py_zipkin.zipkin.create_endpoint')
+@mock.patch('py_zipkin.zipkin.ZipkinLoggerHandler', autospec=True)
+@mock.patch('py_zipkin.zipkin.ZipkinLoggingContext', autospec=True)
 def test_zipkin_span_decorator(
     logging_context_cls_mock,
     logger_handler_cls_mock,
@@ -464,7 +464,7 @@ def test_update_binary_annotations_for_root_span_errors():
         context.update_binary_annotations_for_root_span({'test': 'hi'})
 
 
-@mock.patch('python_zipkin.zipkin.generate_random_64bit_string', autospec=True)
+@mock.patch('py_zipkin.zipkin.generate_random_64bit_string', autospec=True)
 def test_create_attrs_for_root_span(random_mock):
     random_mock.return_value = '0000000000000042'
     expected_attrs = ZipkinAttrs(

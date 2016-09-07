@@ -3,13 +3,13 @@ import logging
 import time
 from collections import defaultdict
 
-from python_zipkin.exception import ZipkinError
-from python_zipkin.thrift import annotation_list_builder
-from python_zipkin.thrift import binary_annotation_list_builder
-from python_zipkin.thrift import copy_endpoint_with_new_service_name
-from python_zipkin.thrift import create_span
-from python_zipkin.thrift import thrift_obj_in_bytes
-from python_zipkin.util import generate_random_64bit_string
+from py_zipkin.exception import ZipkinError
+from py_zipkin.thrift import annotation_list_builder
+from py_zipkin.thrift import binary_annotation_list_builder
+from py_zipkin.thrift import copy_endpoint_with_new_service_name
+from py_zipkin.thrift import create_span
+from py_zipkin.thrift import thrift_obj_in_bytes
+from py_zipkin.util import generate_random_64bit_string
 
 
 try:  # Python 2.7+
@@ -20,7 +20,7 @@ except ImportError:  # pragma: no cover
             pass
 
 null_handler = NullHandler()
-zipkin_logger = logging.getLogger('python_zipkin.logger')
+zipkin_logger = logging.getLogger('py_zipkin.logger')
 zipkin_logger.addHandler(null_handler)
 zipkin_logger.setLevel(logging.DEBUG)
 
@@ -29,10 +29,10 @@ class ZipkinLoggingContext(object):
     """The main logging context manager which controls logging handler and
     stores the zipkin attributes on its creation.
 
-    :type zipkin_attrs: :class:`python_zipkin.ZipkinAttrs`
-    :type thrift_endpoint: :class:`python_zipkin.thrift.zipkinCore.ttypes.Endpoint`
+    :type zipkin_attrs: :class:`py_zipkin.ZipkinAttrs`
+    :type thrift_endpoint: :class:`py_zipkin.thrift.zipkinCore.ttypes.Endpoint`
     :param log_handler: log handler to be attached to the module logger.
-    :type log_handler: :class:`python_zipkin.logging.ZipkinLoggerHandler`
+    :type log_handler: :class:`py_zipkin.logging.ZipkinLoggerHandler`
     :param span_name:
     :param transport_handler:
     """
@@ -165,7 +165,7 @@ class ZipkinLoggingContext(object):
 class ZipkinLoggerHandler(logging.StreamHandler, object):
     """Logger Handler to log span annotations or additional client spans to
     scribe. To connect to the handler, logger name must be
-    'python_zipkin.logger'.
+    'py_zipkin.logger'.
 
     :param zipkin_attrs: ZipkinAttrs namedtuple object
     """

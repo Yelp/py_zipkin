@@ -1,9 +1,9 @@
 import mock
 
-from python_zipkin import thrift
+from py_zipkin import thrift
 
 
-@mock.patch('python_zipkin.thrift.zipkin_core.Span', autospec=True)
+@mock.patch('py_zipkin.thrift.zipkin_core.Span', autospec=True)
 def test_create_span(Span):
     # Not much logic here so this is just a smoke test. The only
     # substantive thing is that hex IDs get converted to ints.
@@ -66,7 +66,7 @@ def test_create_annotation():
     assert ('foo', 'bar', 'baz') == (ann.timestamp, ann.value, ann.host)
 
 
-@mock.patch('python_zipkin.thrift.create_annotation', autospec=True)
+@mock.patch('py_zipkin.thrift.create_annotation', autospec=True)
 def test_annotation_list_builder(ann_mock):
     ann_list = {'foo': 1, 'bar': 2}
     thrift.annotation_list_builder(ann_list, 'host')
@@ -82,7 +82,7 @@ def test_create_binary_annotation():
         bann.key, bann.value, bann.annotation_type, bann.host)
 
 
-@mock.patch('python_zipkin.thrift.create_binary_annotation', autospec=True)
+@mock.patch('py_zipkin.thrift.create_binary_annotation', autospec=True)
 def test_binary_annotation_list_builder(bann_mock):
     bann_list = {'key1': 'val1', 'key2': 'val2'}
     thrift.binary_annotation_list_builder(bann_list, 'host')

@@ -2,9 +2,9 @@ import mock
 
 import pytest
 
-from python_zipkin import logging_helper
-from python_zipkin.zipkin import ZipkinAttrs
-from python_zipkin.exception import ZipkinError
+from py_zipkin import logging_helper
+from py_zipkin.zipkin import ZipkinAttrs
+from py_zipkin.exception import ZipkinError
 
 
 # This test _must_ be the first test in this file
@@ -36,8 +36,8 @@ def context():
     )
 
 
-@mock.patch('python_zipkin.logging_helper.zipkin_logger', autospec=True)
-@mock.patch('python_zipkin.logging_helper.time.time', autospec=True)
+@mock.patch('py_zipkin.logging_helper.zipkin_logger', autospec=True)
+@mock.patch('py_zipkin.logging_helper.time.time', autospec=True)
 def test_zipkin_logging_context(time_mock, mock_logger, context):
     # Tests the context manager aspects of the ZipkinLoggingContext
     time_mock.return_value = 42
@@ -52,13 +52,13 @@ def test_zipkin_logging_context(time_mock, mock_logger, context):
         assert context.log_spans.call_count == 1
 
 
-@mock.patch('python_zipkin.logging_helper.time.time', autospec=True)
-@mock.patch('python_zipkin.logging_helper.log_span', autospec=True)
-@mock.patch('python_zipkin.logging_helper.annotation_list_builder',
+@mock.patch('py_zipkin.logging_helper.time.time', autospec=True)
+@mock.patch('py_zipkin.logging_helper.log_span', autospec=True)
+@mock.patch('py_zipkin.logging_helper.annotation_list_builder',
             autospec=True)
-@mock.patch('python_zipkin.logging_helper.binary_annotation_list_builder',
+@mock.patch('py_zipkin.logging_helper.binary_annotation_list_builder',
             autospec=True)
-@mock.patch('python_zipkin.logging_helper.copy_endpoint_with_new_service_name',
+@mock.patch('py_zipkin.logging_helper.copy_endpoint_with_new_service_name',
             autospec=True)
 def test_zipkin_logging_context_log_spans(
     copy_endpoint_mock, bin_ann_list_builder, ann_list_builder,
@@ -148,7 +148,7 @@ def test_zipkin_logging_context_log_spans(
     }
 
 
-@mock.patch('python_zipkin.logging_helper.log_span', autospec=True)
+@mock.patch('py_zipkin.logging_helper.log_span', autospec=True)
 def test_log_span_not_called_if_not_sampled(log_span_mock):
     attr = ZipkinAttrs(
         trace_id='0000000000000001',
@@ -217,7 +217,7 @@ def test_zipkin_handler_raises_exception_if_ann_and_bann_not_provided(
             " for foo span" == str(excinfo.value))
 
 
-@mock.patch('python_zipkin.logging_helper.thrift_obj_in_bytes', autospec=True)
+@mock.patch('py_zipkin.logging_helper.thrift_obj_in_bytes', autospec=True)
 def test_log_span(thrift_obj):
     # Not much logic here, so this is basically a smoke test
 
@@ -236,8 +236,8 @@ def test_log_span(thrift_obj):
     assert thrift_obj.call_count == 1
 
 
-@mock.patch('python_zipkin.logging_helper.create_span', autospec=True)
-@mock.patch('python_zipkin.logging_helper.thrift_obj_in_bytes', autospec=True)
+@mock.patch('py_zipkin.logging_helper.create_span', autospec=True)
+@mock.patch('py_zipkin.logging_helper.thrift_obj_in_bytes', autospec=True)
 def test_log_span_calls_transport_handler_with_correct_params(
     thrift_obj,
     create_sp

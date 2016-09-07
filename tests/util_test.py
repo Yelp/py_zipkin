@@ -1,10 +1,10 @@
 import mock
 import sys
 
-from python_zipkin import util
+from py_zipkin import util
 
 
-@mock.patch('python_zipkin.util.codecs.encode', autospec=True)
+@mock.patch('py_zipkin.util.codecs.encode', autospec=True)
 def test_generate_random_64bit_string(rand):
     rand.return_value = b'17133d482ba4f605'
     random_string = util.generate_random_64bit_string()

@@ -3,15 +3,15 @@ import functools
 import time
 from collections import namedtuple
 
-from python_zipkin.exception import ZipkinError
-from python_zipkin.logging_helper import zipkin_logger
-from python_zipkin.logging_helper import ZipkinLoggerHandler
-from python_zipkin.logging_helper import ZipkinLoggingContext
-from python_zipkin.thread_local import get_zipkin_attrs
-from python_zipkin.thread_local import pop_zipkin_attrs
-from python_zipkin.thread_local import push_zipkin_attrs
-from python_zipkin.thrift import create_endpoint
-from python_zipkin.util import generate_random_64bit_string
+from py_zipkin.exception import ZipkinError
+from py_zipkin.logging_helper import zipkin_logger
+from py_zipkin.logging_helper import ZipkinLoggerHandler
+from py_zipkin.logging_helper import ZipkinLoggingContext
+from py_zipkin.thread_local import get_zipkin_attrs
+from py_zipkin.thread_local import pop_zipkin_attrs
+from py_zipkin.thread_local import push_zipkin_attrs
+from py_zipkin.thrift import create_endpoint
+from py_zipkin.util import generate_random_64bit_string
 
 
 """

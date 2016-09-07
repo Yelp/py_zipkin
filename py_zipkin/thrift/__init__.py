@@ -6,7 +6,7 @@ import struct
 import thriftpy
 from thriftpy.transport import TMemoryBuffer
 from thriftpy.protocol.binary import TBinaryProtocol
-from python_zipkin.util import unsigned_hex_to_signed_int
+from py_zipkin.util import unsigned_hex_to_signed_int
 
 
 thrift_filepath = os.path.join(os.path.dirname(__file__), 'zipkinCore.thrift')
