@@ -52,8 +52,7 @@ class zipkin_span(object):
 
     The typical use case is instrumenting a framework like Pyramid or Django. Only
     ss and sr times are recorded for the root span. Required params are
-    service_name, zipkin_attrs, transport_handler, port, and is_service (which is
-    set to True).
+    service_name, zipkin_attrs, transport_handler, and port.
 
     # Used in a pyramid tween
     def tween(request):
@@ -64,7 +63,6 @@ class zipkin_span(object):
             zipkin_attrs=zipkin_attrs,
             transport_handler=some_handler,
             port=22,
-            is_service=True,
         ) as zipkin_context:
             response = handler(request)
             zipkin_context.update_binary_annotations_for_root_span(
