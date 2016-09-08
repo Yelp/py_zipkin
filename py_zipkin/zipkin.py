@@ -156,7 +156,9 @@ class zipkin_span(object):
         if self.zipkin_attrs:
             self.is_root = True
             if self.port is None:
-                raise ZipkinError('Port number is required')
+                # Default port to 0 in cases where a port number doesn't make
+                # sense
+                self.port = 0
             if self.transport_handler is None:
                 raise ZipkinError(
                     'Sample rate requires a transport handler to be given')

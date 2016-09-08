@@ -156,16 +156,6 @@ def test_zipkin_span_trace_with_no_sampling(
 
 
 def test_zipkin_span_with_zipkin_attrs_required_params():
-    # Missing port
-    with pytest.raises(ZipkinError):
-        with zipkin.zipkin_span(
-            service_name='some_service_name',
-            span_name='span_name',
-            zipkin_attrs=mock.Mock(),
-            transport_handler=mock.Mock(),
-        ):
-            pass
-
     # Missing transport_handler
     with pytest.raises(ZipkinError):
         with zipkin.zipkin_span(

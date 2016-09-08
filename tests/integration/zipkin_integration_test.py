@@ -87,7 +87,6 @@ def test_service_span():
         span_name='service_span',
         zipkin_attrs=zipkin_attrs,
         transport_handler=example_transport_handler,
-        port=45,
         binary_annotations={'some_key': 'some_value'},
     ):
         pass
@@ -95,6 +94,7 @@ def test_service_span():
     span = _decode_binary_thrift_obj(mock_logger[0])
     assert span.name == 'service_span'
     assert span.annotations[0].host.service_name == 'test_service_name'
+    assert span.annotations[0].host.port == 0
     assert span.parent_id == 2
     assert span.binary_annotations[0].key == 'some_key'
     assert span.binary_annotations[0].value == 'some_value'
