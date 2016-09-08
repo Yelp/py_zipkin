@@ -1,4 +1,4 @@
-import py_zipkin.zipkin as zipkin
+from py_zipkin import zipkin
 from py_zipkin.logging_helper import zipkin_logger
 from py_zipkin.thrift import zipkin_core
 from py_zipkin.zipkin import ZipkinAttrs
