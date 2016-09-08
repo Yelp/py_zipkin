@@ -172,12 +172,12 @@ class zipkin_span(object):
                     'Sample rate requires a transport handler to be given')
 
             if self.zipkin_attrs and not self.zipkin_attrs.is_sampled:
-                self.zipkin_attrs = create_attrs_for_root_span(
+                self.zipkin_attrs = create_attrs_for_span(
                     sample_rate=self.sample_rate,
                     trace_id=self.zipkin_attrs.trace_id,
                 )
             else:
-                self.zipkin_attrs = create_attrs_for_root_span(
+                self.zipkin_attrs = create_attrs_for_span(
                     sample_rate=self.sample_rate,
                 )
 
@@ -292,8 +292,8 @@ class zipkin_span(object):
         self.logging_context.binary_annotations_dict.update(extra_annotations)
 
 
-def create_attrs_for_root_span(sample_rate=100.0, trace_id=None):
-    """Creates a set of zipkin attributes for the root span of a trace.
+def create_attrs_for_span(sample_rate=100.0, trace_id=None):
+    """Creates a set of zipkin attributes for a span.
 
     :param sample_rate: Float between 0.0 and 100.0 to determine sampling rate
     :type sample_rate: float
