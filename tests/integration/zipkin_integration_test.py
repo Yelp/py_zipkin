@@ -93,6 +93,8 @@ def test_service_span():
 
     span = _decode_binary_thrift_obj(mock_logger[0])
     assert span.name == 'service_span'
+    assert span.trace_id == 0
+    assert span.id == 1
     assert span.annotations[0].host.service_name == 'test_service_name'
     assert span.annotations[0].host.port == 0
     assert span.parent_id == 2
