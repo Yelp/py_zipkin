@@ -1,3 +1,5 @@
+import pytest
+
 from py_zipkin import zipkin
 from py_zipkin.logging_helper import zipkin_logger
 from py_zipkin.thrift import zipkin_core
@@ -9,8 +11,14 @@ from thriftpy.transport import TMemoryBuffer
 mock_logger = []
 
 
-def example_transport_handler(message):
-    mock_logger.append(message)
+@pytest.fixture
+def mock_logger():
+    mock_logs = []
+
+    def mock_transport_handler(message):
+        mock_logs.append(message)
+
+    return mock_transport_handler, mock_logs
 
 
 def _decode_binary_thrift_obj(obj):
@@ -20,18 +28,18 @@ def _decode_binary_thrift_obj(obj):
     return span
 
 
-def test_starting_zipkin_trace_with_sampling_rate():
-    del mock_logger[:]
+def test_starting_zipkin_trace_with_sampling_rate(mock_logger):
+    mock_transport_handler, mock_logs = mock_logger
     with zipkin.zipkin_span(
         service_name='test_service_name',
         span_name='test_span_name',
-        transport_handler=example_transport_handler,
+        transport_handler=mock_transport_handler,
         sample_rate=100.0,
         binary_annotations={'some_key': 'some_value'},
     ):
         pass
 
-    span = _decode_binary_thrift_obj(mock_logger[0])
+    span = _decode_binary_thrift_obj(mock_logs[0])
 
     assert span.name == 'test_span_name'
     assert span.annotations[0].host.service_name == 'test_service_name'
@@ -41,12 +49,12 @@ def test_starting_zipkin_trace_with_sampling_rate():
     assert set([ann.value for ann in span.annotations]) == set(['ss', 'sr'])
 
 
-def test_span_inside_trace():
-    del mock_logger[:]
+def test_span_inside_trace(mock_logger):
+    mock_transport_handler, mock_logs = mock_logger
     with zipkin.zipkin_span(
         service_name='test_service_name',
         span_name='test_span_name',
-        transport_handler=example_transport_handler,
+        transport_handler=mock_transport_handler,
         sample_rate=100.0,
         binary_annotations={'some_key': 'some_value'},
     ):
@@ -58,8 +66,8 @@ def test_span_inside_trace():
         ):
             pass
 
-    root_span = _decode_binary_thrift_obj(mock_logger[1])
-    nested_span = _decode_binary_thrift_obj(mock_logger[0])
+    root_span = _decode_binary_thrift_obj(mock_logs[1])
+    nested_span = _decode_binary_thrift_obj(mock_logs[0])
     assert nested_span.name == 'nested_span'
     assert nested_span.annotations[0].host.service_name == 'nested_service'
     assert nested_span.parent_id == root_span.id
@@ -73,8 +81,8 @@ def test_span_inside_trace():
             assert ann.timestamp == 43000000
 
 
-def test_service_span():
-    del mock_logger[:]
+def test_service_span(mock_logger):
+    mock_transport_handler, mock_logs = mock_logger
     zipkin_attrs = ZipkinAttrs(
         trace_id='0',
         span_id='1',
@@ -86,12 +94,12 @@ def test_service_span():
         service_name='test_service_name',
         span_name='service_span',
         zipkin_attrs=zipkin_attrs,
-        transport_handler=example_transport_handler,
+        transport_handler=mock_transport_handler,
         binary_annotations={'some_key': 'some_value'},
     ):
         pass
 
-    span = _decode_binary_thrift_obj(mock_logger[0])
+    span = _decode_binary_thrift_obj(mock_logs[0])
     assert span.name == 'service_span'
     assert span.trace_id == 0
     assert span.id == 1
@@ -103,8 +111,8 @@ def test_service_span():
     assert set([ann.value for ann in span.annotations]) == set(['ss', 'sr'])
 
 
-def test_service_span_that_is_independently_sampled():
-    del mock_logger[:]
+def test_service_span_that_is_independently_sampled(mock_logger):
+    mock_transport_handler, mock_logs = mock_logger
     zipkin_attrs = ZipkinAttrs(
         trace_id='0',
         span_id='1',
@@ -116,14 +124,14 @@ def test_service_span_that_is_independently_sampled():
         service_name='test_service_name',
         span_name='service_span',
         zipkin_attrs=zipkin_attrs,
-        transport_handler=example_transport_handler,
+        transport_handler=mock_transport_handler,
         port=45,
         sample_rate=100.0,
         binary_annotations={'some_key': 'some_value'},
     ):
         pass
 
-    span = _decode_binary_thrift_obj(mock_logger[0])
+    span = _decode_binary_thrift_obj(mock_logs[0])
     assert span.name == 'service_span'
     assert span.annotations[0].host.service_name == 'test_service_name'
     assert span.parent_id is None
@@ -132,12 +140,12 @@ def test_service_span_that_is_independently_sampled():
     assert set([ann.value for ann in span.annotations]) == set(['ss', 'sr'])
 
 
-def test_log_debug_for_new_span():
-    del mock_logger[:]
+def test_log_debug_for_new_span(mock_logger):
+    mock_transport_handler, mock_logs = mock_logger
     with zipkin.zipkin_span(
         service_name='test_service_name',
         span_name='test_span_name',
-        transport_handler=example_transport_handler,
+        transport_handler=mock_transport_handler,
         sample_rate=100.0,
         binary_annotations={'some_key': 'some_value'},
     ):
@@ -154,8 +162,8 @@ def test_log_debug_for_new_span():
         })
         pass
 
-    logged_span = _decode_binary_thrift_obj(mock_logger[0])
-    root_span = _decode_binary_thrift_obj(mock_logger[1])
+    logged_span = _decode_binary_thrift_obj(mock_logs[0])
+    root_span = _decode_binary_thrift_obj(mock_logs[1])
     assert logged_span.name == 'logged_name'
     assert logged_span.annotations[0].host.service_name == 'logged_service_name'
     assert logged_span.parent_id == root_span.id
@@ -164,12 +172,12 @@ def test_log_debug_for_new_span():
     assert set([ann.value for ann in logged_span.annotations]) == set(['cs', 'cr'])
 
 
-def test_log_debug_for_existing_span():
-    del mock_logger[:]
+def test_log_debug_for_existing_span(mock_logger):
+    mock_transport_handler, mock_logs = mock_logger
     with zipkin.zipkin_span(
         service_name='test_service_name',
         span_name='test_span_name',
-        transport_handler=example_transport_handler,
+        transport_handler=mock_transport_handler,
         sample_rate=100.0,
         binary_annotations={'some_key': 'some_value'},
     ):
@@ -183,8 +191,8 @@ def test_log_debug_for_existing_span():
         })
         pass
 
-    assert len(mock_logger) == 1
-    span = _decode_binary_thrift_obj(mock_logger[0])
+    assert len(mock_logs) == 1
+    span = _decode_binary_thrift_obj(mock_logs[0])
     assert span.name == 'test_span_name'
     assert span.annotations[0].host.service_name == 'test_service_name'
     assert span.parent_id is None
