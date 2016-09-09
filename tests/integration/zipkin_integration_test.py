@@ -8,9 +8,6 @@ from thriftpy.protocol.binary import TBinaryProtocol
 from thriftpy.transport import TMemoryBuffer
 
 
-mock_logger = []
-
-
 @pytest.fixture
 def mock_logger():
     mock_logs = []
