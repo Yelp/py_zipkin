@@ -93,7 +93,7 @@ class zipkin_span(object):
         transport_handler=None,
         annotations=None,
         binary_annotations=None,
-        port=None,
+        port=0,
         sample_rate=None,
     ):
         """Logs a zipkin span. If this is the root span, then a zipkin
@@ -112,7 +112,7 @@ class zipkin_span(object):
         :type annotations: dict of str -> int
         :param binary_annotations: Optional dict of str -> str span attrs
         :type binary_annotations: dict of str -> str
-        :param port: The port number of the service
+        :param port: The port number of the service. Defaults to 0.
         :type port: int
         :param sample_rate: Custom sampling rate (between 100.0 and 0.0) if
                             this is the root of the trace
@@ -126,29 +126,15 @@ class zipkin_span(object):
         self.binary_annotations = binary_annotations or {}
         self.port = port
         self.logging_context = None
+        self.sample_rate = sample_rate
 
         # Validation checks
-        if self.zipkin_attrs:
-            if self.port is None:
-                # Default port to 0 in cases where a port number doesn't make
-                # sense
-                self.port = 0
+        if self.zipkin_attrs or self.sample_rate is not None:
             if self.transport_handler is None:
                 raise ZipkinError(
-                    'zipkin_attrs requires a transport handler to be given')
+                    'Root spans requires a transport handler to be given')
 
-        if sample_rate is None or 0.0 <= sample_rate <= 100.0:
-            self.sample_rate = sample_rate
-
-            if self.sample_rate is not None:
-                if self.port is None:
-                    # Default port to 0 in cases where a port number doesn't make
-                    # sense
-                    self.port = 0
-                if self.transport_handler is None:
-                    raise ZipkinError(
-                        'Sample rate requires a transport handler to be given')
-        else:
+        if self.sample_rate is not None and not (0.0 <= self.sample_rate <= 100.0):
             raise ZipkinError('Sample rate must be between 0.0 and 100.0')
 
     def __call__(self, f):

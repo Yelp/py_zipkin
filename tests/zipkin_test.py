@@ -105,6 +105,7 @@ def test_zipkin_invalid_sample_rate():
         with zipkin.zipkin_span(
             service_name='some_service_name',
             span_name='span_name',
+            transport_handler=mock.Mock(),
             sample_rate=101.0,
         ):
             pass
@@ -113,6 +114,7 @@ def test_zipkin_invalid_sample_rate():
         with zipkin.zipkin_span(
             service_name='some_service_name',
             span_name='span_name',
+            transport_handler=mock.Mock(),
             sample_rate=-0.1,
         ):
             pass
