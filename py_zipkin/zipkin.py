@@ -132,7 +132,7 @@ class zipkin_span(object):
         if self.zipkin_attrs or self.sample_rate is not None:
             if self.transport_handler is None:
                 raise ZipkinError(
-                    'Root spans requires a transport handler to be given')
+                    'Root spans require a transport handler to be given')
 
         if self.sample_rate is not None and not (0.0 <= self.sample_rate <= 100.0):
             raise ZipkinError('Sample rate must be between 0.0 and 100.0')
