@@ -52,8 +52,7 @@ class zipkin_span(object):
 
     The typical use case is instrumenting a framework like Pyramid or Django. Only
     ss and sr times are recorded for the root span. Required params are
-    service_name, zipkin_attrs, transport_handler, port, and is_service (which is
-    set to True).
+    service_name, zipkin_attrs, transport_handler, and port.
 
     # Used in a pyramid tween
     def tween(request):
@@ -64,7 +63,6 @@ class zipkin_span(object):
             zipkin_attrs=zipkin_attrs,
             transport_handler=some_handler,
             port=22,
-            is_service=True,
         ) as zipkin_context:
             response = handler(request)
             zipkin_context.update_binary_annotations_for_root_span(
@@ -95,8 +93,7 @@ class zipkin_span(object):
         transport_handler=None,
         annotations=None,
         binary_annotations=None,
-        port=None,
-        is_service=False,
+        port=0,
         sample_rate=None,
     ):
         """Logs a zipkin span. If this is the root span, then a zipkin
@@ -115,10 +112,8 @@ class zipkin_span(object):
         :type annotations: dict of str -> int
         :param binary_annotations: Optional dict of str -> str span attrs
         :type binary_annotations: dict of str -> str
-        :param port: The port number of the service
+        :param port: The port number of the service. Defaults to 0.
         :type port: int
-        :param is_service: True if this is the root span of a service call
-        :type is_service: bool
         :param sample_rate: Custom sampling rate (between 100.0 and 0.0) if
                             this is the root of the trace
         :type sample_rate: float
@@ -130,14 +125,17 @@ class zipkin_span(object):
         self.annotations = annotations or {}
         self.binary_annotations = binary_annotations or {}
         self.port = port
-        self.is_service = is_service
-        if sample_rate is None:
-            self.sample_rate = sample_rate
-        elif 0.0 <= sample_rate <= 100.0:
-            self.sample_rate = sample_rate
-        else:
-            raise ZipkinError('Sample rate must be between 0.0 and 100.0')
         self.logging_context = None
+        self.sample_rate = sample_rate
+
+        # Validation checks
+        if self.zipkin_attrs or self.sample_rate is not None:
+            if self.transport_handler is None:
+                raise ZipkinError(
+                    'Root spans require a transport handler to be given')
+
+        if self.sample_rate is not None and not (0.0 <= self.sample_rate <= 100.0):
+            raise ZipkinError('Sample rate must be between 0.0 and 100.0')
 
     def __call__(self, f):
         @functools.wraps(f)
@@ -157,32 +155,26 @@ class zipkin_span(object):
         never attached in the unsampled case, so the spans are never logged.
         """
         self.do_pop_attrs = False
+        # If this span is the first span to be recorded for a service, then
+        # logging will need to be set up.
         self.is_root = False
+
+        if self.zipkin_attrs:
+            self.is_root = True
         if self.sample_rate is not None:
-            # Treat this as root span and evaluate sampling rate
             self.is_root = True
-            if self.transport_handler is None:
-                raise ZipkinError(
-                    'Sample rate requires a transport handler to be given')
-            if self.port is None:
-                # Default port to 0 in cases where a port number doesn't make
-                # sense
-                self.port = 0
-            self.zipkin_attrs = create_attrs_for_root_span(
-                sample_rate=self.sample_rate,
-            )
-        elif self.is_service:
-            # Meant to be the root span of a service trace
-            self.is_root = True
-            if self.zipkin_attrs is None:
-                raise ZipkinError(
-                    'Service trace requires zipkin attrs to be passed in')
-            if self.port is None:
-                raise ZipkinError('Port number is required')
-            if self.transport_handler is None:
-                raise ZipkinError(
-                    'Sample rate requires a transport handler to be given')
-        else:
+
+            if self.zipkin_attrs and not self.zipkin_attrs.is_sampled:
+                self.zipkin_attrs = create_attrs_for_span(
+                    sample_rate=self.sample_rate,
+                    trace_id=self.zipkin_attrs.trace_id,
+                )
+            else:
+                self.zipkin_attrs = create_attrs_for_span(
+                    sample_rate=self.sample_rate,
+                )
+
+        if not self.zipkin_attrs:
             # This span is inside the context of an existing trace
             existing_zipkin_attrs = get_zipkin_attrs()
             if existing_zipkin_attrs:
@@ -293,14 +285,18 @@ class zipkin_span(object):
         self.logging_context.binary_annotations_dict.update(extra_annotations)
 
 
-def create_attrs_for_root_span(sample_rate=100.0):
-    """Creates a set of zipkin attributes for the root span of a trace.
+def create_attrs_for_span(sample_rate=100.0, trace_id=None):
+    """Creates a set of zipkin attributes for a span.
 
     :param sample_rate: Float between 0.0 and 100.0 to determine sampling rate
     :type sample_rate: float
+    :param trace_id: Optional 16-character hex string representing a trace_id.
+                    If this is None, a random trace_id will be generated.
+    :type trace_id: str
     """
     # Calculate if this trace is sampled based on the sample rate
-    trace_id = generate_random_64bit_string()
+    if trace_id is None:
+        trace_id = generate_random_64bit_string()
     if sample_rate == 0.0:
         is_sampled = False
     else:

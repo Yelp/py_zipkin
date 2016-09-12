@@ -57,7 +57,6 @@ def tween(request):
         zipkin_attrs=zipkin_attrs,
         transport_handler=some_handler,
         port=22,
-        is_service=True,
     ) as zipkin_context:
         response = handler(request)
         zipkin_context.update_binary_annotations_for_root_span(

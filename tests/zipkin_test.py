@@ -4,18 +4,14 @@ import pytest
 import py_zipkin.zipkin as zipkin
 from py_zipkin.exception import ZipkinError
 from py_zipkin.logging_helper import ZipkinLoggerHandler
-from py_zipkin.logging_helper import zipkin_logger
 from py_zipkin.thread_local import get_zipkin_attrs
-from py_zipkin.thrift import zipkin_core
 from py_zipkin.util import generate_random_64bit_string
 from py_zipkin.zipkin import ZipkinAttrs
-from thriftpy.protocol.binary import TBinaryProtocol
-from thriftpy.transport import TMemoryBuffer
 
 
 @mock.patch('py_zipkin.zipkin.pop_zipkin_attrs', autospec=True)
 @mock.patch('py_zipkin.zipkin.push_zipkin_attrs', autospec=True)
-@mock.patch('py_zipkin.zipkin.create_attrs_for_root_span', autospec=True)
+@mock.patch('py_zipkin.zipkin.create_attrs_for_span', autospec=True)
 @mock.patch('py_zipkin.zipkin.create_endpoint')
 @mock.patch('py_zipkin.zipkin.ZipkinLoggerHandler', autospec=True)
 @mock.patch('py_zipkin.zipkin.ZipkinLoggingContext', autospec=True)
@@ -23,7 +19,7 @@ def test_zipkin_span_for_new_trace(
     logging_context_cls_mock,
     logger_handler_cls_mock,
     create_endpoint_mock,
-    create_attrs_for_root_span_mock,
+    create_attrs_for_span_mock,
     push_zipkin_attrs_mock,
     pop_zipkin_attrs_mock,
 ):
@@ -37,14 +33,14 @@ def test_zipkin_span_for_new_trace(
     ) as zipkin_context:
         assert zipkin_context.port == 5
         pass
-    create_attrs_for_root_span_mock.assert_called_once_with(sample_rate=100.0)
+    create_attrs_for_span_mock.assert_called_once_with(sample_rate=100.0)
     push_zipkin_attrs_mock.assert_called_once_with(
-        create_attrs_for_root_span_mock.return_value)
+        create_attrs_for_span_mock.return_value)
     create_endpoint_mock.assert_called_once_with(5, 'some_service_name')
     logger_handler_cls_mock.assert_called_once_with(
-        create_attrs_for_root_span_mock.return_value)
+        create_attrs_for_span_mock.return_value)
     logging_context_cls_mock.assert_called_once_with(
-        create_attrs_for_root_span_mock.return_value,
+        create_attrs_for_span_mock.return_value,
         create_endpoint_mock.return_value,
         logger_handler_cls_mock.return_value,
         'span_name',
@@ -56,7 +52,7 @@ def test_zipkin_span_for_new_trace(
 
 @mock.patch('py_zipkin.zipkin.pop_zipkin_attrs', autospec=True)
 @mock.patch('py_zipkin.zipkin.push_zipkin_attrs', autospec=True)
-@mock.patch('py_zipkin.zipkin.create_attrs_for_root_span', autospec=True)
+@mock.patch('py_zipkin.zipkin.create_attrs_for_span', autospec=True)
 @mock.patch('py_zipkin.zipkin.create_endpoint')
 @mock.patch('py_zipkin.zipkin.ZipkinLoggerHandler', autospec=True)
 @mock.patch('py_zipkin.zipkin.ZipkinLoggingContext', autospec=True)
@@ -64,11 +60,11 @@ def test_zipkin_span_trace_with_0_sample_rate(
     logging_context_cls_mock,
     logger_handler_cls_mock,
     create_endpoint_mock,
-    create_attrs_for_root_span_mock,
+    create_attrs_for_span_mock,
     push_zipkin_attrs_mock,
     pop_zipkin_attrs_mock,
 ):
-    create_attrs_for_root_span_mock.return_value = ZipkinAttrs(
+    create_attrs_for_span_mock.return_value = ZipkinAttrs(
         trace_id=generate_random_64bit_string(),
         span_id=generate_random_64bit_string(),
         parent_span_id=None,
@@ -83,9 +79,9 @@ def test_zipkin_span_trace_with_0_sample_rate(
     ) as zipkin_context:
         assert zipkin_context.port == 0
         pass
-    create_attrs_for_root_span_mock.assert_called_once_with(sample_rate=0.0)
+    create_attrs_for_span_mock.assert_called_once_with(sample_rate=0.0)
     push_zipkin_attrs_mock.assert_called_once_with(
-        create_attrs_for_root_span_mock.return_value)
+        create_attrs_for_span_mock.return_value)
     assert create_endpoint_mock.call_count == 0
     assert logger_handler_cls_mock.call_count == 0
     assert logging_context_cls_mock.call_count == 0
@@ -109,6 +105,7 @@ def test_zipkin_invalid_sample_rate():
         with zipkin.zipkin_span(
             service_name='some_service_name',
             span_name='span_name',
+            transport_handler=mock.Mock(),
             sample_rate=101.0,
         ):
             pass
@@ -117,6 +114,7 @@ def test_zipkin_invalid_sample_rate():
         with zipkin.zipkin_span(
             service_name='some_service_name',
             span_name='span_name',
+            transport_handler=mock.Mock(),
             sample_rate=-0.1,
         ):
             pass
@@ -124,7 +122,7 @@ def test_zipkin_invalid_sample_rate():
 
 @mock.patch('py_zipkin.zipkin.pop_zipkin_attrs', autospec=True)
 @mock.patch('py_zipkin.zipkin.push_zipkin_attrs', autospec=True)
-@mock.patch('py_zipkin.zipkin.create_attrs_for_root_span', autospec=True)
+@mock.patch('py_zipkin.zipkin.create_attrs_for_span', autospec=True)
 @mock.patch('py_zipkin.zipkin.create_endpoint')
 @mock.patch('py_zipkin.zipkin.ZipkinLoggerHandler', autospec=True)
 @mock.patch('py_zipkin.zipkin.ZipkinLoggingContext', autospec=True)
@@ -132,7 +130,7 @@ def test_zipkin_span_trace_with_no_sampling(
     logging_context_cls_mock,
     logger_handler_cls_mock,
     create_endpoint_mock,
-    create_attrs_for_root_span_mock,
+    create_attrs_for_span_mock,
     push_zipkin_attrs_mock,
     pop_zipkin_attrs_mock,
 ):
@@ -149,10 +147,9 @@ def test_zipkin_span_trace_with_no_sampling(
         zipkin_attrs=zipkin_attrs,
         transport_handler=mock.Mock(),
         port=5,
-        is_service=True,
     ):
         pass
-    assert create_attrs_for_root_span_mock.call_count == 0
+    assert create_attrs_for_span_mock.call_count == 0
     push_zipkin_attrs_mock.assert_called_once_with(zipkin_attrs)
     assert create_endpoint_mock.call_count == 0
     assert logger_handler_cls_mock.call_count == 0
@@ -160,29 +157,7 @@ def test_zipkin_span_trace_with_no_sampling(
     pop_zipkin_attrs_mock.assert_called_once_with()
 
 
-def test_zipkin_span_is_service_required_params():
-    # Missing zipkin_attrs
-    with pytest.raises(ZipkinError):
-        with zipkin.zipkin_span(
-            service_name='some_service_name',
-            span_name='span_name',
-            port=5,
-            transport_handler=mock.Mock(),
-            is_service=True,
-        ):
-            pass
-
-    # Missing port
-    with pytest.raises(ZipkinError):
-        with zipkin.zipkin_span(
-            service_name='some_service_name',
-            span_name='span_name',
-            zipkin_attrs=mock.Mock(),
-            transport_handler=mock.Mock(),
-            is_service=True,
-        ):
-            pass
-
+def test_zipkin_span_with_zipkin_attrs_required_params():
     # Missing transport_handler
     with pytest.raises(ZipkinError):
         with zipkin.zipkin_span(
@@ -190,14 +165,13 @@ def test_zipkin_span_is_service_required_params():
             span_name='span_name',
             zipkin_attrs=mock.Mock(),
             port=5,
-            is_service=True,
         ):
             pass
 
 
 @mock.patch('py_zipkin.zipkin.pop_zipkin_attrs', autospec=True)
 @mock.patch('py_zipkin.zipkin.push_zipkin_attrs', autospec=True)
-@mock.patch('py_zipkin.zipkin.create_attrs_for_root_span', autospec=True)
+@mock.patch('py_zipkin.zipkin.create_attrs_for_span', autospec=True)
 @mock.patch('py_zipkin.zipkin.create_endpoint')
 @mock.patch('py_zipkin.zipkin.ZipkinLoggerHandler', autospec=True)
 @mock.patch('py_zipkin.zipkin.ZipkinLoggingContext', autospec=True)
@@ -205,7 +179,7 @@ def test_zipkin_trace_context_attrs_is_always_popped(
     logging_context_cls_mock,
     logger_handler_cls_mock,
     create_endpoint_mock,
-    create_attrs_for_root_span_mock,
+    create_attrs_for_span_mock,
     push_zipkin_attrs_mock,
     pop_zipkin_attrs_mock,
 ):
@@ -357,7 +331,7 @@ def test_span_context(
 
 @mock.patch('py_zipkin.zipkin.pop_zipkin_attrs', autospec=True)
 @mock.patch('py_zipkin.zipkin.push_zipkin_attrs', autospec=True)
-@mock.patch('py_zipkin.zipkin.create_attrs_for_root_span', autospec=True)
+@mock.patch('py_zipkin.zipkin.create_attrs_for_span', autospec=True)
 @mock.patch('py_zipkin.zipkin.create_endpoint')
 @mock.patch('py_zipkin.zipkin.ZipkinLoggerHandler', autospec=True)
 @mock.patch('py_zipkin.zipkin.ZipkinLoggingContext', autospec=True)
@@ -365,7 +339,7 @@ def test_zipkin_span_decorator(
     logging_context_cls_mock,
     logger_handler_cls_mock,
     create_endpoint_mock,
-    create_attrs_for_root_span_mock,
+    create_attrs_for_span_mock,
     push_zipkin_attrs_mock,
     pop_zipkin_attrs_mock,
 ):
@@ -383,14 +357,14 @@ def test_zipkin_span_decorator(
 
     assert test_func(1, 2) == 3
 
-    create_attrs_for_root_span_mock.assert_called_once_with(sample_rate=100.0)
+    create_attrs_for_span_mock.assert_called_once_with(sample_rate=100.0)
     push_zipkin_attrs_mock.assert_called_once_with(
-        create_attrs_for_root_span_mock.return_value)
+        create_attrs_for_span_mock.return_value)
     create_endpoint_mock.assert_called_once_with(5, 'some_service_name')
     logger_handler_cls_mock.assert_called_once_with(
-        create_attrs_for_root_span_mock.return_value)
+        create_attrs_for_span_mock.return_value)
     logging_context_cls_mock.assert_called_once_with(
-        create_attrs_for_root_span_mock.return_value,
+        create_attrs_for_span_mock.return_value,
         create_endpoint_mock.return_value,
         logger_handler_cls_mock.return_value,
         'span_name',
@@ -414,7 +388,6 @@ def test_update_binary_annotations_for_root_span():
         zipkin_attrs=zipkin_attrs,
         transport_handler=mock.Mock(),
         port=5,
-        is_service=True,
     )
 
     with context:
@@ -437,7 +410,6 @@ def test_update_binary_annotations_for_root_span_errors():
         zipkin_attrs=zipkin_attrs,
         transport_handler=mock.Mock(),
         port=5,
-        is_service=True,
     )
 
     with context:
@@ -457,7 +429,6 @@ def test_update_binary_annotations_for_root_span_errors():
         zipkin_attrs=zipkin_attrs,
         transport_handler=mock.Mock(),
         port=5,
-        is_service=True,
     )
     # Updating binary annotations without logging set up should error
     with pytest.raises(ZipkinError):
@@ -465,7 +436,7 @@ def test_update_binary_annotations_for_root_span_errors():
 
 
 @mock.patch('py_zipkin.zipkin.generate_random_64bit_string', autospec=True)
-def test_create_attrs_for_root_span(random_mock):
+def test_create_attrs_for_span(random_mock):
     random_mock.return_value = '0000000000000042'
     expected_attrs = ZipkinAttrs(
         trace_id='0000000000000042',
@@ -474,172 +445,17 @@ def test_create_attrs_for_root_span(random_mock):
         flags='0',
         is_sampled=True,
     )
-    assert expected_attrs == zipkin.create_attrs_for_root_span()
+    assert expected_attrs == zipkin.create_attrs_for_span()
 
-
-mock_logger = []
-
-
-def example_transport_handler(message):
-    mock_logger.append(message)
-
-
-def _decode_binary_thrift_obj(obj):
-    trans = TMemoryBuffer(obj)
-    span = zipkin_core.Span()
-    span.read(TBinaryProtocol(trans))
-    return span
-
-
-def test_starting_zipkin_trace_with_sampling_rate():
-    del mock_logger[:]
-    with zipkin.zipkin_span(
-        service_name='test_service_name',
-        span_name='test_span_name',
-        transport_handler=example_transport_handler,
-        sample_rate=100.0,
-        binary_annotations={'some_key': 'some_value'},
-    ):
-        pass
-
-    span = _decode_binary_thrift_obj(mock_logger[0])
-
-    assert span.name == 'test_span_name'
-    assert span.annotations[0].host.service_name == 'test_service_name'
-    assert span.parent_id is None
-    assert span.binary_annotations[0].key == 'some_key'
-    assert span.binary_annotations[0].value == 'some_value'
-    assert set([ann.value for ann in span.annotations]) == set(['ss', 'sr'])
-
-
-def test_span_inside_trace():
-    del mock_logger[:]
-    with zipkin.zipkin_span(
-        service_name='test_service_name',
-        span_name='test_span_name',
-        transport_handler=example_transport_handler,
-        sample_rate=100.0,
-        binary_annotations={'some_key': 'some_value'},
-    ):
-        with zipkin.zipkin_span(
-            service_name='nested_service',
-            span_name='nested_span',
-            annotations={'nested_annotation': 43},
-            binary_annotations={'nested_key': 'nested_value'},
-        ):
-            pass
-
-    root_span = _decode_binary_thrift_obj(mock_logger[1])
-    nested_span = _decode_binary_thrift_obj(mock_logger[0])
-    assert nested_span.name == 'nested_span'
-    assert nested_span.annotations[0].host.service_name == 'nested_service'
-    assert nested_span.parent_id == root_span.id
-    assert nested_span.binary_annotations[0].key == 'nested_key'
-    assert nested_span.binary_annotations[0].value == 'nested_value'
-    assert len(nested_span.annotations) == 5
-    assert set([ann.value for ann in nested_span.annotations]) == set([
-        'ss', 'sr', 'cs', 'cr', 'nested_annotation'])
-    for ann in nested_span.annotations:
-        if ann.value == 'nested_annotation':
-            assert ann.timestamp == 43000000
-
-
-def test_service_span():
-    del mock_logger[:]
-    zipkin_attrs = ZipkinAttrs(
-        trace_id='0',
-        span_id='1',
-        parent_span_id='2',
+    # Test overrides
+    expected_attrs = ZipkinAttrs(
+        trace_id='0000000000000045',
+        span_id='0000000000000042',
+        parent_span_id=None,
         flags='0',
-        is_sampled=True,
+        is_sampled=False,
     )
-    with zipkin.zipkin_span(
-        service_name='test_service_name',
-        span_name='service_span',
-        zipkin_attrs=zipkin_attrs,
-        transport_handler=example_transport_handler,
-        port=45,
-        is_service=True,
-        binary_annotations={'some_key': 'some_value'},
-    ):
-        pass
-
-    span = _decode_binary_thrift_obj(mock_logger[0])
-    assert span.name == 'service_span'
-    assert span.annotations[0].host.service_name == 'test_service_name'
-    assert span.parent_id == 2
-    assert span.binary_annotations[0].key == 'some_key'
-    assert span.binary_annotations[0].value == 'some_value'
-    assert set([ann.value for ann in span.annotations]) == set(['ss', 'sr'])
-
-
-def test_log_debug_for_new_span():
-    del mock_logger[:]
-    with zipkin.zipkin_span(
-        service_name='test_service_name',
-        span_name='test_span_name',
-        transport_handler=example_transport_handler,
-        sample_rate=100.0,
-        binary_annotations={'some_key': 'some_value'},
-    ):
-        zipkin_logger.debug({
-            'annotations': {
-                'cs': 7,
-                'cr': 8,
-            },
-            'binary_annotations': {
-                'logged_binary_annotation': 'logged_value',
-            },
-            'name': 'logged_name',
-            'service_name': 'logged_service_name',
-        })
-        pass
-
-    logged_span = _decode_binary_thrift_obj(mock_logger[0])
-    root_span = _decode_binary_thrift_obj(mock_logger[1])
-    assert logged_span.name == 'logged_name'
-    assert logged_span.annotations[0].host.service_name == 'logged_service_name'
-    assert logged_span.parent_id == root_span.id
-    assert logged_span.binary_annotations[0].key == 'logged_binary_annotation'
-    assert logged_span.binary_annotations[0].value == 'logged_value'
-    assert set([ann.value for ann in logged_span.annotations]) == set(['cs', 'cr'])
-
-
-def test_log_debug_for_existing_span():
-    del mock_logger[:]
-    with zipkin.zipkin_span(
-        service_name='test_service_name',
-        span_name='test_span_name',
-        transport_handler=example_transport_handler,
-        sample_rate=100.0,
-        binary_annotations={'some_key': 'some_value'},
-    ):
-        zipkin_logger.debug({
-            'annotations': {
-                'test_annotation': 42,
-            },
-            'binary_annotations': {
-                'extra_binary_annotation': 'extra_value',
-            }
-        })
-        pass
-
-    assert len(mock_logger) == 1
-    span = _decode_binary_thrift_obj(mock_logger[0])
-    assert span.name == 'test_span_name'
-    assert span.annotations[0].host.service_name == 'test_service_name'
-    assert span.parent_id is None
-    assert len(span.annotations) == 3
-    annotations = sorted(span.annotations, key=lambda ann: ann.value)
-    assert annotations[2].value == 'test_annotation'
-    assert annotations[2].timestamp == 42000000
-    assert set([ann.value for ann in annotations]) == set([
-        'ss', 'sr', 'test_annotation',
-    ])
-    assert len(span.binary_annotations) == 2
-    binary_annotations = sorted(
-        span.binary_annotations, key=lambda bin_ann: bin_ann.key)
-    assert binary_annotations[0].key == 'extra_binary_annotation'
-    assert binary_annotations[0].value == 'extra_value'
-    assert binary_annotations[1].key == 'some_key'
-    assert binary_annotations[1].value == 'some_value'
+    assert expected_attrs == zipkin.create_attrs_for_span(
+        sample_rate=0.0,
+        trace_id='0000000000000045',
+    )
