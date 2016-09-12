@@ -125,13 +125,31 @@ class zipkin_span(object):
         self.annotations = annotations or {}
         self.binary_annotations = binary_annotations or {}
         self.port = port
-        if sample_rate is None:
+        self.logging_context = None
+
+        # Validation checks
+        if self.zipkin_attrs:
+            if self.port is None:
+                # Default port to 0 in cases where a port number doesn't make
+                # sense
+                self.port = 0
+            if self.transport_handler is None:
+                raise ZipkinError(
+                    'zipkin_attrs requires a transport handler to be given')
+
+        if sample_rate is None or 0.0 <= sample_rate <= 100.0:
             self.sample_rate = sample_rate
-        elif 0.0 <= sample_rate <= 100.0:
-            self.sample_rate = sample_rate
+
+            if self.sample_rate is not None:
+                if self.port is None:
+                    # Default port to 0 in cases where a port number doesn't make
+                    # sense
+                    self.port = 0
+                if self.transport_handler is None:
+                    raise ZipkinError(
+                        'Sample rate requires a transport handler to be given')
         else:
             raise ZipkinError('Sample rate must be between 0.0 and 100.0')
-        self.logging_context = None
 
     def __call__(self, f):
         @functools.wraps(f)
@@ -151,27 +169,14 @@ class zipkin_span(object):
         never attached in the unsampled case, so the spans are never logged.
         """
         self.do_pop_attrs = False
+        # If this span is the first span to be recorded for a service, then
+        # logging will need to be set up.
         self.is_root = False
 
         if self.zipkin_attrs:
             self.is_root = True
-            if self.port is None:
-                # Default port to 0 in cases where a port number doesn't make
-                # sense
-                self.port = 0
-            if self.transport_handler is None:
-                raise ZipkinError(
-                    'Sample rate requires a transport handler to be given')
-
         if self.sample_rate is not None:
             self.is_root = True
-            if self.port is None:
-                # Default port to 0 in cases where a port number doesn't make
-                # sense
-                self.port = 0
-            if self.transport_handler is None:
-                raise ZipkinError(
-                    'Sample rate requires a transport handler to be given')
 
             if self.zipkin_attrs and not self.zipkin_attrs.is_sampled:
                 self.zipkin_attrs = create_attrs_for_span(
