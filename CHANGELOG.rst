@@ -1,3 +1,3 @@
 0.1.0 (2016-07-05)
 ------------------
-- python-zipkin setup.
+- First py_zipkin version with context manager/decorator functionality.
