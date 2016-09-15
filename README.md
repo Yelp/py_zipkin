@@ -52,7 +52,7 @@ separately and passed in, thus negating the need of the sample_rate param.
 def tween(request):
     zipkin_attrs = some_zipkin_attr_creator(request)
     with zipkin_span(
-        service_name='my_service,'
+        service_name='my_service',
         span_name='my_span_name',
         zipkin_attrs=zipkin_attrs,
         transport_handler=some_handler,
