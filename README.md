@@ -28,7 +28,7 @@ manager or a decorator.
 
 #### Usage #1: Start a trace with a given sampling rate
 
-```
+```python
 from py_zipkin.zipkin import zipkin_span
 
 def some_function(a, b):
@@ -47,7 +47,7 @@ def some_function(a, b):
 The difference between this and Usage #1 is that the zipkin_attrs are calculated
 separately and passed in, thus negating the need of the sample_rate param.
 
-```
+```python
 # Define a pyramid tween
 def tween(request):
     zipkin_attrs = some_zipkin_attr_creator(request)
@@ -68,7 +68,7 @@ def tween(request):
 
 This can be also be used inside itself to produce continuously nested spans.
 
-```
+```python
 @zipkin_span(service_name='my_service', span_name='some_function')
 def some_function(a, b):
     return do_stuff(a, b)
@@ -79,7 +79,7 @@ def some_function(a, b):
 `zipkin_span.update_binary_annotations_for_root_span()` can be used inside a zipkin trace
 to add to the existing set of binary annotations for the root span.
 
-```
+```python
 def some_function(a, b):
     with zipkin_span(
         service_name='my_service',
@@ -95,7 +95,7 @@ def some_function(a, b):
 `create_http_headers_for_new_span()` creates a set of HTTP headers that can be forwarded
 in a request to another service.
 
-```
+```python
 headers = {}
 headers.update(create_http_headers_for_new_span())
 http_client.get(
@@ -104,6 +104,22 @@ http_client.get(
 )
 ```
 
+Transport
+---------
+
+py_zipkin (for the moment) thrift-encodes spans. The actual transport layer is
+pluggable, though. The `transport_handler` is a function that takes a single
+argument - the thrift-encoded bytes. An example of sending spans to Kafka
+using the [kafka-python](https://pypi.python.org/pypi/kafka-python) package:
+
+```python
+from kafka import SimpleProducer, KafkaClient
+
+def transport_handler(message):
+    kafka_client = KafkaClient('{}:{}'.format('localhost', 9092))
+    producer = SimpleProducer(kafka_client)
+    producer.send_messages('kafka_topic_name', message)
+```
 
 License
 -------
