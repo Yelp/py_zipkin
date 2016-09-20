@@ -85,6 +85,7 @@ class zipkin_span(object):
         with zipkin_span(service_name='my_service', span_name='do_stuff'):
             do_stuff()
     """
+
     def __init__(
         self,
         service_name,

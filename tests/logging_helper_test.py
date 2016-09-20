@@ -1,10 +1,9 @@
 import mock
-
 import pytest
 
 from py_zipkin import logging_helper
-from py_zipkin.zipkin import ZipkinAttrs
 from py_zipkin.exception import ZipkinError
+from py_zipkin.zipkin import ZipkinAttrs
 
 
 # This test _must_ be the first test in this file

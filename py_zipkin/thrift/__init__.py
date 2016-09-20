@@ -4,8 +4,9 @@ import socket
 import struct
 
 import thriftpy
-from thriftpy.transport import TMemoryBuffer
 from thriftpy.protocol.binary import TBinaryProtocol
+from thriftpy.transport import TMemoryBuffer
+
 from py_zipkin.util import unsigned_hex_to_signed_int
 
 
