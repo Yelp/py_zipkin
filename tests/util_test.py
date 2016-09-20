@@ -1,5 +1,6 @@
-import mock
 import sys
+
+import mock
 
 from py_zipkin import util
 

@@ -36,6 +36,7 @@ class ZipkinLoggingContext(object):
     :param span_name:
     :param transport_handler:
     """
+
     def __init__(
         self,
         zipkin_attrs,
