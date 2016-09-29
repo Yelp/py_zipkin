@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import functools
+import random
 import time
 from collections import namedtuple
 
@@ -301,8 +302,7 @@ def create_attrs_for_span(sample_rate=100.0, trace_id=None):
     if sample_rate == 0.0:
         is_sampled = False
     else:
-        inverse_frequency = int((1.0 / sample_rate) * 100)
-        is_sampled = (int(trace_id, 16) % inverse_frequency) == 0
+        is_sampled = (random.random() * 100) < sample_rate
 
     return ZipkinAttrs(
         trace_id=trace_id,
