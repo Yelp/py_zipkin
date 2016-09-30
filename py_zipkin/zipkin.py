@@ -116,8 +116,12 @@ class zipkin_span(object):
         :type binary_annotations: dict of str -> str
         :param port: The port number of the service. Defaults to 0.
         :type port: int
-        :param sample_rate: Custom sampling rate (between 100.0 and 0.0) if
-                            this is the root of the trace
+        :param sample_rate: Rate at which to sample; 0.0 - 100.0. If passed-in
+            zipkin_attrs have is_sampled=False and the sample_rate param is > 0,
+            a new span will be generated at this rate. This means that if you
+            propagate sampling decisions to downstream services, but still have
+            sample_rate > 0 in those services, the actual rate of generated
+            spans for those services will be > sampling_rate.
         :type sample_rate: float
         """
         self.service_name = service_name
