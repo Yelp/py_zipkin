@@ -157,21 +157,19 @@ class zipkin_span(object):
         never attached in the unsampled case, so the spans are never logged.
         """
         self.do_pop_attrs = False
-        # If this span is the first span to be recorded for a service, then
-        # logging will need to be set up.
-        self.is_root = False
+        # If zipkin_attrs are passed in or this span is doing its own sampling,
+        # it will need to actually log spans at __exit__.
+        self.perform_logging = self.zipkin_attrs or self.sample_rate is not None
 
-        if self.zipkin_attrs:
-            self.is_root = True
         if self.sample_rate is not None:
-            self.is_root = True
-
+            # This clause allows for sampling this service independently
+            # of the passed-in zipkin_attrs.
             if self.zipkin_attrs and not self.zipkin_attrs.is_sampled:
                 self.zipkin_attrs = create_attrs_for_span(
                     sample_rate=self.sample_rate,
                     trace_id=self.zipkin_attrs.trace_id,
                 )
-            else:
+            elif not self.zipkin_attrs:
                 self.zipkin_attrs = create_attrs_for_span(
                     sample_rate=self.sample_rate,
                 )
@@ -188,7 +186,10 @@ class zipkin_span(object):
                     is_sampled=existing_zipkin_attrs.is_sampled,
                 )
 
-        # Don't do anything if zipkin attributes are not set up
+        # If zipkin_attrs are not set up by now, that means this span is not
+        # configured to perform logging itself, and it's not in an existing
+        # Zipkin trace. That means there's nothing else to do and it can exit
+        # early.
         if not self.zipkin_attrs:
             return self
 
@@ -198,7 +199,7 @@ class zipkin_span(object):
         self.start_timestamp = time.time()
 
         # Set up logging if this is the root span
-        if self.is_root:
+        if self.perform_logging:
             # Don't set up any logging if we're not sampling
             if not self.zipkin_attrs.is_sampled:
                 return self

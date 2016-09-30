@@ -56,6 +56,54 @@ def test_zipkin_span_for_new_trace(
 @mock.patch('py_zipkin.zipkin.create_endpoint')
 @mock.patch('py_zipkin.zipkin.ZipkinLoggerHandler', autospec=True)
 @mock.patch('py_zipkin.zipkin.ZipkinLoggingContext', autospec=True)
+def test_zipkin_span_passed_sampled_attrs(
+    logging_context_cls_mock,
+    logger_handler_cls_mock,
+    create_endpoint_mock,
+    create_attrs_for_span_mock,
+    push_zipkin_attrs_mock,
+    pop_zipkin_attrs_mock,
+):
+    # Make sure that if zipkin_span is passed *sampled* ZipkinAttrs, but is
+    # also configured to do sampling itself, the passed ZipkinAttrs are used.
+    transport_handler = mock.Mock()
+    zipkin_attrs = ZipkinAttrs(
+        trace_id='0',
+        span_id='1',
+        parent_span_id=None,
+        flags='0',
+        is_sampled=True,
+    )
+    with zipkin.zipkin_span(
+        service_name='some_service_name',
+        span_name='span_name',
+        transport_handler=transport_handler,
+        port=5,
+        sample_rate=100.0,
+        zipkin_attrs=zipkin_attrs,
+    ) as zipkin_context:
+        assert zipkin_context.port == 5
+    assert not create_attrs_for_span_mock.called
+    push_zipkin_attrs_mock.assert_called_once_with(zipkin_attrs)
+    create_endpoint_mock.assert_called_once_with(5, 'some_service_name')
+    logger_handler_cls_mock.assert_called_once_with(zipkin_attrs)
+    logging_context_cls_mock.assert_called_once_with(
+        zipkin_attrs,
+        create_endpoint_mock.return_value,
+        logger_handler_cls_mock.return_value,
+        'span_name',
+        transport_handler,
+        {},
+    )
+    pop_zipkin_attrs_mock.assert_called_once_with()
+
+
+@mock.patch('py_zipkin.zipkin.pop_zipkin_attrs', autospec=True)
+@mock.patch('py_zipkin.zipkin.push_zipkin_attrs', autospec=True)
+@mock.patch('py_zipkin.zipkin.create_attrs_for_span', autospec=True)
+@mock.patch('py_zipkin.zipkin.create_endpoint')
+@mock.patch('py_zipkin.zipkin.ZipkinLoggerHandler', autospec=True)
+@mock.patch('py_zipkin.zipkin.ZipkinLoggingContext', autospec=True)
 def test_zipkin_span_trace_with_0_sample_rate(
     logging_context_cls_mock,
     logger_handler_cls_mock,
