@@ -1,3 +1,9 @@
+0.2.1 (2016-09-30)
+------------------
+- Officially "release" v0.2.0. Accidentally pushed a v0.2.0 without
+  the proper version bump, so v0.2.1 is the new real version. Please
+  use this instead of v0.2.0.
+
 0.2.0 (2016-09-30)
 ------------------
 - Fix problem where if zipkin_attrs and sample_rate were passed, but
