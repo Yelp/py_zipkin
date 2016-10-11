@@ -109,8 +109,30 @@ Transport
 
 py_zipkin (for the moment) thrift-encodes spans. The actual transport layer is
 pluggable, though. The `transport_handler` is a function that takes a single
-argument - the thrift-encoded bytes. An example of sending spans to Kafka
-using the [kafka-python](https://pypi.python.org/pypi/kafka-python) package:
+argument - the thrift-encoded bytes.
+
+The simplest way to get spans to the collector is via HTTP POST. Here's an
+example of a simple HTTP transport using the `requests` library. This assumes
+your Zipkin collector is running at localhost:9411.
+
+```python
+import requests
+
+def http_transport(message):
+    # The collector expects a thrift-encoded list of spans. Instead of
+    # decoding and re-encoding the already thrift-encoded message, we can just
+    # add header bytes that specify that what follows is a list of length 1.
+    message = '\x0c\x00\x00\x00\x01' + message
+    requests.post(
+        'http://localhost:9411/api/v1/spans',
+        data=message,
+        headers={'Content-Type': 'application/x-thrift'},
+    )
+```
+
+If you have the ability to send spans over Kafka (more like what you might do
+in production), you'd do something like the following, using the
+[kafka-python](https://pypi.python.org/pypi/kafka-python) package:
 
 ```python
 from kafka import SimpleProducer, KafkaClient
