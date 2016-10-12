@@ -118,14 +118,14 @@ your Zipkin collector is running at localhost:9411.
 ```python
 import requests
 
-def http_transport(message):
+def http_transport(encoded_span):
     # The collector expects a thrift-encoded list of spans. Instead of
     # decoding and re-encoding the already thrift-encoded message, we can just
     # add header bytes that specify that what follows is a list of length 1.
-    message = '\x0c\x00\x00\x00\x01' + message
+    body = '\x0c\x00\x00\x00\x01' + encoded_span
     requests.post(
         'http://localhost:9411/api/v1/spans',
-        data=message,
+        data=body,
         headers={'Content-Type': 'application/x-thrift'},
     )
 ```
