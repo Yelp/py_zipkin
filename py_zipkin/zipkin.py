@@ -30,6 +30,12 @@ ZipkinAttrs = namedtuple(
 )
 
 
+STANDARD_ANNOTATIONS = {
+    'client': {'cs', 'cr'},
+    'server': {'ss', 'sr'},
+}
+
+
 class zipkin_span(object):
     """Context manager/decorator for all of your zipkin tracing needs.
 
@@ -97,6 +103,7 @@ class zipkin_span(object):
         binary_annotations=None,
         port=0,
         sample_rate=None,
+        include=('client', 'server'),
     ):
         """Logs a zipkin span. If this is the root span, then a zipkin
         trace is started as well.
@@ -123,6 +130,10 @@ class zipkin_span(object):
             sample_rate > 0 in those services, the actual rate of generated
             spans for those services will be > sampling_rate.
         :type sample_rate: float
+        :param include: which annotations to include
+            can be one of {'client', 'server'}
+            corresponding to ('cs', 'cr') and ('ss', 'sr') respectively
+        :type include: iterable
         """
         self.service_name = service_name
         self.span_name = span_name
@@ -142,6 +153,20 @@ class zipkin_span(object):
 
         if self.sample_rate is not None and not (0.0 <= self.sample_rate <= 100.0):
             raise ZipkinError('Sample rate must be between 0.0 and 100.0')
+
+        if not set(include).issubset(set(STANDARD_ANNOTATIONS.keys())):
+            raise ZipkinError(
+                'Only %s are supported as annotations' %
+                STANDARD_ANNOTATIONS.keys()
+            )
+        else:
+            # get a list of all of the mapped annotations
+            self.annotation_filter = {
+                annotation
+                for include_name, annotation_list in STANDARD_ANNOTATIONS.items()
+                for annotation in annotation_list
+                if include_name in include
+            }
 
     def __call__(self, f):
         @functools.wraps(f)
@@ -264,12 +289,18 @@ class zipkin_span(object):
         self.log_handler.parent_span_id = self.old_parent_span_id
 
         # To get a full span we just set cs=sr and ss=cr.
-        self.annotations.update({
+        full_annotations = {
             'cs': self.start_timestamp,
             'sr': self.start_timestamp,
             'ss': end_timestamp,
             'cr': end_timestamp,
-        })
+        }
+        # But we filter down if we only want to emit some of the annotations
+        filtered_annotations = {
+            k: v for k, v in full_annotations.items()
+            if k in self.annotation_filter
+        }
+        self.annotations.update(filtered_annotations)
 
         # Store this span on the logging handler object.
         self.log_handler.store_client_span(
@@ -290,6 +321,18 @@ class zipkin_span(object):
         if not self.logging_context:
             raise ZipkinError('No logging context available')
         self.logging_context.binary_annotations_dict.update(extra_annotations)
+
+
+class zipkin_client_span(zipkin_span):
+    def __init__(self, *args, **kwargs):
+        kwargs['include'] = ('client',)
+        super(zipkin_client_span, self).__init__(*args, **kwargs)
+
+
+class zipkin_server_span(zipkin_span):
+    def __init__(self, *args, **kwargs):
+        kwargs['include'] = ('server',)
+        super(zipkin_server_span, self).__init__(*args, **kwargs)
 
 
 def create_attrs_for_span(sample_rate=100.0, trace_id=None):
