@@ -163,8 +163,8 @@ class zipkin_span(object):
             # get a list of all of the mapped annotations
             self.annotation_filter = {
                 annotation
-                for include_name, annotation_list in STANDARD_ANNOTATIONS.items()
-                for annotation in annotation_list
+                for include_name, annotation_set in STANDARD_ANNOTATIONS.items()
+                for annotation in annotation_set
                 if include_name in include
             }
 
@@ -323,14 +323,44 @@ class zipkin_span(object):
         self.logging_context.binary_annotations_dict.update(extra_annotations)
 
 
+def _validate_args(kwargs):
+    if 'include' in kwargs:
+        raise ValueError(
+            '"include" is not valid in this context.'
+            'You probably want to use zipkin_span()'
+        )
+
+
 class zipkin_client_span(zipkin_span):
+    """Logs a client-side zipkin span.
+
+    Subclass of :class:`zipkin_span` using only annotations relevant to clients
+    """
+
     def __init__(self, *args, **kwargs):
+        """Logs a zipkin span with client annotations.
+
+        See :class:`zipkin_span` for arguments
+        """
+        _validate_args(kwargs)
+
         kwargs['include'] = ('client',)
         super(zipkin_client_span, self).__init__(*args, **kwargs)
 
 
 class zipkin_server_span(zipkin_span):
+    """Logs a server-side zipkin span.
+
+    Subclass of :class:`zipkin_span` using only annotations relevant to servers
+    """
+
     def __init__(self, *args, **kwargs):
+        """Logs a zipkin span with server annotations.
+
+        See :class:`zipkin_span` for arguments
+        """
+        _validate_args(kwargs)
+
         kwargs['include'] = ('server',)
         super(zipkin_server_span, self).__init__(*args, **kwargs)
 

@@ -180,6 +180,23 @@ def test_zipkin_invalid_include():
             pass
 
 
+@pytest.mark.parametrize('span_func', [
+    zipkin.zipkin_client_span,
+    zipkin.zipkin_server_span,
+])
+@mock.patch('py_zipkin.zipkin.zipkin_span', autospec=True)
+def test_zipkin_extraneous_include_raises(mock_zipkin_span, span_func):
+    with pytest.raises(ValueError):
+        with span_func(
+            service_name='some_service_name',
+            span_name='span_name',
+            transport_handler=mock.Mock(),
+            sample_rate=100.0,
+            include=('foobar',)
+        ):
+            assert mock_zipkin_span.__init__.call_count == 0
+
+
 @mock.patch('py_zipkin.zipkin.pop_zipkin_attrs', autospec=True)
 @mock.patch('py_zipkin.zipkin.push_zipkin_attrs', autospec=True)
 @mock.patch('py_zipkin.zipkin.create_attrs_for_span', autospec=True)
@@ -330,6 +347,11 @@ def test_span_context_sampled_no_handlers(
     assert get_zipkin_attrs() == zipkin_attrs
 
 
+@pytest.mark.parametrize('span_func, expected_annotations', [
+    (zipkin.zipkin_span, ('cs', 'cr', 'ss', 'sr')),
+    (zipkin.zipkin_client_span, ('cs', 'cr')),
+    (zipkin.zipkin_server_span, ('ss', 'sr')),
+])
 @mock.patch('py_zipkin.thread_local._thread_local', autospec=True)
 @mock.patch('py_zipkin.zipkin.generate_random_64bit_string', autospec=True)
 @mock.patch('py_zipkin.zipkin.zipkin_logger', autospec=True)
@@ -337,6 +359,8 @@ def test_span_context(
     zipkin_logger_mock,
     generate_string_mock,
     thread_local_mock,
+    span_func,
+    expected_annotations,
 ):
     zipkin_attrs = ZipkinAttrs(
         trace_id='1111111111111111',
@@ -353,7 +377,7 @@ def test_span_context(
     zipkin_logger_mock.handlers = [logging_handler]
     generate_string_mock.return_value = '1'
 
-    context = zipkin.zipkin_span(
+    context = span_func(
         service_name='svc',
         span_name='span',
         annotations={'something': 1},
@@ -375,7 +399,7 @@ def test_span_context(
     assert logging_handler.client_spans == []
     # These reserved annotations are based on timestamps so pop em.
     # This also acts as a check that they exist.
-    for annotation in ('cs', 'cr', 'ss', 'sr'):
+    for annotation in expected_annotations:
         client_span['annotations'].pop(annotation)
 
     expected_client_span = {
@@ -387,74 +411,6 @@ def test_span_context(
         'binary_annotations': {'foo': 'bar'},
     }
     assert client_span == expected_client_span
-
-
-@mock.patch('py_zipkin.thread_local._thread_local', autospec=True)
-@mock.patch('py_zipkin.zipkin.generate_random_64bit_string', autospec=True)
-@mock.patch('py_zipkin.zipkin.zipkin_logger', autospec=True)
-def test_client_span_context(
-    zipkin_logger_mock,
-    generate_string_mock,
-    thread_local_mock,
-):
-    zipkin_attrs = ZipkinAttrs(
-        trace_id='1111111111111111',
-        span_id='2222222222222222',
-        parent_span_id='3333333333333333',
-        flags='flags',
-        is_sampled=True,
-    )
-    thread_local_mock.zipkin_attrs = [zipkin_attrs]
-    logging_handler = ZipkinLoggerHandler(zipkin_attrs)
-    assert logging_handler.parent_span_id is None
-    assert logging_handler.client_spans == []
-
-    zipkin_logger_mock.handlers = [logging_handler]
-    generate_string_mock.return_value = '1'
-
-    context = zipkin.zipkin_client_span(
-        service_name='svc',
-        span_name='span',
-    )
-    with context:
-        pass
-
-    client_span = logging_handler.client_spans.pop()
-    assert set(client_span['annotations'].keys()) == {'cr', 'cs'}
-
-
-@mock.patch('py_zipkin.thread_local._thread_local', autospec=True)
-@mock.patch('py_zipkin.zipkin.generate_random_64bit_string', autospec=True)
-@mock.patch('py_zipkin.zipkin.zipkin_logger', autospec=True)
-def test_server_span_context(
-    zipkin_logger_mock,
-    generate_string_mock,
-    thread_local_mock,
-):
-    zipkin_attrs = ZipkinAttrs(
-        trace_id='1111111111111111',
-        span_id='2222222222222222',
-        parent_span_id='3333333333333333',
-        flags='flags',
-        is_sampled=True,
-    )
-    thread_local_mock.zipkin_attrs = [zipkin_attrs]
-    logging_handler = ZipkinLoggerHandler(zipkin_attrs)
-    assert logging_handler.parent_span_id is None
-    assert logging_handler.client_spans == []
-
-    zipkin_logger_mock.handlers = [logging_handler]
-    generate_string_mock.return_value = '1'
-
-    context = zipkin.zipkin_server_span(
-        service_name='svc',
-        span_name='span',
-    )
-    with context:
-        pass
-
-    client_span = logging_handler.client_spans.pop()
-    assert set(client_span['annotations'].keys()) == {'sr', 'ss'}
 
 
 @mock.patch('py_zipkin.zipkin.pop_zipkin_attrs', autospec=True)
