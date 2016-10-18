@@ -34,6 +34,7 @@ STANDARD_ANNOTATIONS = {
     'client': {'cs', 'cr'},
     'server': {'ss', 'sr'},
 }
+STANDARD_ANNOTATIONS_KEYS = frozenset(STANDARD_ANNOTATIONS.keys())
 
 
 class zipkin_span(object):
@@ -154,10 +155,10 @@ class zipkin_span(object):
         if self.sample_rate is not None and not (0.0 <= self.sample_rate <= 100.0):
             raise ZipkinError('Sample rate must be between 0.0 and 100.0')
 
-        if not set(include).issubset(set(STANDARD_ANNOTATIONS.keys())):
+        if not set(include).issubset(STANDARD_ANNOTATIONS_KEYS):
             raise ZipkinError(
                 'Only %s are supported as annotations' %
-                STANDARD_ANNOTATIONS.keys()
+                STANDARD_ANNOTATIONS_KEYS
             )
         else:
             # get a list of all of the mapped annotations
