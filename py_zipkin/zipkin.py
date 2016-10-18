@@ -161,12 +161,9 @@ class zipkin_span(object):
             )
         else:
             # get a list of all of the mapped annotations
-            self.annotation_filter = {
-                annotation
-                for include_name, annotation_set in STANDARD_ANNOTATIONS.items()
-                for annotation in annotation_set
-                if include_name in include
-            }
+            self.annotation_filter = set()
+            for include_name in include:
+                self.annotation_filter.update(STANDARD_ANNOTATIONS[include_name])
 
     def __call__(self, f):
         @functools.wraps(f)
@@ -326,7 +323,7 @@ class zipkin_span(object):
 def _validate_args(kwargs):
     if 'include' in kwargs:
         raise ValueError(
-            '"include" is not valid in this context.'
+            '"include" is not valid in this context. '
             'You probably want to use zipkin_span()'
         )
 
