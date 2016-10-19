@@ -1,3 +1,9 @@
+0.3.1 (2016-09-30)
+------------------
+- Adds new param to thrift.create_endpoint allowing creation of
+  thrift Endpoint objects on a proxy machine representing another
+  host.
+
 0.2.1 (2016-09-30)
 ------------------
 - Officially "release" v0.2.0. Accidentally pushed a v0.2.0 without
