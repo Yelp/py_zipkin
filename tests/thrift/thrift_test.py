@@ -47,6 +47,16 @@ def test_create_endpoint_defaults_service_name(gethostbyname):
 
 
 @mock.patch('socket.gethostbyname', autospec=True)
+def test_create_endpoint_correct_host_ip(gethostbyname):
+    gethostbyname.return_value = '1.2.3.4'
+    endpoint = thrift.create_endpoint(host='0.0.0.0')
+    assert endpoint.service_name == 'unknown'
+    assert endpoint.port == 0
+    # An IP address of 0.0.0.0 unpacks to just 0
+    assert endpoint.ipv4 == 0
+
+
+@mock.patch('socket.gethostbyname', autospec=True)
 def test_copy_endpoint_with_new_service_name(gethostbyname):
     gethostbyname.return_value = '0.0.0.0'
     endpoint = thrift.create_endpoint(

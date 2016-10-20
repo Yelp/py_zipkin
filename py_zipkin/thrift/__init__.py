@@ -49,16 +49,19 @@ def create_binary_annotation(key, value, annotation_type, host):
     )
 
 
-def create_endpoint(port=0, service_name='unknown'):
+def create_endpoint(port=0, service_name='unknown', host=None):
     """Create a zipkin Endpoint object.
 
     An Endpoint object holds information about the network context of a span.
 
     :param port: int value of the port. Defaults to 0
     :param service_name: service name as a str. Defaults to 'unknown'
+    :param host: string containing ipv4 value of the host, if not provided,
+    host is determined automatically
     :returns: zipkin Endpoint object
     """
-    host = socket.gethostbyname(socket.gethostname())
+    if host is None:
+        host = socket.gethostbyname(socket.gethostname())
     # Convert ip address to network byte order
     ipv4 = struct.unpack('!i', socket.inet_aton(host))[0]
     # Zipkin passes unsigned values in signed types because Thrift has no
