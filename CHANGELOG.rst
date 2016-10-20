@@ -1,3 +1,8 @@
+0.4.0 (2016-10-20)
+------------------
+- Added `start` and `stop` functions as friendlier versions of the
+  __enter__ and __exit__ functions.
+
 0.3.1 (2016-09-30)
 ------------------
 - Adds new param to thrift.create_endpoint allowing creation of
