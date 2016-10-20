@@ -534,7 +534,7 @@ def test_create_attrs_for_span(random_mock):
     # Test overrides
     expected_attrs = ZipkinAttrs(
         trace_id='0000000000000045',
-        span_id='0000000000000042',
+        span_id='0000000000000046',
         parent_span_id=None,
         flags='0',
         is_sampled=False,
@@ -542,4 +542,5 @@ def test_create_attrs_for_span(random_mock):
     assert expected_attrs == zipkin.create_attrs_for_span(
         sample_rate=0.0,
         trace_id='0000000000000045',
+        span_id='0000000000000046',
     )
