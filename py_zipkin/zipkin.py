@@ -174,6 +174,9 @@ class zipkin_span(object):
         return decorated
 
     def __enter__(self):
+        return self.start()
+
+    def start(self):
         """Enter the new span context. All annotations logged inside this
         context will be attributed to this span. All new spans generated
         inside this context will have this span as their parent.
@@ -262,6 +265,9 @@ class zipkin_span(object):
             return self
 
     def __exit__(self, _exc_type, _exc_value, _exc_traceback):
+        self.stop(_exc_type, _exc_value, _exc_traceback)
+
+    def stop(self, _exc_type=None, _exc_value=None, _exc_traceback=None):
         """Exit the span context. Zipkin attrs are pushed onto the
         threadlocal stack regardless of sampling, so they always need to be
         popped off. The actual logging of spans depends on sampling and that
