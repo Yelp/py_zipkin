@@ -1,3 +1,7 @@
+0.4.1 (2016-10-24)
+------------------
+- Add ability to override span_id when creating new ZipkinAttrs.
+
 0.4.0 (2016-10-20)
 ------------------
 - Added `start` and `stop` functions as friendlier versions of the
