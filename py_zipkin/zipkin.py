@@ -369,7 +369,7 @@ class zipkin_server_span(zipkin_span):
         super(zipkin_server_span, self).__init__(*args, **kwargs)
 
 
-def create_attrs_for_span(sample_rate=100.0, trace_id=None):
+def create_attrs_for_span(sample_rate=100.0, trace_id=None, span_id=None):
     """Creates a set of zipkin attributes for a span.
 
     :param sample_rate: Float between 0.0 and 100.0 to determine sampling rate
@@ -377,10 +377,15 @@ def create_attrs_for_span(sample_rate=100.0, trace_id=None):
     :param trace_id: Optional 16-character hex string representing a trace_id.
                     If this is None, a random trace_id will be generated.
     :type trace_id: str
+    :param span_id: Optional 16-character hex string representing a span_id.
+                    If this is None, a random span_id will be generated.
+    :type span_id: str
     """
     # Calculate if this trace is sampled based on the sample rate
     if trace_id is None:
         trace_id = generate_random_64bit_string()
+    if span_id is None:
+        span_id = generate_random_64bit_string()
     if sample_rate == 0.0:
         is_sampled = False
     else:
@@ -388,7 +393,7 @@ def create_attrs_for_span(sample_rate=100.0, trace_id=None):
 
     return ZipkinAttrs(
         trace_id=trace_id,
-        span_id=generate_random_64bit_string(),
+        span_id=span_id,
         parent_span_id=None,
         flags='0',
         is_sampled=is_sampled,
