@@ -1,3 +1,7 @@
+0.4.2 (2016-11-01)
+------------------
+- Be defensive about transport_handler when logging spans.
+
 0.4.1 (2016-10-24)
 ------------------
 - Add ability to override span_id when creating new ZipkinAttrs.
