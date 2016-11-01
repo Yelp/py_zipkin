@@ -269,6 +269,10 @@ def log_span(
     transport_handler,
 ):
     """Creates a span and logs it using the given transport_handler."""
+    # Be defensive about the lack of a transport handler
+    if not transport_handler:
+        return
+
     span = create_span(
         span_id,
         parent_span_id,

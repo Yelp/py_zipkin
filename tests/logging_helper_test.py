@@ -252,3 +252,23 @@ def test_log_span_calls_transport_handler_with_correct_params(
         transport_handler=transport_handler,
     )
     transport_handler.assert_called_once_with(thrift_obj.return_value)
+
+
+@mock.patch('py_zipkin.logging_helper.create_span', autospec=True)
+@mock.patch('py_zipkin.logging_helper.thrift_obj_in_bytes', autospec=True)
+def test_log_span_defensive_about_transport_handler(
+    thrift_obj,
+    create_sp
+):
+    transport_handler = None
+    logging_helper.log_span(
+        span_id='0000000000000002',
+        parent_span_id='0000000000000001',
+        trace_id='00000000000000015',
+        span_name='span',
+        annotations='ann',
+        binary_annotations='binary_ann',
+        transport_handler=transport_handler,
+    )
+    assert thrift_obj.call_count == 0
+    assert create_sp.call_count == 0
