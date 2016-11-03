@@ -458,6 +458,25 @@ def test_zipkin_span_decorator(
     pop_zipkin_attrs_mock.assert_called_once_with()
 
 
+@mock.patch('py_zipkin.zipkin.create_endpoint', wraps=zipkin.create_endpoint)
+def test_zipkin_span_decorator_many(create_endpoint_mock):
+    @zipkin.zipkin_span(service_name='decorator')
+    def test_func(a, b):
+        return a + b
+
+    assert test_func(1, 2) == 3
+    assert create_endpoint_mock.call_count == 0
+    with zipkin.zipkin_span(
+            service_name='context_manager',
+            transport_handler=mock.Mock(),
+            sample_rate=100.0,
+    ):
+        assert test_func(1, 2) == 3
+    assert create_endpoint_mock.call_count == 1
+    assert test_func(1, 2) == 3
+    assert create_endpoint_mock.call_count == 1
+
+
 def test_update_binary_annotations_for_root_span():
     zipkin_attrs = ZipkinAttrs(
         trace_id='0',
