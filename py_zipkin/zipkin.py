@@ -145,6 +145,7 @@ class zipkin_span(object):
         self.port = port
         self.logging_context = None
         self.sample_rate = sample_rate
+        self.include = include
 
         # Validation checks
         if self.zipkin_attrs or self.sample_rate is not None:
@@ -169,7 +170,17 @@ class zipkin_span(object):
     def __call__(self, f):
         @functools.wraps(f)
         def decorated(*args, **kwargs):
-            with self:
+            with zipkin_span(
+                service_name=self.service_name,
+                span_name=self.span_name,
+                zipkin_attrs=self.zipkin_attrs,
+                transport_handler=self.transport_handler,
+                annotations=self.annotations,
+                binary_annotations=self.binary_annotations,
+                port=self.port,
+                sample_rate=self.sample_rate,
+                include=self.include,
+            ):
                 return f(*args, **kwargs)
         return decorated
 
