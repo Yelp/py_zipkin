@@ -1,3 +1,7 @@
+0.4.3 (2016-11-04)
+------------------
+- Fix bug in zipkin_span decorator
+
 0.4.2 (2016-11-01)
 ------------------
 - Be defensive about transport_handler when logging spans.
