@@ -24,6 +24,8 @@ zipkin_logger = logging.getLogger('py_zipkin.logger')
 zipkin_logger.addHandler(null_handler)
 zipkin_logger.setLevel(logging.DEBUG)
 
+LOGGING_START_KEY = 'py_zipkin.logging_start'
+
 
 class ZipkinLoggingContext(object):
     """The main logging context manager which controls logging handler and
@@ -79,6 +81,7 @@ class ZipkinLoggingContext(object):
         a success. It also logs the service `ss` and `sr` annotations.
         """
         if self.zipkin_attrs.is_sampled:
+            logging_start = time.time()
             # Collect additional annotations from the logging handler
             annotations_by_span_id = defaultdict(dict)
             binary_annotations_by_span_id = defaultdict(dict)
@@ -139,6 +142,7 @@ class ZipkinLoggingContext(object):
                 ss=time.time(),
                 **extra_annotations
             )
+            annotations[LOGGING_START_KEY] = logging_start
             thrift_annotations = annotation_list_builder(
                 annotations,
                 self.thrift_endpoint,

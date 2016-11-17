@@ -119,7 +119,10 @@ def test_zipkin_logging_context_log_spans(
     context.binary_annotations_dict = {'k': 'v'}
     time_mock.return_value = 42
 
-    expected_server_annotations = {'foo': 1, 'sr': 24, 'ss': 42}
+    expected_server_annotations = {
+        'foo': 1, 'sr': 24, 'ss': 42,
+        logging_helper.LOGGING_START_KEY: 42,
+    }
     expected_server_bin_annotations = {'k': 'v', 'what': 'whoa'}
 
     expected_client_annotations = {'ann1': 1, 'ann2': 2}
