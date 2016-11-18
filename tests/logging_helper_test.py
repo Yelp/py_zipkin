@@ -42,9 +42,10 @@ def test_zipkin_logging_context(time_mock, mock_logger, context):
     time_mock.return_value = 42
     # Ignore the actual logging part
     with mock.patch.object(context, 'log_spans'):
-        with context:
-            mock_logger.addHandler.assert_called_once_with(context.log_handler)
-            assert context.start_timestamp == 42
+        context.start()
+        mock_logger.addHandler.assert_called_once_with(context.log_handler)
+        assert context.start_timestamp == 42
+        context.stop()
         # Make sure the handler and the zipkin attrs are gone
         mock_logger.removeHandler.assert_called_with(context.log_handler)
         assert mock_logger.removeHandler.call_count == 2

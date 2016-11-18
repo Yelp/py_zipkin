@@ -4,8 +4,16 @@ from thriftpy.transport import TMemoryBuffer
 
 from py_zipkin import zipkin
 from py_zipkin.logging_helper import zipkin_logger
+from py_zipkin.logging_helper import LOGGING_START_KEY
 from py_zipkin.thrift import zipkin_core
 from py_zipkin.zipkin import ZipkinAttrs
+
+
+@pytest.fixture
+def default_annotations():
+    return set([
+        'ss', 'sr', LOGGING_START_KEY,
+    ])
 
 
 @pytest.fixture
@@ -25,7 +33,10 @@ def _decode_binary_thrift_obj(obj):
     return span
 
 
-def test_starting_zipkin_trace_with_sampling_rate(mock_logger):
+def test_starting_zipkin_trace_with_sampling_rate(
+    mock_logger,
+    default_annotations,
+):
     mock_transport_handler, mock_logs = mock_logger
     with zipkin.zipkin_span(
         service_name='test_service_name',
@@ -33,6 +44,7 @@ def test_starting_zipkin_trace_with_sampling_rate(mock_logger):
         transport_handler=mock_transport_handler,
         sample_rate=100.0,
         binary_annotations={'some_key': 'some_value'},
+        add_logging_annotation=True,
     ):
         pass
 
@@ -43,7 +55,7 @@ def test_starting_zipkin_trace_with_sampling_rate(mock_logger):
     assert span.parent_id is None
     assert span.binary_annotations[0].key == 'some_key'
     assert span.binary_annotations[0].value == 'some_value'
-    assert set([ann.value for ann in span.annotations]) == set(['ss', 'sr'])
+    assert set([ann.value for ann in span.annotations]) == default_annotations
 
 
 def test_span_inside_trace(mock_logger):
@@ -78,7 +90,7 @@ def test_span_inside_trace(mock_logger):
             assert ann.timestamp == 43000000
 
 
-def test_service_span(mock_logger):
+def test_service_span(mock_logger, default_annotations):
     mock_transport_handler, mock_logs = mock_logger
     zipkin_attrs = ZipkinAttrs(
         trace_id='0',
@@ -93,6 +105,7 @@ def test_service_span(mock_logger):
         zipkin_attrs=zipkin_attrs,
         transport_handler=mock_transport_handler,
         binary_annotations={'some_key': 'some_value'},
+        add_logging_annotation=True,
     ):
         pass
 
@@ -105,10 +118,13 @@ def test_service_span(mock_logger):
     assert span.parent_id == 2
     assert span.binary_annotations[0].key == 'some_key'
     assert span.binary_annotations[0].value == 'some_value'
-    assert set([ann.value for ann in span.annotations]) == set(['ss', 'sr'])
+    assert set([ann.value for ann in span.annotations]) == default_annotations
 
 
-def test_service_span_that_is_independently_sampled(mock_logger):
+def test_service_span_that_is_independently_sampled(
+    mock_logger,
+    default_annotations,
+):
     mock_transport_handler, mock_logs = mock_logger
     zipkin_attrs = ZipkinAttrs(
         trace_id='0',
@@ -125,6 +141,7 @@ def test_service_span_that_is_independently_sampled(mock_logger):
         port=45,
         sample_rate=100.0,
         binary_annotations={'some_key': 'some_value'},
+        add_logging_annotation=True,
     ):
         pass
 
@@ -134,7 +151,7 @@ def test_service_span_that_is_independently_sampled(mock_logger):
     assert span.parent_id is None
     assert span.binary_annotations[0].key == 'some_key'
     assert span.binary_annotations[0].value == 'some_value'
-    assert set([ann.value for ann in span.annotations]) == set(['ss', 'sr'])
+    assert set([ann.value for ann in span.annotations]) == default_annotations
 
 
 def test_log_debug_for_new_span(mock_logger):
@@ -145,6 +162,7 @@ def test_log_debug_for_new_span(mock_logger):
         transport_handler=mock_transport_handler,
         sample_rate=100.0,
         binary_annotations={'some_key': 'some_value'},
+        add_logging_annotation=True,
     ):
         zipkin_logger.debug({
             'annotations': {
@@ -169,7 +187,7 @@ def test_log_debug_for_new_span(mock_logger):
     assert set([ann.value for ann in logged_span.annotations]) == set(['cs', 'cr'])
 
 
-def test_log_debug_for_existing_span(mock_logger):
+def test_log_debug_for_existing_span(mock_logger, default_annotations):
     mock_transport_handler, mock_logs = mock_logger
     with zipkin.zipkin_span(
         service_name='test_service_name',
@@ -177,6 +195,7 @@ def test_log_debug_for_existing_span(mock_logger):
         transport_handler=mock_transport_handler,
         sample_rate=100.0,
         binary_annotations={'some_key': 'some_value'},
+        add_logging_annotation=True,
     ):
         zipkin_logger.debug({
             'annotations': {
@@ -193,13 +212,12 @@ def test_log_debug_for_existing_span(mock_logger):
     assert span.name == 'test_span_name'
     assert span.annotations[0].host.service_name == 'test_service_name'
     assert span.parent_id is None
-    assert len(span.annotations) == 3
+    assert len(span.annotations) == 4
     annotations = sorted(span.annotations, key=lambda ann: ann.value)
-    assert annotations[2].value == 'test_annotation'
-    assert annotations[2].timestamp == 42000000
-    assert set([ann.value for ann in annotations]) == set([
-        'ss', 'sr', 'test_annotation',
-    ])
+    assert annotations[3].value == 'test_annotation'
+    assert annotations[3].timestamp == 42000000
+    default_annotations.add('test_annotation')
+    assert set([ann.value for ann in annotations]) == default_annotations
     assert len(span.binary_annotations) == 2
     binary_annotations = sorted(
         span.binary_annotations, key=lambda bin_ann: bin_ann.key)

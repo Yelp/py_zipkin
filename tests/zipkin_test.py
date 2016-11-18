@@ -46,6 +46,7 @@ def test_zipkin_span_for_new_trace(
         'span_name',
         transport_handler,
         {},
+        False,
     )
     pop_zipkin_attrs_mock.assert_called_once_with()
 
@@ -94,6 +95,7 @@ def test_zipkin_span_passed_sampled_attrs(
         'span_name',
         transport_handler,
         {},
+        False,
     )
     pop_zipkin_attrs_mock.assert_called_once_with()
 
@@ -454,6 +456,7 @@ def test_zipkin_span_decorator(
         'span_name',
         transport_handler,
         {},
+        False,
     )
     pop_zipkin_attrs_mock.assert_called_once_with()
 
@@ -467,14 +470,27 @@ def test_zipkin_span_decorator_many(create_endpoint_mock):
     assert test_func(1, 2) == 3
     assert create_endpoint_mock.call_count == 0
     with zipkin.zipkin_span(
-            service_name='context_manager',
-            transport_handler=mock.Mock(),
-            sample_rate=100.0,
+        service_name='context_manager',
+        transport_handler=mock.Mock(),
+        sample_rate=100.0,
     ):
         assert test_func(1, 2) == 3
     assert create_endpoint_mock.call_count == 1
     assert test_func(1, 2) == 3
     assert create_endpoint_mock.call_count == 1
+
+
+@mock.patch('py_zipkin.zipkin.ZipkinLoggingContext', autospec=True)
+def test_zipkin_span_add_logging_annotation(mock_context):
+    with zipkin.zipkin_span(
+        service_name='my_service',
+        transport_handler=mock.Mock(),
+        sample_rate=100.0,
+        add_logging_annotation=True,
+    ):
+        pass
+    _, kwargs = mock_context.call_args
+    assert kwargs['add_logging_annotation']
 
 
 def test_update_binary_annotations_for_root_span():
