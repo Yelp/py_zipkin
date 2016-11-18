@@ -105,6 +105,7 @@ class zipkin_span(object):
         port=0,
         sample_rate=None,
         include=('client', 'server'),
+        add_logging_annotation=False,
     ):
         """Logs a zipkin span. If this is the root span, then a zipkin
         trace is started as well.
@@ -135,6 +136,9 @@ class zipkin_span(object):
             can be one of {'client', 'server'}
             corresponding to ('cs', 'cr') and ('ss', 'sr') respectively
         :type include: iterable
+        :param add_logging_annotation: Whether to add a 'start_logging'
+            annotation when py_zipkin starts logging spans
+        :type add_logging_annotation: boolean
         """
         self.service_name = service_name
         self.span_name = span_name
@@ -146,6 +150,7 @@ class zipkin_span(object):
         self.logging_context = None
         self.sample_rate = sample_rate
         self.include = include
+        self.add_logging_annotation = add_logging_annotation
 
         # Validation checks
         if self.zipkin_attrs or self.sample_rate is not None:
@@ -254,8 +259,9 @@ class zipkin_span(object):
                 self.span_name,
                 self.transport_handler,
                 self.binary_annotations,
+                add_logging_annotation=self.add_logging_annotation,
             )
-            self.logging_context.__enter__()
+            self.logging_context.start()
             return self
         else:
             # In the sampled case, patch the ZipkinLoggerHandler.
@@ -294,7 +300,7 @@ class zipkin_span(object):
 
         # If this is the root span, exit the context (which will handle logging)
         if self.logging_context:
-            self.logging_context.__exit__(_exc_type, _exc_value, _exc_traceback)
+            self.logging_context.stop()
             self.logging_context = None
             return
 

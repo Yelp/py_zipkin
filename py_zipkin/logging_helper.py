@@ -28,7 +28,7 @@ LOGGING_START_KEY = 'py_zipkin.logging_start'
 
 
 class ZipkinLoggingContext(object):
-    """The main logging context manager which controls logging handler and
+    """The main logging context which controls logging handler and
     stores the zipkin attributes on its creation.
 
     :type zipkin_attrs: :class:`py_zipkin.ZipkinAttrs`
@@ -47,6 +47,7 @@ class ZipkinLoggingContext(object):
         span_name,
         transport_handler,
         binary_annotations=None,
+        add_logging_annotation=False,
     ):
         self.zipkin_attrs = zipkin_attrs
         self.thrift_endpoint = thrift_endpoint
@@ -55,8 +56,9 @@ class ZipkinLoggingContext(object):
         self.transport_handler = transport_handler
         self.response_status_code = 0
         self.binary_annotations_dict = binary_annotations or {}
+        self.add_logging_annotation = add_logging_annotation
 
-    def __enter__(self):
+    def start(self):
         """Actions to be taken before request is handled.
         1) Attach `zipkin_logger` to :class:`ZipkinLoggerHandler` object.
         2) Record the start timestamp.
@@ -66,7 +68,7 @@ class ZipkinLoggingContext(object):
         self.start_timestamp = time.time()
         return self
 
-    def __exit__(self, _type, _value, _traceback):
+    def stop(self):
         """Actions to be taken post request handling.
         1) Log the service annotations to scribe.
         2) Detach `zipkin_logger` handler.
@@ -142,7 +144,8 @@ class ZipkinLoggingContext(object):
                 ss=time.time(),
                 **extra_annotations
             )
-            annotations[LOGGING_START_KEY] = logging_start
+            if self.add_logging_annotation:
+                annotations[LOGGING_START_KEY] = logging_start
             thrift_annotations = annotation_list_builder(
                 annotations,
                 self.thrift_endpoint,

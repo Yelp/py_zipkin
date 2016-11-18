@@ -44,6 +44,7 @@ def test_starting_zipkin_trace_with_sampling_rate(
         transport_handler=mock_transport_handler,
         sample_rate=100.0,
         binary_annotations={'some_key': 'some_value'},
+        add_logging_annotation=True,
     ):
         pass
 
@@ -104,6 +105,7 @@ def test_service_span(mock_logger, default_annotations):
         zipkin_attrs=zipkin_attrs,
         transport_handler=mock_transport_handler,
         binary_annotations={'some_key': 'some_value'},
+        add_logging_annotation=True,
     ):
         pass
 
@@ -139,6 +141,7 @@ def test_service_span_that_is_independently_sampled(
         port=45,
         sample_rate=100.0,
         binary_annotations={'some_key': 'some_value'},
+        add_logging_annotation=True,
     ):
         pass
 
@@ -159,6 +162,7 @@ def test_log_debug_for_new_span(mock_logger):
         transport_handler=mock_transport_handler,
         sample_rate=100.0,
         binary_annotations={'some_key': 'some_value'},
+        add_logging_annotation=True,
     ):
         zipkin_logger.debug({
             'annotations': {
@@ -191,6 +195,7 @@ def test_log_debug_for_existing_span(mock_logger, default_annotations):
         transport_handler=mock_transport_handler,
         sample_rate=100.0,
         binary_annotations={'some_key': 'some_value'},
+        add_logging_annotation=True,
     ):
         zipkin_logger.debug({
             'annotations': {
