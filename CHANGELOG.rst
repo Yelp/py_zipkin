@@ -1,3 +1,7 @@
+0.4.4 (2016-11-29)
+------------------
+- Add optional annotation for when Zipkin logging starts
+
 0.4.3 (2016-11-04)
 ------------------
 - Fix bug in zipkin_span decorator

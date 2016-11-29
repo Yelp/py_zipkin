@@ -3,7 +3,7 @@
 from setuptools import find_packages
 from setuptools import setup
 
-__version__ = '0.4.3'
+__version__ = '0.4.4'
 
 setup(
     name='py_zipkin',
