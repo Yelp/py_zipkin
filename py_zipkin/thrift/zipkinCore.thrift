@@ -109,6 +109,68 @@ const string SERVER_RECV_FRAGMENT = "srf"
 
 #***** BinaryAnnotation.key ******
 /**
+ * The domain portion of the URL or host header. Ex. "mybucket.s3.amazonaws.com"
+ *
+ * Used to filter by host as opposed to ip address.
+ */
+const string HTTP_HOST = "http.host"
+
+/**
+ * The HTTP method, or verb, such as "GET" or "POST".
+ *
+ * Used to filter against an http route.
+ */
+const string HTTP_METHOD = "http.method"
+
+/**
+ * The absolute http path, without any query parameters. Ex. "/objects/abcd-ff"
+ *
+ * Used to filter against an http route, portably with zipkin v1.
+ *
+ * In zipkin v1, only equals filters are supported. Dropping query parameters makes the number
+ * of distinct URIs less. For example, one can query for the same resource, regardless of signing
+ * parameters encoded in the query line. This does not reduce cardinality to a HTTP single route.
+ * For example, it is common to express a route as an http URI template like
+ * "/resource/{resource_id}". In systems where only equals queries are available, searching for
+ * http/path=/resource won't match if the actual request was /resource/abcd-ff.
+ *
+ * Historical note: This was commonly expressed as "http.uri" in zipkin, eventhough it was most
+ * often just a path.
+ */
+const string HTTP_PATH = "http.path"
+
+/**
+ * The entire URL, including the scheme, host and query parameters if available. Ex.
+ * "https://mybucket.s3.amazonaws.com/objects/abcd-ff?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Algorithm=AWS4-HMAC-SHA256..."
+ *
+ * Combined with HTTP_METHOD, you can understand the fully-qualified request line.
+ *
+ * This is optional as it may include private data or be of considerable length.
+ */
+const string HTTP_URL = "http.url"
+
+/**
+ * The HTTP status code, when not in 2xx range. Ex. "503"
+ *
+ * Used to filter for error status.
+ */
+const string HTTP_STATUS_CODE = "http.status_code"
+
+/**
+ * The size of the non-empty HTTP request body, in bytes. Ex. "16384"
+ *
+ * Large uploads can exceed limits or contribute directly to latency.
+ */
+const string HTTP_REQUEST_SIZE = "http.request.size"
+
+/**
+ * The size of the non-empty HTTP response body, in bytes. Ex. "16384"
+ *
+ * Large downloads can exceed limits or contribute directly to latency.
+ */
+const string HTTP_RESPONSE_SIZE = "http.response.size"
+
+/**
  * The value of "lc" is the component or namespace of a local span.
  *
  * BinaryAnnotation.host adds service context needed to support queries.
@@ -135,6 +197,26 @@ const string SERVER_RECV_FRAGMENT = "srf"
  */
 const string LOCAL_COMPONENT = "lc"
 
+#***** Annotation.value or BinaryAnnotation.key ******
+/**
+ * When an annotation value, this indicates when an error occurred. When a
+ * binary annotation key, the value is a human readable message associated
+ * with an error.
+ *
+ * Due to transient errors, an ERROR annotation should not be interpreted
+ * as a span failure, even the annotation might explain additional latency.
+ * Instrumentation should add the ERROR binary annotation when the operation
+ * failed and couldn't be recovered.
+ *
+ * Here's an example: A span has an ERROR annotation, added when a WIRE_SEND
+ * failed. Another WIRE_SEND succeeded, so there's no ERROR binary annotation
+ * on the span because the overall operation succeeded.
+ *
+ * Note that RPC spans often include both client and server hosts: It is
+ * possible that only one side perceived the error.
+ */
+const string ERROR = "error"
+
 #***** BinaryAnnotation.key where value = [1] and annotation_type = BOOL ******
 /**
  * Indicates a client address ("ca") in a span. Most likely, there's only one.
@@ -150,7 +232,13 @@ const string CLIENT_ADDR = "ca"
 const string SERVER_ADDR = "sa"
 
 /**
- * Indicates the network context of a service involved in a span.
+ * Indicates the network context of a service recording an annotation with two
+ * exceptions.
+ *
+ * When a BinaryAnnotation, and key is CLIENT_ADDR or SERVER_ADDR,
+ * the endpoint indicates the source or destination of an RPC. This exception
+ * allows zipkin to display network context of uninstrumented services, or
+ * clients such as web browsers.
  */
 struct Endpoint {
   /**
@@ -168,16 +256,24 @@ struct Endpoint {
   /**
    * Classifier of a source or destination in lowercase, such as "zipkin-web".
    *
-   * Conventionally, when the service name isn't known, service_name = "unknown".
-   *
    * This is the primary parameter for trace lookup, so should be intuitive as
    * possible, for example, matching names in service discovery.
    *
+   * Conventionally, when the service name isn't known, service_name = "unknown".
+   * However, it is also permissible to set service_name = "" (empty string).
+   * The difference in the latter usage is that the span will not be queryable
+   * by service name unless more information is added to the span with non-empty
+   * service name, e.g. an additional annotation from the server.
+   *
    * Particularly clients may not have a reliable service name at ingest. One
-   * approach is to set service_name to "unknown" at ingest, and later assign a
+   * approach is to set service_name to "" at ingest, and later assign a
    * better label based on binary annotations, such as user agent.
    */
   3: string service_name
+  /**
+   * IPv6 host address packed into 16 bytes. Ex Inet6Address.getBytes()
+   */
+  4: optional binary ipv6
 }
 
 /**
@@ -190,7 +286,7 @@ struct Annotation {
    * Microseconds from epoch.
    *
    * This value should use the most precise value possible. For example,
-   * gettimeofday or syncing nanoTime against a tick of currentTimeMillis.
+   * gettimeofday or multiplying currentTimeMillis by 1000.
    */
   1: i64 timestamp
   /**
@@ -228,8 +324,8 @@ enum AnnotationType {
 
 /**
  * Binary annotations are tags applied to a Span to give it context. For
- * example, a binary annotation of "http.uri" could the path to a resource in a
- * RPC call.
+ * example, a binary annotation of HTTP_PATH ("http.path") could the path
+ * to a resource in a RPC call.
  *
  * Binary annotations of type STRING are always queryable, though more a
  * historical implementation detail than a structural concern.
@@ -237,13 +333,13 @@ enum AnnotationType {
  * Binary annotations can repeat, and vary on the host. Similar to Annotation,
  * the host indicates who logged the event. This allows you to tell the
  * difference between the client and server side of the same key. For example,
- * the key "http.uri" might be different on the client and server side due to
+ * the key "http.path" might be different on the client and server side due to
  * rewriting, like "/api/v1/myresource" vs "/myresource. Via the host field,
  * you can see the different points of view, which often help in debugging.
  */
 struct BinaryAnnotation {
   /**
-   * Name used to lookup spans, such as "http.uri" or "finagle.version".
+   * Name used to lookup spans, such as "http.path" or "finagle.version".
    */
   1: string key,
   /**
@@ -309,7 +405,7 @@ struct Span {
   6: list<Annotation> annotations,
   /**
    * Tags a span with context, usually to support query or aggregation. For
-   * example, a binary annotation key could be "http.uri".
+   * example, a binary annotation key could be "http.path".
    */
   8: list<BinaryAnnotation> binary_annotations
   /**
@@ -340,7 +436,8 @@ struct Span {
    */
   10: optional i64 timestamp,
   /**
-   * Measurement in microseconds of the critical path, if known.
+   * Measurement in microseconds of the critical path, if known. Durations of
+   * less than one microsecond must be rounded up to 1 microsecond.
    *
    * This value should be set directly, as opposed to implicitly via annotation
    * timestamps. Doing so encourages precision decoupled from problems of
@@ -357,6 +454,9 @@ struct Span {
    * This field is i64 vs i32 to support spans longer than 35 minutes.
    */
   11: optional i64 duration
+  /**
+   * Optional unique 8-byte additional identifier for a trace. If non zero, this
+   * means the trace uses 128 bit traceIds instead of 64 bit.
+   */
+  12: optional i64 trace_id_high
 }
-
-

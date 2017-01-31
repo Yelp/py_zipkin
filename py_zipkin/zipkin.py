@@ -117,7 +117,7 @@ class zipkin_span(object):
         :param zipkin_attrs: Optional set of zipkin attributes to be used
         :type zipkin_attrs: ZipkinAttrs
         :param transport_handler: Callback function that takes a message parameter
-                                    and handles logging it
+            and handles logging it
         :type transport_handler: function
         :param annotations: Optional dict of str -> timestamp annotations
         :type annotations: dict of str -> int
@@ -206,16 +206,17 @@ class zipkin_span(object):
         # If zipkin_attrs are passed in or this span is doing its own sampling,
         # it will need to actually log spans at __exit__.
         self.perform_logging = self.zipkin_attrs or self.sample_rate is not None
+        report_root_timestamp = False
 
         if self.sample_rate is not None:
-            # This clause allows for sampling this service independently
-            # of the passed-in zipkin_attrs.
             if self.zipkin_attrs and not self.zipkin_attrs.is_sampled:
+                report_root_timestamp = True
                 self.zipkin_attrs = create_attrs_for_span(
                     sample_rate=self.sample_rate,
                     trace_id=self.zipkin_attrs.trace_id,
                 )
             elif not self.zipkin_attrs:
+                report_root_timestamp = True
                 self.zipkin_attrs = create_attrs_for_span(
                     sample_rate=self.sample_rate,
                 )
@@ -244,7 +245,6 @@ class zipkin_span(object):
 
         self.start_timestamp = time.time()
 
-        # Set up logging if this is the root span
         if self.perform_logging:
             # Don't set up any logging if we're not sampling
             if not self.zipkin_attrs.is_sampled:
@@ -258,7 +258,8 @@ class zipkin_span(object):
                 self.log_handler,
                 self.span_name,
                 self.transport_handler,
-                self.binary_annotations,
+                report_root_timestamp,
+                binary_annotations=self.binary_annotations,
                 add_logging_annotation=self.add_logging_annotation,
             )
             self.logging_context.start()
@@ -290,26 +291,28 @@ class zipkin_span(object):
         popped off. The actual logging of spans depends on sampling and that
         the logging was correctly set up.
         """
-        # Always remove the stored zipkin_attrs
         if self.do_pop_attrs:
             pop_zipkin_attrs()
 
-        # Exit early if this request is not being sampled
         if not self.zipkin_attrs or not self.zipkin_attrs.is_sampled:
             return
 
-        # If this is the root span, exit the context (which will handle logging)
+        # Logging context is only initialized for "root" spans of the local
+        # process (i.e. this zipkin_span not inside of any other local
+        # zipkin_spans)
         if self.logging_context:
             self.logging_context.stop()
             self.logging_context = None
             return
 
+        # If we've gotten here, that means that this span is a child span of
+        # this context's root span (i.e. it's a zipkin_span inside another
+        # zipkin_span).
         end_timestamp = time.time()
 
-        # Put the old parent_span_id back on the handler
         self.log_handler.parent_span_id = self.old_parent_span_id
 
-        # To get a full span we just set cs=sr and ss=cr.
+        # We are simulating a full two-part span locally, so set cs=sr and ss=cr
         full_annotations = {
             'cs': self.start_timestamp,
             'sr': self.start_timestamp,
@@ -321,10 +324,10 @@ class zipkin_span(object):
             k: v for k, v in full_annotations.items()
             if k in self.annotation_filter
         }
+
         self.annotations.update(filtered_annotations)
 
-        # Store this span on the logging handler object.
-        self.log_handler.store_client_span(
+        self.log_handler.store_local_span(
             span_name=self.span_name,
             service_name=self.service_name,
             annotations=self.annotations,

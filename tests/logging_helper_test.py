@@ -21,17 +21,21 @@ def test_zipkin_doesnt_spew_on_first_log(capfd):
     assert not out
 
 
+def mock_transport_handler(message):
+    return message
+
+
 @pytest.fixture
 def context():
     attr = ZipkinAttrs(None, None, None, None, False)
     log_handler = logging_helper.ZipkinLoggerHandler(attr)
-    transport_handler = mock.Mock()
     return logging_helper.ZipkinLoggingContext(
-        attr,
-        'thrift_endpoint',
-        log_handler,
-        'span_name',
-        transport_handler,
+        zipkin_attrs=attr,
+        thrift_endpoint='thrift_endpoint',
+        log_handler=log_handler,
+        span_name='span_name',
+        transport_handler=mock_transport_handler,
+        report_root_timestamp=False,
     )
 
 
@@ -100,7 +104,7 @@ def test_zipkin_logging_context_log_spans(
         'parent_span_id': None,
         'span_name': client_span_name,
         'service_name': client_svc_name,
-        'annotations': {'ann2': 2},
+        'annotations': {'ann2': 2, 'cs': 26, 'cr': 30},
         'binary_annotations': {'bann2': 'yiss'},
     }]
 
@@ -112,7 +116,13 @@ def test_zipkin_logging_context_log_spans(
     transport_handler = mock.Mock()
 
     context = logging_helper.ZipkinLoggingContext(
-        attr, 'thrift_endpoint', handler, 'GET /foo', transport_handler)
+        zipkin_attrs=attr,
+        thrift_endpoint='thrift_endpoint',
+        log_handler=handler,
+        span_name='GET /foo',
+        transport_handler=transport_handler,
+        report_root_timestamp=True,
+    )
 
     context.start_timestamp = 24
     context.response_status_code = 200
@@ -123,7 +133,7 @@ def test_zipkin_logging_context_log_spans(
     expected_server_annotations = {'foo': 1, 'sr': 24, 'ss': 42}
     expected_server_bin_annotations = {'k': 'v', 'what': 'whoa'}
 
-    expected_client_annotations = {'ann1': 1, 'ann2': 2}
+    expected_client_annotations = {'ann1': 1, 'ann2': 2, 'cs': 26, 'cr': 30}
     expected_client_bin_annotations = {'bann1': 'aww', 'bann2': 'yiss'}
 
     context.log_spans()
@@ -136,6 +146,8 @@ def test_zipkin_logging_context_log_spans(
         'annotations': expected_server_annotations,
         'binary_annotations': expected_server_bin_annotations,
         'transport_handler': transport_handler,
+        'duration_s': 18,
+        'timestamp_s': 24,
     }
     assert client_log_call[1] == {
         'span_id': client_span_id,
@@ -145,6 +157,8 @@ def test_zipkin_logging_context_log_spans(
         'annotations': expected_client_annotations,
         'binary_annotations': expected_client_bin_annotations,
         'transport_handler': transport_handler,
+        'duration_s': 4,
+        'timestamp_s': 26,
     }
 
 
@@ -160,7 +174,13 @@ def test_log_span_not_called_if_not_sampled(log_span_mock):
     log_handler = logging_helper.ZipkinLoggerHandler(attr)
     transport_handler = mock.Mock()
     context = logging_helper.ZipkinLoggingContext(
-        attr, 'thrift_endpoint', log_handler, 'span_name', transport_handler)
+        zipkin_attrs=attr,
+        thrift_endpoint='thrift_endpoint',
+        log_handler=log_handler,
+        span_name='span_name',
+        transport_handler=transport_handler,
+        report_root_timestamp=False,
+    )
     context.log_spans()
     assert log_span_mock.call_count == 0
 
@@ -221,9 +241,6 @@ def test_zipkin_handler_raises_exception_if_ann_and_bann_not_provided(
 def test_log_span(thrift_obj):
     # Not much logic here, so this is basically a smoke test
 
-    def fake_transport_handler(x):
-        return x
-
     logging_helper.log_span(
         span_id='0000000000000002',
         parent_span_id='0000000000000001',
@@ -231,7 +248,9 @@ def test_log_span(thrift_obj):
         span_name='span',
         annotations='ann',
         binary_annotations='binary_ann',
-        transport_handler=fake_transport_handler,
+        timestamp_s=None,
+        duration_s=None,
+        transport_handler=mock_transport_handler,
     )
     assert thrift_obj.call_count == 1
 
@@ -250,6 +269,8 @@ def test_log_span_calls_transport_handler_with_correct_params(
         span_name='span',
         annotations='ann',
         binary_annotations='binary_ann',
+        timestamp_s=None,
+        duration_s=None,
         transport_handler=transport_handler,
     )
     transport_handler.assert_called_once_with(thrift_obj.return_value)
@@ -261,7 +282,7 @@ def test_log_span_defensive_about_transport_handler(
     thrift_obj,
     create_sp
 ):
-    transport_handler = None
+    """Make sure log_span doesn't try to call the transport handler if it's None."""
     logging_helper.log_span(
         span_id='0000000000000002',
         parent_span_id='0000000000000001',
@@ -269,7 +290,33 @@ def test_log_span_defensive_about_transport_handler(
         span_name='span',
         annotations='ann',
         binary_annotations='binary_ann',
-        transport_handler=transport_handler,
+        timestamp_s=None,
+        duration_s=None,
+        transport_handler=None,
     )
     assert thrift_obj.call_count == 0
     assert create_sp.call_count == 0
+
+
+def test_get_local_span_timestamp_and_duration_client():
+    timestamp, duration = logging_helper.get_local_span_timestamp_and_duration(
+        {'cs': 16, 'cr': 30},
+    )
+    assert timestamp == 16
+    assert duration == 14
+
+
+def test_get_local_span_timestamp_and_duration_server():
+    timestamp, duration = logging_helper.get_local_span_timestamp_and_duration(
+        {'sr': 12, 'ss': 30},
+    )
+    assert timestamp == 12
+    assert duration == 18
+
+
+def test_get_local_span_timestamp_and_duration_none():
+    timestamp, duration = logging_helper.get_local_span_timestamp_and_duration(
+        {'cs': 16, 'other': 5}
+    )
+    assert timestamp is None
+    assert duration is None

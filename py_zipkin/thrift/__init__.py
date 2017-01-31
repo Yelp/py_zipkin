@@ -131,19 +131,24 @@ def create_span(
     span_name,
     annotations,
     binary_annotations,
+    timestamp_s,
+    duration_s,
 ):
     """Takes a bunch of span attributes and returns a thriftpy representation
-    of the span.
+    of the span. Timestamps passed in are in seconds, they're converted to
+    microseconds before thrift encoding.
     """
     span_dict = {
-        "trace_id": unsigned_hex_to_signed_int(trace_id),
-        "name": span_name,
-        "id": unsigned_hex_to_signed_int(span_id),
-        "annotations": annotations,
-        "binary_annotations": binary_annotations,
+        'trace_id': unsigned_hex_to_signed_int(trace_id),
+        'name': span_name,
+        'id': unsigned_hex_to_signed_int(span_id),
+        'annotations': annotations,
+        'binary_annotations': binary_annotations,
+        'timestamp': timestamp_s * 1000000 if timestamp_s else None,
+        'duration': duration_s * 1000000 if duration_s else None,
     }
     if parent_span_id:
-        span_dict["parent_id"] = unsigned_hex_to_signed_int(parent_span_id)
+        span_dict['parent_id'] = unsigned_hex_to_signed_int(parent_span_id)
     return zipkin_core.Span(**span_dict)
 
 
