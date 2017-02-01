@@ -144,8 +144,8 @@ def create_span(
         'id': unsigned_hex_to_signed_int(span_id),
         'annotations': annotations,
         'binary_annotations': binary_annotations,
-        'timestamp': timestamp_s * 1000000 if timestamp_s else None,
-        'duration': duration_s * 1000000 if duration_s else None,
+        'timestamp': int(timestamp_s * 1000000) if timestamp_s else None,
+        'duration': int(duration_s * 1000000) if duration_s else None,
     }
     if parent_span_id:
         span_dict['parent_id'] = unsigned_hex_to_signed_int(parent_span_id)

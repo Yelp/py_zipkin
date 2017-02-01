@@ -282,7 +282,8 @@ def test_log_span_defensive_about_transport_handler(
     thrift_obj,
     create_sp
 ):
-    """Make sure log_span doesn't try to call the transport handler if it's None."""
+    """Make sure log_span doesn't try to call the transport handler if it's
+    None."""
     logging_helper.log_span(
         span_id='0000000000000002',
         parent_span_id='0000000000000001',
