@@ -1,3 +1,8 @@
+0.5.0 (2017-02-01)
+------------------
+- Properly set timestamp/duration on server and local spans
+- Updated thrift spec to include these new fields
+
 0.4.4 (2016-11-29)
 ------------------
 - Add optional annotation for when Zipkin logging starts
