@@ -53,6 +53,9 @@ def test_starting_zipkin_trace_with_sampling_rate(
     assert span.name == 'test_span_name'
     assert span.annotations[0].host.service_name == 'test_service_name'
     assert span.parent_id is None
+    # timestamp and duration are microsecond conversions of time.time()
+    assert span.timestamp is not None
+    assert span.duration is not None
     assert span.binary_annotations[0].key == 'some_key'
     assert span.binary_annotations[0].value == 'some_value'
     assert set([ann.value for ann in span.annotations]) == default_annotations
@@ -82,6 +85,9 @@ def test_span_inside_trace(mock_logger):
     assert nested_span.parent_id == root_span.id
     assert nested_span.binary_annotations[0].key == 'nested_key'
     assert nested_span.binary_annotations[0].value == 'nested_value'
+    # Local nested spans report timestamp and duration
+    assert nested_span.timestamp is not None
+    assert nested_span.duration is not None
     assert len(nested_span.annotations) == 5
     assert set([ann.value for ann in nested_span.annotations]) == set([
         'ss', 'sr', 'cs', 'cr', 'nested_annotation'])
@@ -118,6 +124,10 @@ def test_service_span(mock_logger, default_annotations):
     assert span.parent_id == 2
     assert span.binary_annotations[0].key == 'some_key'
     assert span.binary_annotations[0].value == 'some_value'
+    # Spans continued on the server don't log timestamp/duration, as it's
+    # assumed the client part of the pair will log them.
+    assert span.timestamp is None
+    assert span.duration is None
     assert set([ann.value for ann in span.annotations]) == default_annotations
 
 
@@ -151,6 +161,10 @@ def test_service_span_that_is_independently_sampled(
     assert span.parent_id is None
     assert span.binary_annotations[0].key == 'some_key'
     assert span.binary_annotations[0].value == 'some_value'
+    # Spans that are part of an unsampled trace which start their own sampling
+    # should report timestamp/duration, as they're acting as root spans.
+    assert span.timestamp is not None
+    assert span.duration is not None
     assert set([ann.value for ann in span.annotations]) == default_annotations
 
 

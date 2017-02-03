@@ -3,24 +3,27 @@ import mock
 from py_zipkin import thrift
 
 
-@mock.patch('py_zipkin.thrift.zipkin_core.Span', autospec=True)
-def test_create_span(Span):
+def test_create_span():
     # Not much logic here so this is just a smoke test. The only
     # substantive thing is that hex IDs get converted to ints.
-    thrift.create_span(
+    span = thrift.create_span(
         span_id='0000000000000001',
         parent_span_id='0000000000000002',
         trace_id='000000000000000f',
         span_name='foo',
         annotations='ann',
         binary_annotations='binary_ann',
+        timestamp_s=1485920381.2,
+        duration_s=2.0,
     )
-    Span.assert_called_once_with(**{
-        'id': 1, 'parent_id': 2,
-        'name': 'foo', 'trace_id': 15,
-        'name': 'foo', 'annotations': 'ann',
-        'binary_annotations': 'binary_ann',
-    })
+    assert span.id == 1
+    assert span.parent_id == 2
+    assert span.trace_id == 15
+    assert span.name == 'foo'
+    assert span.annotations == 'ann'
+    assert span.binary_annotations == 'binary_ann'
+    assert span.timestamp == 1485920381.2 * 1000000
+    assert span.duration == 2.0 * 1000000
 
 
 @mock.patch('socket.gethostbyname', autospec=True)

@@ -28,15 +28,13 @@ LOGGING_START_KEY = 'py_zipkin.logging_start'
 
 
 class ZipkinLoggingContext(object):
-    """The main logging context which controls logging handler and
-    stores the zipkin attributes on its creation.
+    """A logging context specific to a Zipkin trace. If the trace is sampled,
+    the logging context sends serialized Zipkin spans to a transport_handler.
+    This is meant to only be used server-side, so the logging context sends
+    a single "server" span, as well as all local child spans collected within
+    the server context.
 
-    :type zipkin_attrs: :class:`py_zipkin.ZipkinAttrs`
-    :type thrift_endpoint: :class:`py_zipkin.thrift.zipkinCore.ttypes.Endpoint`
-    :param log_handler: log handler to be attached to the module logger.
-    :type log_handler: :class:`py_zipkin.logging.ZipkinLoggerHandler`
-    :param span_name:
-    :param transport_handler:
+    This class should only be used by the main `zipkin_span` entrypoint.
     """
 
     def __init__(
@@ -46,6 +44,7 @@ class ZipkinLoggingContext(object):
         log_handler,
         span_name,
         transport_handler,
+        report_root_timestamp,
         binary_annotations=None,
         add_logging_annotation=False,
     ):
@@ -55,6 +54,7 @@ class ZipkinLoggingContext(object):
         self.span_name = span_name
         self.transport_handler = transport_handler
         self.response_status_code = 0
+        self.report_root_timestamp = report_root_timestamp
         self.binary_annotations_dict = binary_annotations or {}
         self.add_logging_annotation = add_logging_annotation
 
@@ -115,6 +115,10 @@ class ZipkinLoggingContext(object):
                 binary_annotations = span['binary_annotations']
                 binary_annotations.update(
                     binary_annotations_by_span_id[span_id])
+
+                timestamp, duration = get_local_span_timestamp_and_duration(
+                    annotations
+                )
                 # Create serializable thrift objects of annotations
                 thrift_annotations = annotation_list_builder(
                     annotations, endpoint
@@ -131,21 +135,25 @@ class ZipkinLoggingContext(object):
                     annotations=thrift_annotations,
                     binary_annotations=thrift_binary_annotations,
                     transport_handler=self.transport_handler,
+                    timestamp_s=timestamp,
+                    duration_s=duration,
                 )
 
-            # Collect extra annotations for server span, then log it.
+            # Collect extra annotations for server span
             extra_annotations = annotations_by_span_id[
                 self.zipkin_attrs.span_id]
             extra_binary_annotations = binary_annotations_by_span_id[
                 self.zipkin_attrs.span_id
             ]
+            server_end_time = time.time()
             annotations = dict(
                 sr=self.start_timestamp,
-                ss=time.time(),
+                ss=server_end_time,
                 **extra_annotations
             )
             if self.add_logging_annotation:
                 annotations[LOGGING_START_KEY] = logging_start
+
             thrift_annotations = annotation_list_builder(
                 annotations,
                 self.thrift_endpoint,
@@ -159,6 +167,12 @@ class ZipkinLoggingContext(object):
                 self.thrift_endpoint,
             )
 
+            if self.report_root_timestamp:
+                timestamp = self.start_timestamp
+                duration = server_end_time - self.start_timestamp
+            else:
+                timestamp = duration = None
+
             log_span(
                 span_id=self.zipkin_attrs.span_id,
                 parent_span_id=self.zipkin_attrs.parent_span_id,
@@ -166,8 +180,18 @@ class ZipkinLoggingContext(object):
                 span_name=self.span_name,
                 annotations=thrift_annotations,
                 binary_annotations=thrift_binary_annotations,
+                timestamp_s=timestamp,
+                duration_s=duration,
                 transport_handler=self.transport_handler,
             )
+
+
+def get_local_span_timestamp_and_duration(annotations):
+    if 'cs' in annotations and 'cr' in annotations:
+        return annotations['cs'], annotations['cr'] - annotations['cs']
+    elif 'sr' in annotations and 'ss' in annotations:
+        return annotations['sr'], annotations['ss'] - annotations['sr']
+    return None, None
 
 
 class ZipkinLoggerHandler(logging.StreamHandler, object):
@@ -189,12 +213,17 @@ class ZipkinLoggerHandler(logging.StreamHandler, object):
         self.client_spans = []
         self.extra_annotations = []
 
-    def store_client_span(
-        self, span_name, service_name,
-        annotations, binary_annotations, span_id=None,
+    def store_local_span(
+        self,
+        span_name,
+        service_name,
+        annotations,
+        binary_annotations,
+        span_id=None,
     ):
-        """Just a way of exposing how to store new client spans on this
-        logging handler.
+        """Convenience method for storing a local child span (a zipkin_span
+        inside other zipkin_spans) to be logged when the outermost zipkin_span
+        exits.
         """
         self.client_spans.append({
             'span_name': span_name,
@@ -250,9 +279,9 @@ class ZipkinLoggerHandler(logging.StreamHandler, object):
                 " to be provided for {0} span".format(span_name)
             )
         service_name = record.msg.get('service_name', None)
-        # Presence of service_name means new client span.
+        # Presence of service_name means this is to be a new local span.
         if service_name is not None:
-            self.store_client_span(
+            self.store_local_span(
                 span_name=span_name,
                 service_name=service_name,
                 annotations=annotations,
@@ -273,6 +302,8 @@ def log_span(
     span_name,
     annotations,
     binary_annotations,
+    timestamp_s,
+    duration_s,
     transport_handler,
 ):
     """Creates a span and logs it using the given transport_handler."""
@@ -287,6 +318,8 @@ def log_span(
         span_name,
         annotations,
         binary_annotations,
+        timestamp_s,
+        duration_s,
     )
     message = thrift_obj_in_bytes(span)
     transport_handler(message)
