@@ -96,6 +96,18 @@ def test_span_inside_trace(mock_logger):
             assert ann.timestamp == 43000000
 
 
+def _verify_service_span(span, annotations):
+    assert span.name == 'service_span'
+    assert span.trace_id == 0
+    assert span.id == 1
+    assert span.annotations[0].host.service_name == 'test_service_name'
+    assert span.annotations[0].host.port == 0
+    assert span.parent_id == 2
+    assert span.binary_annotations[0].key == 'some_key'
+    assert span.binary_annotations[0].value == 'some_value'
+    assert set([ann.value for ann in span.annotations]) == annotations
+
+
 def test_service_span(mock_logger, default_annotations):
     mock_transport_handler, mock_logs = mock_logger
     zipkin_attrs = ZipkinAttrs(
@@ -116,19 +128,40 @@ def test_service_span(mock_logger, default_annotations):
         pass
 
     span = _decode_binary_thrift_obj(mock_logs[0])
-    assert span.name == 'service_span'
-    assert span.trace_id == 0
-    assert span.id == 1
-    assert span.annotations[0].host.service_name == 'test_service_name'
-    assert span.annotations[0].host.port == 0
-    assert span.parent_id == 2
-    assert span.binary_annotations[0].key == 'some_key'
-    assert span.binary_annotations[0].value == 'some_value'
+    _verify_service_span(span, default_annotations)
     # Spans continued on the server don't log timestamp/duration, as it's
     # assumed the client part of the pair will log them.
     assert span.timestamp is None
     assert span.duration is None
-    assert set([ann.value for ann in span.annotations]) == default_annotations
+
+
+def test_service_span_report_timestamp_override(
+    mock_logger,
+    default_annotations,
+):
+    mock_transport_handler, mock_logs = mock_logger
+    zipkin_attrs = ZipkinAttrs(
+        trace_id='0',
+        span_id='1',
+        parent_span_id='2',
+        flags='0',
+        is_sampled=True,
+    )
+    with zipkin.zipkin_span(
+        service_name='test_service_name',
+        span_name='service_span',
+        zipkin_attrs=zipkin_attrs,
+        transport_handler=mock_transport_handler,
+        binary_annotations={'some_key': 'some_value'},
+        add_logging_annotation=True,
+        report_root_timestamp=True,
+    ):
+        pass
+
+    span = _decode_binary_thrift_obj(mock_logs[0])
+    _verify_service_span(span, default_annotations)
+    assert span.timestamp is not None
+    assert span.duration is not None
 
 
 def test_service_span_that_is_independently_sampled(
