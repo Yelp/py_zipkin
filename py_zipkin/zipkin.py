@@ -106,6 +106,7 @@ class zipkin_span(object):
         sample_rate=None,
         include=('client', 'server'),
         add_logging_annotation=False,
+        report_root_timestamp=False,
     ):
         """Logs a zipkin span. If this is the root span, then a zipkin
         trace is started as well.
@@ -139,6 +140,14 @@ class zipkin_span(object):
         :param add_logging_annotation: Whether to add a 'start_logging'
             annotation when py_zipkin starts logging spans
         :type add_logging_annotation: boolean
+        :param report_root_timestamp: Whether the span should report timestamp
+            and duration. Only applies to "root" spans in this local context,
+            so spans created inside other span contexts will always log
+            timestamp/duration. Note that this is only an override for spans
+            that have zipkin_attrs passed in. Spans that make their own
+            sampling decisions (i.e. are the root spans of entire traces) will
+            always report timestamp/duration.
+        :type report_root_timestamp: boolean
         """
         self.service_name = service_name
         self.span_name = span_name
@@ -151,6 +160,7 @@ class zipkin_span(object):
         self.sample_rate = sample_rate
         self.include = include
         self.add_logging_annotation = add_logging_annotation
+        self.report_root_timestamp_override = report_root_timestamp
 
         # Validation checks
         if self.zipkin_attrs or self.sample_rate is not None:
@@ -258,7 +268,7 @@ class zipkin_span(object):
                 self.log_handler,
                 self.span_name,
                 self.transport_handler,
-                report_root_timestamp,
+                report_root_timestamp or self.report_root_timestamp_override,
                 binary_annotations=self.binary_annotations,
                 add_logging_annotation=self.add_logging_annotation,
             )
