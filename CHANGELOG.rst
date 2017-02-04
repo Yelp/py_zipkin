@@ -1,7 +1,13 @@
+0.6.0 (2017-02-03)
+------------------
+- Added support for forcing `zipkin_span` to report timestamp/duration.
+  Changes API of `zipkin_span`, but defaults back to existing behavior.
+
 0.5.0 (2017-02-01)
 ------------------
 - Properly set timestamp/duration on server and local spans
 - Updated thrift spec to include these new fields
+- The `zipkin_span` entrypoint should be backwards compatible
 
 0.4.4 (2016-11-29)
 ------------------
