@@ -1,3 +1,7 @@
+0.7.0 (2017-03-06)
+------------------
+- Simplify `update_binary_annotations` for both root and non-root spans
+
 0.6.0 (2017-02-03)
 ------------------
 - Added support for forcing `zipkin_span` to report timestamp/duration.
