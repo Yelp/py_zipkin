@@ -533,7 +533,7 @@ def test_update_binary_annotations():
             assert 'two' not in context.logging_context.binary_annotations_dict
 
 
-def test_update_binary_annotations_errors():
+def test_update_binary_annotations_should_not_error_if_not_tracing():
     zipkin_attrs = ZipkinAttrs(
         trace_id='0',
         span_id='1',
