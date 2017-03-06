@@ -59,7 +59,7 @@ def tween(request):
         port=22,
     ) as zipkin_context:
         response = handler(request)
-        zipkin_context.update_binary_annotations_for_root_span(
+        zipkin_context.update_binary_annotations(
             some_binary_annotations)
         return response
 ```
@@ -76,8 +76,8 @@ def some_function(a, b):
 
 #### Other utilities
 
-`zipkin_span.update_binary_annotations_for_root_span()` can be used inside a zipkin trace
-to add to the existing set of binary annotations for the root span.
+`zipkin_span.update_binary_annotations()` can be used inside a zipkin trace
+to add to the existing set of binary annotations.
 
 ```python
 def some_function(a, b):
@@ -89,7 +89,7 @@ def some_function(a, b):
         sample_rate=0.05,
     ) as zipkin_context:
         result = do_stuff(a, b)
-        zipkin_context.update_binary_annotations_for_root_span({'result': result})
+        zipkin_context.update_binary_annotations({'result': result})
 ```
 
 `create_http_headers_for_new_span()` creates a set of HTTP headers that can be forwarded
