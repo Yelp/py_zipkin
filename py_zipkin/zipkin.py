@@ -73,7 +73,7 @@ class zipkin_span(object):
             port=22,
         ) as zipkin_context:
             response = handler(request)
-            zipkin_context.update_binary_annotations_for_root_span(
+            zipkin_context.update_binary_annotations(
                 some_binary_annotations)
             return response
 
@@ -345,16 +345,21 @@ class zipkin_span(object):
             span_id=self.zipkin_attrs.span_id,
         )
 
-    def update_binary_annotations_for_root_span(self, extra_annotations):
-        """Updates the binary annotations for the root span of the trace.
+    def update_binary_annotations(self, extra_annotations):
+        """Updates the binary annotations for the current span.
 
         If this trace is not being sampled then this is a no-op.
         """
         if not self.zipkin_attrs.is_sampled:
             return
         if not self.logging_context:
-            raise ZipkinError('No logging context available')
-        self.logging_context.binary_annotations_dict.update(extra_annotations)
+            # This is not the root span, so binary annotations will be added
+            # to the log handler when this span context exits.
+            self.binary_annotations.update(extra_annotations)
+        else:
+            # Otherwise, we're in the context of the root span, so just update
+            # the binary annotations for the logging context directly.
+            self.logging_context.binary_annotations_dict.update(extra_annotations)
 
 
 def _validate_args(kwargs):

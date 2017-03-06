@@ -500,7 +500,7 @@ def test_zipkin_span_add_logging_annotation(mock_context):
     assert kwargs['add_logging_annotation']
 
 
-def test_update_binary_annotations_for_root_span():
+def test_update_binary_annotations():
     zipkin_attrs = ZipkinAttrs(
         trace_id='0',
         span_id='1',
@@ -518,11 +518,22 @@ def test_update_binary_annotations_for_root_span():
 
     with context:
         assert 'test' not in context.logging_context.binary_annotations_dict
-        context.update_binary_annotations_for_root_span({'test': 'hi'})
+        context.update_binary_annotations({'test': 'hi'})
         assert context.logging_context.binary_annotations_dict['test'] == 'hi'
 
+        nested_context = zipkin.zipkin_span(
+            service_name='my_service',
+            span_name='nested_span',
+            binary_annotations={'one': 'one'},
+        )
+        with nested_context:
+            assert 'one' not in context.logging_context.binary_annotations_dict
+            nested_context.update_binary_annotations({'two': 'two'})
+            assert 'two' in nested_context.binary_annotations
+            assert 'two' not in context.logging_context.binary_annotations_dict
 
-def test_update_binary_annotations_for_root_span_errors():
+
+def test_update_binary_annotations_should_not_error_if_not_tracing():
     zipkin_attrs = ZipkinAttrs(
         trace_id='0',
         span_id='1',
@@ -540,25 +551,7 @@ def test_update_binary_annotations_for_root_span_errors():
 
     with context:
         # A non-sampled request should result in a no-op
-        context.update_binary_annotations_for_root_span({'test': 'hi'})
-
-    zipkin_attrs = ZipkinAttrs(
-        trace_id='0',
-        span_id='1',
-        parent_span_id=None,
-        flags='0',
-        is_sampled=True,
-    )
-    context = zipkin.zipkin_span(
-        service_name='my_service',
-        span_name='span_name',
-        zipkin_attrs=zipkin_attrs,
-        transport_handler=mock.Mock(),
-        port=5,
-    )
-    # Updating binary annotations without logging set up should error
-    with pytest.raises(ZipkinError):
-        context.update_binary_annotations_for_root_span({'test': 'hi'})
+        context.update_binary_annotations({'test': 'hi'})
 
 
 @mock.patch('py_zipkin.zipkin.generate_random_64bit_string', autospec=True)
