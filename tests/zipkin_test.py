@@ -554,6 +554,17 @@ def test_update_binary_annotations_should_not_error_if_not_tracing():
         context.update_binary_annotations({'test': 'hi'})
 
 
+def test_update_binary_annotations_should_not_error_for_child_spans():
+    non_tracing_context = zipkin.zipkin_span(
+        service_name='my_service',
+        span_name='span_name',
+    )
+    with non_tracing_context:
+        # Updating the binary annotations for a non-tracing child span
+        # should result in a no-op
+        non_tracing_context.update_binary_annotations({'test': 'hi'})
+
+
 @mock.patch('py_zipkin.zipkin.generate_random_64bit_string', autospec=True)
 def test_create_attrs_for_span(random_mock):
     random_mock.return_value = '0000000000000042'

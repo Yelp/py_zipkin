@@ -350,6 +350,8 @@ class zipkin_span(object):
 
         If this trace is not being sampled then this is a no-op.
         """
+        if not self.zipkin_attrs:
+            return
         if not self.zipkin_attrs.is_sampled:
             return
         if not self.logging_context:
