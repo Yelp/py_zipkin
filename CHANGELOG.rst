@@ -1,3 +1,8 @@
+0.7.1 (2017-05-01)
+------------------
+- Fixed a bug where `update_binary_annotations` would fail for a child
+  span in a trace that is not being sampled
+
 0.7.0 (2017-03-06)
 ------------------
 - Simplify `update_binary_annotations` for both root and non-root spans
