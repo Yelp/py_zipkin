@@ -25,7 +25,7 @@ def test_create_span():
     assert span.binary_annotations == 'binary_ann'
     assert span.timestamp == 1485920381.2 * 1000000
     assert span.duration == 2.0 * 1000000
-    assert span.trace_id_high == None
+    assert span.trace_id_high is None
 
 
 def test_create_span_with_128_bit_trace_ids():
@@ -45,7 +45,7 @@ def test_create_span_with_128_bit_trace_ids():
 
 def test_create_span_fails_with_wrong_128_bit_trace_id_length():
     with pytest.raises(AssertionError):
-        span = thrift.create_span(
+        thrift.create_span(
             span_id='0000000000000001',
             parent_span_id='0000000000000002',
             trace_id='000000000000000f000000000000000',
@@ -57,7 +57,7 @@ def test_create_span_fails_with_wrong_128_bit_trace_id_length():
         )
 
     with pytest.raises(AssertionError):
-        span = thrift.create_span(
+        thrift.create_span(
             span_id='0000000000000001',
             parent_span_id='0000000000000002',
             trace_id='000000000000000f000000000000000f0',

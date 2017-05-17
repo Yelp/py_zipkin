@@ -153,8 +153,8 @@ def create_span(
         'binary_annotations': binary_annotations,
         'timestamp': int(timestamp_s * 1000000) if timestamp_s else None,
         'duration': int(duration_s * 1000000) if duration_s else None,
-        'trace_id_high': unsigned_hex_to_signed_int(trace_id_high) \
-            if trace_id_high else None,
+        'trace_id_high': unsigned_hex_to_signed_int(trace_id_high)
+        if trace_id_high else None,
     }
     if parent_span_id:
         span_dict['parent_id'] = unsigned_hex_to_signed_int(parent_span_id)
