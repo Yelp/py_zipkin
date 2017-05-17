@@ -33,7 +33,10 @@ def test_zipkin_span_for_new_trace(
     ) as zipkin_context:
         assert zipkin_context.port == 5
         pass
-    create_attrs_for_span_mock.assert_called_once_with(sample_rate=100.0)
+    create_attrs_for_span_mock.assert_called_once_with(
+        sample_rate=100.0,
+        use_128bit_trace_id=False,
+    )
     push_zipkin_attrs_mock.assert_called_once_with(
         create_attrs_for_span_mock.return_value)
     create_endpoint_mock.assert_called_once_with(5, 'some_service_name')
@@ -133,7 +136,10 @@ def test_zipkin_span_trace_with_0_sample_rate(
     ) as zipkin_context:
         assert zipkin_context.port == 0
         pass
-    create_attrs_for_span_mock.assert_called_once_with(sample_rate=0.0)
+    create_attrs_for_span_mock.assert_called_once_with(
+        sample_rate=0.0,
+        use_128bit_trace_id=False,
+    )
     push_zipkin_attrs_mock.assert_called_once_with(
         create_attrs_for_span_mock.return_value)
     assert create_endpoint_mock.call_count == 0
@@ -360,9 +366,11 @@ def test_span_context_sampled_no_handlers(
 ])
 @mock.patch('py_zipkin.thread_local._thread_local', autospec=True)
 @mock.patch('py_zipkin.zipkin.generate_random_64bit_string', autospec=True)
+@mock.patch('py_zipkin.zipkin.generate_random_128bit_string', autospec=True)
 @mock.patch('py_zipkin.zipkin.zipkin_logger', autospec=True)
 def test_span_context(
     zipkin_logger_mock,
+    generate_string_128bit_mock,
     generate_string_mock,
     thread_local_mock,
     span_func,
@@ -418,6 +426,8 @@ def test_span_context(
     }
     assert client_span == expected_client_span
 
+    assert generate_string_128bit_mock.call_count == 0
+
 
 @mock.patch('py_zipkin.zipkin.pop_zipkin_attrs', autospec=True)
 @mock.patch('py_zipkin.zipkin.push_zipkin_attrs', autospec=True)
@@ -447,7 +457,10 @@ def test_zipkin_span_decorator(
 
     assert test_func(1, 2) == 3
 
-    create_attrs_for_span_mock.assert_called_once_with(sample_rate=100.0)
+    create_attrs_for_span_mock.assert_called_once_with(
+        sample_rate=100.0,
+        use_128bit_trace_id=False,
+    )
     push_zipkin_attrs_mock.assert_called_once_with(
         create_attrs_for_span_mock.return_value)
     create_endpoint_mock.assert_called_once_with(5, 'some_service_name')
@@ -565,9 +578,10 @@ def test_update_binary_annotations_should_not_error_for_child_spans():
         non_tracing_context.update_binary_annotations({'test': 'hi'})
 
 
+@mock.patch('py_zipkin.zipkin.generate_random_128bit_string', autospec=True)
 @mock.patch('py_zipkin.zipkin.generate_random_64bit_string', autospec=True)
-def test_create_attrs_for_span(random_mock):
-    random_mock.return_value = '0000000000000042'
+def test_create_attrs_for_span(random_64bit_mock, random_128bit_mock):
+    random_64bit_mock.return_value = '0000000000000042'
     expected_attrs = ZipkinAttrs(
         trace_id='0000000000000042',
         span_id='0000000000000042',
@@ -589,4 +603,16 @@ def test_create_attrs_for_span(random_mock):
         sample_rate=0.0,
         trace_id='0000000000000045',
         span_id='0000000000000046',
+    )
+
+    random_128bit_mock.return_value = '00000000000000420000000000000042'
+    expected_attrs = ZipkinAttrs(
+        trace_id='00000000000000420000000000000042',
+        span_id='0000000000000042',
+        parent_span_id=None,
+        flags='0',
+        is_sampled=True,
+    )
+    assert expected_attrs == zipkin.create_attrs_for_span(
+        use_128bit_trace_id=True,
     )

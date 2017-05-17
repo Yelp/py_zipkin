@@ -15,6 +15,16 @@ def test_generate_random_64bit_string(rand):
     assert isinstance(random_string, str)
 
 
+@mock.patch('py_zipkin.util.codecs.encode', autospec=True)
+def test_generate_random_128bit_string(rand):
+    rand.return_value = b'17133d482ba4f60517133d482ba4f605'
+    random_string = util.generate_random_128bit_string()
+    assert random_string == '17133d482ba4f60517133d482ba4f605'
+    # This acts as a contract test of sorts. This should return a str
+    # in both py2 and py3. IOW, no unicode objects.
+    assert isinstance(random_string, str)
+
+
 def test_unsigned_hex_to_signed_int():
     assert util.unsigned_hex_to_signed_int('17133d482ba4f605') == \
         1662740067609015813

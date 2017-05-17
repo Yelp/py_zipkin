@@ -14,6 +14,15 @@ def generate_random_64bit_string():
     return str(codecs.encode(os.urandom(8), 'hex_codec').decode('utf-8'))
 
 
+def generate_random_128bit_string():
+    """Returns a 128 bit UTF-8 encoded string. Follows the same conventions
+    as generate_random_64bit_string().
+
+    :returns: random 32-character string
+    """
+    return str(codecs.encode(os.urandom(16), 'hex_codec').decode('utf-8'))
+
+
 def unsigned_hex_to_signed_int(hex_string):
     """Converts a 64-bit hex string to a signed int value.
 

@@ -13,6 +13,7 @@ from py_zipkin.thread_local import pop_zipkin_attrs
 from py_zipkin.thread_local import push_zipkin_attrs
 from py_zipkin.thrift import create_endpoint
 from py_zipkin.util import generate_random_64bit_string
+from py_zipkin.util import generate_random_128bit_string
 
 
 """
@@ -107,6 +108,7 @@ class zipkin_span(object):
         include=('client', 'server'),
         add_logging_annotation=False,
         report_root_timestamp=False,
+        use_128bit_trace_id=False,
     ):
         """Logs a zipkin span. If this is the root span, then a zipkin
         trace is started as well.
@@ -148,6 +150,8 @@ class zipkin_span(object):
             sampling decisions (i.e. are the root spans of entire traces) will
             always report timestamp/duration.
         :type report_root_timestamp: boolean
+        :param use_128bit_trace_id: If true, generate 128-bit trace_ids
+        :type use_128bit_trace_id: boolean
         """
         self.service_name = service_name
         self.span_name = span_name
@@ -161,6 +165,7 @@ class zipkin_span(object):
         self.include = include
         self.add_logging_annotation = add_logging_annotation
         self.report_root_timestamp_override = report_root_timestamp
+        self.use_128bit_trace_id = use_128bit_trace_id
 
         # Validation checks
         if self.zipkin_attrs or self.sample_rate is not None:
@@ -224,11 +229,13 @@ class zipkin_span(object):
                 self.zipkin_attrs = create_attrs_for_span(
                     sample_rate=self.sample_rate,
                     trace_id=self.zipkin_attrs.trace_id,
+                    use_128bit_trace_id=self.use_128bit_trace_id,
                 )
             elif not self.zipkin_attrs:
                 report_root_timestamp = True
                 self.zipkin_attrs = create_attrs_for_span(
                     sample_rate=self.sample_rate,
+                    use_128bit_trace_id=self.use_128bit_trace_id,
                 )
 
         if not self.zipkin_attrs:
@@ -406,7 +413,12 @@ class zipkin_server_span(zipkin_span):
         super(zipkin_server_span, self).__init__(*args, **kwargs)
 
 
-def create_attrs_for_span(sample_rate=100.0, trace_id=None, span_id=None):
+def create_attrs_for_span(
+    sample_rate=100.0,
+    trace_id=None,
+    span_id=None,
+    use_128bit_trace_id=False
+):
     """Creates a set of zipkin attributes for a span.
 
     :param sample_rate: Float between 0.0 and 100.0 to determine sampling rate
@@ -420,7 +432,10 @@ def create_attrs_for_span(sample_rate=100.0, trace_id=None, span_id=None):
     """
     # Calculate if this trace is sampled based on the sample rate
     if trace_id is None:
-        trace_id = generate_random_64bit_string()
+        if use_128bit_trace_id:
+            trace_id = generate_random_128bit_string()
+        else:
+            trace_id = generate_random_64bit_string()
     if span_id is None:
         span_id = generate_random_64bit_string()
     if sample_rate == 0.0:
