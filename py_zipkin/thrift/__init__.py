@@ -143,7 +143,7 @@ def create_span(
     trace_id_high = None
     if trace_id_length > 16:
         assert trace_id_length == 32
-        trace_id, trace_id_high = trace_id[:16], trace_id[16:]
+        trace_id, trace_id_high = trace_id[16:], trace_id[:16]
 
     span_dict = {
         'trace_id': unsigned_hex_to_signed_int(trace_id),

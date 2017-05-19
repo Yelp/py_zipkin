@@ -32,14 +32,14 @@ def test_create_span_with_128_bit_trace_ids():
     span = thrift.create_span(
         span_id='0000000000000001',
         parent_span_id='0000000000000002',
-        trace_id='000000000000000f000000000000000f',
+        trace_id='000000000000000f000000000000000e',
         span_name='foo',
         annotations='ann',
         binary_annotations='binary_ann',
         timestamp_s=1485920381.2,
         duration_s=2.0,
     )
-    assert span.trace_id == 15
+    assert span.trace_id == 14
     assert span.trace_id_high == 15
 
 
