@@ -417,7 +417,7 @@ def create_attrs_for_span(
     sample_rate=100.0,
     trace_id=None,
     span_id=None,
-    use_128bit_trace_id=False
+    use_128bit_trace_id=False,
 ):
     """Creates a set of zipkin attributes for a span.
 
