@@ -138,6 +138,16 @@ def create_span(
     of the span. Timestamps passed in are in seconds, they're converted to
     microseconds before thrift encoding.
     """
+    # Check if trace_id is 128-bit. If so, record trace_id_high separately.
+    trace_id_length = len(trace_id)
+    trace_id_high = None
+    if trace_id_length > 16:
+        assert trace_id_length == 32
+        trace_id, trace_id_high = trace_id[16:], trace_id[:16]
+
+    if trace_id_high:
+        trace_id_high = unsigned_hex_to_signed_int(trace_id_high)
+
     span_dict = {
         'trace_id': unsigned_hex_to_signed_int(trace_id),
         'name': span_name,
@@ -146,6 +156,7 @@ def create_span(
         'binary_annotations': binary_annotations,
         'timestamp': int(timestamp_s * 1000000) if timestamp_s else None,
         'duration': int(duration_s * 1000000) if duration_s else None,
+        'trace_id_high': trace_id_high,
     }
     if parent_span_id:
         span_dict['parent_id'] = unsigned_hex_to_signed_int(parent_span_id)

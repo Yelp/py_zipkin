@@ -1,4 +1,5 @@
 import mock
+import pytest
 
 from py_zipkin import thrift
 
@@ -24,6 +25,48 @@ def test_create_span():
     assert span.binary_annotations == 'binary_ann'
     assert span.timestamp == 1485920381.2 * 1000000
     assert span.duration == 2.0 * 1000000
+    assert span.trace_id_high is None
+
+
+def test_create_span_with_128_bit_trace_ids():
+    span = thrift.create_span(
+        span_id='0000000000000001',
+        parent_span_id='0000000000000002',
+        trace_id='000000000000000f000000000000000e',
+        span_name='foo',
+        annotations='ann',
+        binary_annotations='binary_ann',
+        timestamp_s=1485920381.2,
+        duration_s=2.0,
+    )
+    assert span.trace_id == 14
+    assert span.trace_id_high == 15
+
+
+def test_create_span_fails_with_wrong_128_bit_trace_id_length():
+    with pytest.raises(AssertionError):
+        thrift.create_span(
+            span_id='0000000000000001',
+            parent_span_id='0000000000000002',
+            trace_id='000000000000000f000000000000000',
+            span_name='foo',
+            annotations='ann',
+            binary_annotations='binary_ann',
+            timestamp_s=1485920381.2,
+            duration_s=2.0,
+        )
+
+    with pytest.raises(AssertionError):
+        thrift.create_span(
+            span_id='0000000000000001',
+            parent_span_id='0000000000000002',
+            trace_id='000000000000000f000000000000000f0',
+            span_name='foo',
+            annotations='ann',
+            binary_annotations='binary_ann',
+            timestamp_s=1485920381.2,
+            duration_s=2.0,
+        )
 
 
 @mock.patch('socket.gethostbyname', autospec=True)
