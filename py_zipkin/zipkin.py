@@ -109,6 +109,7 @@ class zipkin_span(object):
         add_logging_annotation=False,
         report_root_timestamp=False,
         use_128bit_trace_id=False,
+        host=None
     ):
         """Logs a zipkin span. If this is the root span, then a zipkin
         trace is started as well.
@@ -152,6 +153,9 @@ class zipkin_span(object):
         :type report_root_timestamp: boolean
         :param use_128bit_trace_id: If true, generate 128-bit trace_ids
         :type use_128bit_trace_id: boolean
+        :param host: Contains the ipv4 value of the host. The ipv4 value isn't
+            automatically determined in a docker environment
+        :type host: string
         """
         self.service_name = service_name
         self.span_name = span_name
@@ -166,6 +170,7 @@ class zipkin_span(object):
         self.add_logging_annotation = add_logging_annotation
         self.report_root_timestamp_override = report_root_timestamp
         self.use_128bit_trace_id = use_128bit_trace_id
+        self.host = host
 
         # Validation checks
         if self.zipkin_attrs or self.sample_rate is not None:
@@ -200,6 +205,7 @@ class zipkin_span(object):
                 port=self.port,
                 sample_rate=self.sample_rate,
                 include=self.include,
+                host=self.host
             ):
                 return f(*args, **kwargs)
         return decorated
@@ -266,8 +272,7 @@ class zipkin_span(object):
             # Don't set up any logging if we're not sampling
             if not self.zipkin_attrs.is_sampled:
                 return self
-
-            endpoint = create_endpoint(self.port, self.service_name)
+            endpoint = create_endpoint(self.port, self.service_name, self.host)
             self.log_handler = ZipkinLoggerHandler(self.zipkin_attrs)
             self.logging_context = ZipkinLoggingContext(
                 self.zipkin_attrs,

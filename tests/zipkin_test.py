@@ -39,7 +39,7 @@ def test_zipkin_span_for_new_trace(
     )
     push_zipkin_attrs_mock.assert_called_once_with(
         create_attrs_for_span_mock.return_value)
-    create_endpoint_mock.assert_called_once_with(5, 'some_service_name')
+    create_endpoint_mock.assert_called_once_with(5, 'some_service_name', None)
     logger_handler_cls_mock.assert_called_once_with(
         create_attrs_for_span_mock.return_value)
     logging_context_cls_mock.assert_called_once_with(
@@ -90,7 +90,7 @@ def test_zipkin_span_passed_sampled_attrs(
         assert zipkin_context.port == 5
     assert not create_attrs_for_span_mock.called
     push_zipkin_attrs_mock.assert_called_once_with(zipkin_attrs)
-    create_endpoint_mock.assert_called_once_with(5, 'some_service_name')
+    create_endpoint_mock.assert_called_once_with(5, 'some_service_name', None)
     logger_handler_cls_mock.assert_called_once_with(zipkin_attrs)
     # Logging context should not report timestamp/duration for the server span,
     # since it's assumed that the client part of this span will do that.
@@ -451,6 +451,7 @@ def test_zipkin_span_decorator(
         transport_handler=transport_handler,
         port=5,
         sample_rate=100.0,
+        host='1.5.1.2',
     )
     def test_func(a, b):
         return a + b
@@ -463,7 +464,7 @@ def test_zipkin_span_decorator(
     )
     push_zipkin_attrs_mock.assert_called_once_with(
         create_attrs_for_span_mock.return_value)
-    create_endpoint_mock.assert_called_once_with(5, 'some_service_name')
+    create_endpoint_mock.assert_called_once_with(5, 'some_service_name', '1.5.1.2')
     logger_handler_cls_mock.assert_called_once_with(
         create_attrs_for_span_mock.return_value)
     # The decorator was passed a sample rate and no Zipkin attrs, so it's
