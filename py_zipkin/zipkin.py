@@ -153,6 +153,9 @@ class zipkin_span(object):
         :type report_root_timestamp: boolean
         :param use_128bit_trace_id: If true, generate 128-bit trace_ids
         :type use_128bit_trace_id: boolean
+        :param host: Contains the ipv4 value of the host. The ipv4 value isn't
+            automatically determined in a docker environment
+        :type host: string
         """
         self.service_name = service_name
         self.span_name = span_name
@@ -202,6 +205,7 @@ class zipkin_span(object):
                 port=self.port,
                 sample_rate=self.sample_rate,
                 include=self.include,
+                host=self.host
             ):
                 return f(*args, **kwargs)
         return decorated
