@@ -61,7 +61,10 @@ def create_endpoint(port=0, service_name='unknown', host=None):
     :returns: zipkin Endpoint object
     """
     if host is None:
-        host = socket.gethostbyname(socket.gethostname())
+        try:
+            host = socket.gethostbyname(socket.gethostname())
+        except socket.gaierror:
+            host = '127.0.0.1'
     # Convert ip address to network byte order
     ipv4 = struct.unpack('!i', socket.inet_aton(host))[0]
     # Zipkin passes unsigned values in signed types because Thrift has no
