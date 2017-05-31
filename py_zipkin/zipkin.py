@@ -383,11 +383,16 @@ class zipkin_span(object):
             # the binary annotations for the logging context directly.
             self.logging_context.binary_annotations_dict.update(extra_annotations)
 
-    def add_sa_binary_annotation(self, port=0, service_name='unknown', host='127.0.0.1'):
+    def add_sa_binary_annotation(
+        self,
+        port=0,
+        service_name='unknown',
+        host='127.0.0.1',
+    ):
         """Adds a 'sa' binary annotation to the current span.
 
-        'sa' binary annotations are useful for situations where you need to log where
-        a request is going but the destination doesn't support zipkin.
+        'sa' binary annotations are useful for situations where you need to log
+        where a request is going but the destination doesn't support zipkin.
 
         Note that the span must have 'cs'/'cr' annotations.
 
@@ -406,7 +411,11 @@ class zipkin_span(object):
             # should result in a logged error
             return
 
-        sa_endpoint = create_endpoint(port=port, service_name=service_name, host=host)
+        sa_endpoint = create_endpoint(
+            port=port,
+            service_name=service_name,
+            host=host,
+        )
         sa_binary_annotation = create_binary_annotation(
             key='sa',
             value=str(True),

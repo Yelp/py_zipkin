@@ -601,28 +601,46 @@ def test_add_sa_binary_annotation():
 
     with context:
         assert context.logging_context.sa_binary_annotation is None
-        context.add_sa_binary_annotation(port=123, service_name='test_service', host='1.2.3.4')
+        context.add_sa_binary_annotation(
+            port=123,
+            service_name='test_service',
+            host='1.2.3.4',
+        )
         expected_sa_binary_annotation = create_binary_annotation(
             key='sa',
             value=str(True),
             annotation_type=zipkin_core.AnnotationType.BOOL,
-            host=create_endpoint(port=123, service_name='test_service', host='1.2.3.4'),
+            host=create_endpoint(
+                port=123,
+                service_name='test_service',
+                host='1.2.3.4',
+            ),
         )
-        assert context.logging_context.sa_binary_annotation == expected_sa_binary_annotation
+        assert context.logging_context.sa_binary_annotation == \
+            expected_sa_binary_annotation
 
         nested_context = zipkin.zipkin_span(
             service_name='my_service',
             span_name='nested_span',
         )
         with nested_context:
-            nested_context.add_sa_binary_annotation(port=456, service_name='nested_service', host='5.6.7.8')
+            nested_context.add_sa_binary_annotation(
+                port=456,
+                service_name='nested_service',
+                host='5.6.7.8',
+            )
             expected_nested_sa_binary_annotation = create_binary_annotation(
                 key='sa',
                 value=str(True),
                 annotation_type=zipkin_core.AnnotationType.BOOL,
-                host=create_endpoint(port=456, service_name='nested_service', host='5.6.7.8'),
+                host=create_endpoint(
+                    port=456,
+                    service_name='nested_service',
+                    host='5.6.7.8',
+                ),
             )
-            assert nested_context.sa_binary_annotation == expected_nested_sa_binary_annotation
+            assert nested_context.sa_binary_annotation == \
+                expected_nested_sa_binary_annotation
 
 
 def test_adding_sa_binary_annotation_without_sampling():
@@ -633,7 +651,11 @@ def test_adding_sa_binary_annotation_without_sampling():
         sample_rate=0.0,
     )
     with context:
-        context.add_sa_binary_annotation(port=123, service_name='test_service', host='1.2.3.4')
+        context.add_sa_binary_annotation(
+            port=123,
+            service_name='test_service',
+            host='1.2.3.4',
+        )
         assert context.logging_context is None
 
 
@@ -646,7 +668,11 @@ def test_adding_sa_binary_annotation_for_non_client_spans():
         sample_rate=100.0,
     )
     with context:
-        context.add_sa_binary_annotation(port=123, service_name='test_service', host='1.2.3.4')
+        context.add_sa_binary_annotation(
+            port=123,
+            service_name='test_service',
+            host='1.2.3.4',
+        )
         assert context.logging_context.sa_binary_annotation is None
 
 
