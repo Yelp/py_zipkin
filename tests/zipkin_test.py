@@ -5,6 +5,9 @@ import py_zipkin.zipkin as zipkin
 from py_zipkin.exception import ZipkinError
 from py_zipkin.logging_helper import ZipkinLoggerHandler
 from py_zipkin.thread_local import get_zipkin_attrs
+from py_zipkin.thrift import create_binary_annotation
+from py_zipkin.thrift import create_endpoint
+from py_zipkin.thrift import zipkin_core
 from py_zipkin.util import generate_random_64bit_string
 from py_zipkin.zipkin import ZipkinAttrs
 
@@ -423,6 +426,7 @@ def test_span_context(
         'span_id': '1',
         'annotations': {'something': 1},
         'binary_annotations': {'foo': 'bar'},
+        'sa_binary_annotation': None,
     }
     assert client_span == expected_client_span
 
@@ -577,6 +581,73 @@ def test_update_binary_annotations_should_not_error_for_child_spans():
         # Updating the binary annotations for a non-tracing child span
         # should result in a no-op
         non_tracing_context.update_binary_annotations({'test': 'hi'})
+
+
+def test_add_sa_binary_annotation():
+    zipkin_attrs = ZipkinAttrs(
+        trace_id='0',
+        span_id='1',
+        parent_span_id=None,
+        flags='0',
+        is_sampled=True,
+    )
+    context = zipkin.zipkin_span(
+        service_name='my_service',
+        span_name='span_name',
+        zipkin_attrs=zipkin_attrs,
+        transport_handler=mock.Mock(),
+        port=5,
+    )
+
+    with context:
+        assert context.logging_context.sa_binary_annotation is None
+        context.add_sa_binary_annotation(port=123, service_name='test_service', host='1.2.3.4')
+        expected_sa_binary_annotation = create_binary_annotation(
+            key='sa',
+            value=str(True),
+            annotation_type=zipkin_core.AnnotationType.BOOL,
+            host=create_endpoint(port=123, service_name='test_service', host='1.2.3.4'),
+        )
+        assert context.logging_context.sa_binary_annotation == expected_sa_binary_annotation
+
+        nested_context = zipkin.zipkin_span(
+            service_name='my_service',
+            span_name='nested_span',
+        )
+        with nested_context:
+            nested_context.add_sa_binary_annotation(port=456, service_name='nested_service', host='5.6.7.8')
+            expected_nested_sa_binary_annotation = create_binary_annotation(
+                key='sa',
+                value=str(True),
+                annotation_type=zipkin_core.AnnotationType.BOOL,
+                host=create_endpoint(port=456, service_name='nested_service', host='5.6.7.8'),
+            )
+            assert nested_context.sa_binary_annotation == expected_nested_sa_binary_annotation
+
+
+def test_adding_sa_binary_annotation_without_sampling():
+    context = zipkin.zipkin_span(
+        service_name='my_service',
+        span_name='span_name',
+        transport_handler=mock.Mock(),
+        sample_rate=0.0,
+    )
+    with context:
+        context.add_sa_binary_annotation(port=123, service_name='test_service', host='1.2.3.4')
+        assert context.logging_context is None
+
+
+def test_adding_sa_binary_annotation_for_non_client_spans():
+    context = zipkin.zipkin_span(
+        service_name='my_service',
+        span_name='span_name',
+        transport_handler=mock.Mock(),
+        include=('server',),
+        sample_rate=100.0,
+    )
+    with context:
+        context.add_sa_binary_annotation(port=123, service_name='test_service', host='1.2.3.4')
+        assert context.logging_context.sa_binary_annotation is None
 
 
 @mock.patch('py_zipkin.zipkin.generate_random_128bit_string', autospec=True)
