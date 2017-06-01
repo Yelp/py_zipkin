@@ -151,7 +151,7 @@ class ZipkinLoggingContext(object):
             server_end_time = time.time()
             annotations = dict(
                 sr=self.start_timestamp,
-                ss=server_end_time,
+                ss=logging_start,
                 **extra_annotations
             )
             if self.add_logging_annotation:
