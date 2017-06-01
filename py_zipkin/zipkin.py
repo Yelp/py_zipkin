@@ -418,7 +418,7 @@ class zipkin_span(object):
         )
         sa_binary_annotation = create_binary_annotation(
             key='sa',
-            value=str(True),
+            value='1',
             annotation_type=zipkin_core.AnnotationType.BOOL,
             host=sa_endpoint,
         )
