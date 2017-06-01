@@ -5,6 +5,7 @@ import py_zipkin.zipkin as zipkin
 from py_zipkin.exception import ZipkinError
 from py_zipkin.logging_helper import ZipkinLoggerHandler
 from py_zipkin.thread_local import get_zipkin_attrs
+from py_zipkin.thrift import SERVER_ADDR_VAL
 from py_zipkin.thrift import create_binary_annotation
 from py_zipkin.thrift import create_endpoint
 from py_zipkin.thrift import zipkin_core
@@ -607,8 +608,8 @@ def test_add_sa_binary_annotation():
             host='1.2.3.4',
         )
         expected_sa_binary_annotation = create_binary_annotation(
-            key='sa',
-            value='1',
+            key=zipkin_core.SERVER_ADDR,
+            value=SERVER_ADDR_VAL,
             annotation_type=zipkin_core.AnnotationType.BOOL,
             host=create_endpoint(
                 port=123,
@@ -630,8 +631,8 @@ def test_add_sa_binary_annotation():
                 host='5.6.7.8',
             )
             expected_nested_sa_binary_annotation = create_binary_annotation(
-                key='sa',
-                value='1',
+                key=zipkin_core.SERVER_ADDR,
+                value=SERVER_ADDR_VAL,
                 annotation_type=zipkin_core.AnnotationType.BOOL,
                 host=create_endpoint(
                     port=456,

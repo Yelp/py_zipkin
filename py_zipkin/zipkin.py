@@ -11,6 +11,7 @@ from py_zipkin.logging_helper import ZipkinLoggingContext
 from py_zipkin.thread_local import get_zipkin_attrs
 from py_zipkin.thread_local import pop_zipkin_attrs
 from py_zipkin.thread_local import push_zipkin_attrs
+from py_zipkin.thrift import SERVER_ADDR_VAL
 from py_zipkin.thrift import create_binary_annotation
 from py_zipkin.thrift import create_endpoint
 from py_zipkin.thrift import zipkin_core
@@ -418,7 +419,7 @@ class zipkin_span(object):
         )
         sa_binary_annotation = create_binary_annotation(
             key=zipkin_core.SERVER_ADDR,
-            value='1',
+            value=SERVER_ADDR_VAL,
             annotation_type=zipkin_core.AnnotationType.BOOL,
             host=sa_endpoint,
         )
