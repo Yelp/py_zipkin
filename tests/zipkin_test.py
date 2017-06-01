@@ -426,7 +426,7 @@ def test_span_context(
         'span_id': '1',
         'annotations': {'something': 1},
         'binary_annotations': {'foo': 'bar'},
-        'sa_binary_annotation': None,
+        'sa_binary_annotations': [],
     }
     assert client_span == expected_client_span
 
@@ -600,7 +600,7 @@ def test_add_sa_binary_annotation():
     )
 
     with context:
-        assert context.logging_context.sa_binary_annotation is None
+        assert context.logging_context.sa_binary_annotations == []
         context.add_sa_binary_annotation(
             port=123,
             service_name='test_service',
@@ -608,7 +608,7 @@ def test_add_sa_binary_annotation():
         )
         expected_sa_binary_annotation = create_binary_annotation(
             key='sa',
-            value=str(True),
+            value='1',
             annotation_type=zipkin_core.AnnotationType.BOOL,
             host=create_endpoint(
                 port=123,
@@ -616,7 +616,7 @@ def test_add_sa_binary_annotation():
                 host='1.2.3.4',
             ),
         )
-        assert context.logging_context.sa_binary_annotation == \
+        assert context.logging_context.sa_binary_annotations[0] == \
             expected_sa_binary_annotation
 
         nested_context = zipkin.zipkin_span(
@@ -631,7 +631,7 @@ def test_add_sa_binary_annotation():
             )
             expected_nested_sa_binary_annotation = create_binary_annotation(
                 key='sa',
-                value=str(True),
+                value='1',
                 annotation_type=zipkin_core.AnnotationType.BOOL,
                 host=create_endpoint(
                     port=456,
@@ -639,7 +639,7 @@ def test_add_sa_binary_annotation():
                     host='5.6.7.8',
                 ),
             )
-            assert nested_context.sa_binary_annotation == \
+            assert nested_context.sa_binary_annotations[0] == \
                 expected_nested_sa_binary_annotation
 
 
@@ -673,7 +673,7 @@ def test_adding_sa_binary_annotation_for_non_client_spans():
             service_name='test_service',
             host='1.2.3.4',
         )
-        assert context.logging_context.sa_binary_annotation is None
+        assert context.logging_context.sa_binary_annotations == []
 
 
 @mock.patch('py_zipkin.zipkin.generate_random_128bit_string', autospec=True)

@@ -174,10 +174,10 @@ class zipkin_span(object):
         self.use_128bit_trace_id = use_128bit_trace_id
         self.host = host
 
-        # Spans that log a 'cs' timestamp can additionally record a
-        # 'sa' binary annotation that shows where the request is going.
-        # This holds the 'sa' binary annotation if one is to be set.
-        self.sa_binary_annotation = None
+        # Spans that log a 'cs' timestamp can additionally record
+        # 'sa' binary annotations that show where the request is going.
+        # This holds a list of 'sa' binary annotations.
+        self.sa_binary_annotations = []
 
         # Validation checks
         if self.zipkin_attrs or self.sample_rate is not None:
@@ -361,7 +361,7 @@ class zipkin_span(object):
             service_name=self.service_name,
             annotations=self.annotations,
             binary_annotations=self.binary_annotations,
-            sa_binary_annotation=self.sa_binary_annotation,
+            sa_binary_annotations=self.sa_binary_annotations,
             span_id=self.zipkin_attrs.span_id,
         )
 
@@ -417,15 +417,15 @@ class zipkin_span(object):
             host=host,
         )
         sa_binary_annotation = create_binary_annotation(
-            key='sa',
+            key=zipkin_core.SERVER_ADDR,
             value='1',
             annotation_type=zipkin_core.AnnotationType.BOOL,
             host=sa_endpoint,
         )
         if not self.logging_context:
-            self.sa_binary_annotation = sa_binary_annotation
+            self.sa_binary_annotations.append(sa_binary_annotation)
         else:
-            self.logging_context.sa_binary_annotation = sa_binary_annotation
+            self.logging_context.sa_binary_annotations.append(sa_binary_annotation)
 
 
 def _validate_args(kwargs):

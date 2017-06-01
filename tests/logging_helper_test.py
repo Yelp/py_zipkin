@@ -211,7 +211,7 @@ def test_handler_stores_client_span_on_emit(sampled_zipkin_attr):
         'span_id': None,
         'annotations': 'ann1',
         'binary_annotations': 'bann1',
-        'sa_binary_annotation': None,
+        'sa_binary_annotations': None,
     }]
 
 
