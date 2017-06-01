@@ -1,3 +1,11 @@
+0.8.0 (2017-06-01)
+------------------
+- Added 128-bit trace id support
+- Added ability to explicitly specify host for a span
+- Added exception handling if host can't be determined automatically
+- SERVER_ADDR ('sa') binary annotations can be added to spans
+- py36 support
+
 0.7.1 (2017-05-01)
 ------------------
 - Fixed a bug where `update_binary_annotations` would fail for a child
