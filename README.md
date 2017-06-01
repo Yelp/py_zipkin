@@ -92,6 +92,29 @@ def some_function(a, b):
         zipkin_context.update_binary_annotations({'result': result})
 ```
 
+`zipkin_span.add_sa_binary_annotation()` can be used to add a binary annotation
+to the current span with the key 'sa'. This function allows the user to specify the
+destination address of the service being called (useful if the destination doesn't
+support zipkin). See http://zipkin.io/pages/data_model.html for more information on the
+'sa' binary annotation.
+
+```python
+def some_function():
+    with zipkin_span(
+        service_name='my_service',
+        span_name='some_function',
+        transport_handler=some_handler,
+        port=42,
+        sample_rate=0.05,
+    ) as zipkin_context:
+        make_call_to_non_instrumented_service()
+        zipkin_context.add_sa_binary_annotation(
+            port=123,
+            service_name='non_instrumented_service',
+            host='12.34.56.78',
+        )
+```
+
 `create_http_headers_for_new_span()` creates a set of HTTP headers that can be forwarded
 in a request to another service.
 

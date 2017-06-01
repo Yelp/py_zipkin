@@ -13,6 +13,7 @@ from py_zipkin.util import unsigned_hex_to_signed_int
 thrift_filepath = os.path.join(os.path.dirname(__file__), 'zipkinCore.thrift')
 zipkin_core = thriftpy.load(thrift_filepath, module_name="zipkinCore_thrift")
 
+SERVER_ADDR_VAL = '\x01'
 
 dummy_endpoint = zipkin_core.Endpoint()
 

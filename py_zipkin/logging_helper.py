@@ -56,6 +56,7 @@ class ZipkinLoggingContext(object):
         self.response_status_code = 0
         self.report_root_timestamp = report_root_timestamp
         self.binary_annotations_dict = binary_annotations or {}
+        self.sa_binary_annotations = []
         self.add_logging_annotation = add_logging_annotation
 
     def start(self):
@@ -126,6 +127,8 @@ class ZipkinLoggingContext(object):
                 thrift_binary_annotations = binary_annotation_list_builder(
                     binary_annotations, endpoint
                 )
+                if span.get('sa_binary_annotations'):
+                    thrift_binary_annotations += span['sa_binary_annotations']
 
                 log_span(
                     span_id=span_id,
@@ -166,6 +169,8 @@ class ZipkinLoggingContext(object):
                 self.binary_annotations_dict,
                 self.thrift_endpoint,
             )
+            if self.sa_binary_annotations:
+                thrift_binary_annotations += self.sa_binary_annotations
 
             if self.report_root_timestamp:
                 timestamp = self.start_timestamp
@@ -219,6 +224,7 @@ class ZipkinLoggerHandler(logging.StreamHandler, object):
         service_name,
         annotations,
         binary_annotations,
+        sa_binary_annotations=None,
         span_id=None,
     ):
         """Convenience method for storing a local child span (a zipkin_span
@@ -232,6 +238,7 @@ class ZipkinLoggerHandler(logging.StreamHandler, object):
             'span_id': span_id,
             'annotations': annotations,
             'binary_annotations': binary_annotations,
+            'sa_binary_annotations': sa_binary_annotations,
         })
 
     def emit(self, record):

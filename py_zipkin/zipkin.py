@@ -11,7 +11,10 @@ from py_zipkin.logging_helper import ZipkinLoggingContext
 from py_zipkin.thread_local import get_zipkin_attrs
 from py_zipkin.thread_local import pop_zipkin_attrs
 from py_zipkin.thread_local import push_zipkin_attrs
+from py_zipkin.thrift import SERVER_ADDR_VAL
+from py_zipkin.thrift import create_binary_annotation
 from py_zipkin.thrift import create_endpoint
+from py_zipkin.thrift import zipkin_core
 from py_zipkin.util import generate_random_64bit_string
 from py_zipkin.util import generate_random_128bit_string
 
@@ -171,6 +174,11 @@ class zipkin_span(object):
         self.report_root_timestamp_override = report_root_timestamp
         self.use_128bit_trace_id = use_128bit_trace_id
         self.host = host
+
+        # Spans that log a 'cs' timestamp can additionally record
+        # 'sa' binary annotations that show where the request is going.
+        # This holds a list of 'sa' binary annotations.
+        self.sa_binary_annotations = []
 
         # Validation checks
         if self.zipkin_attrs or self.sample_rate is not None:
@@ -354,6 +362,7 @@ class zipkin_span(object):
             service_name=self.service_name,
             annotations=self.annotations,
             binary_annotations=self.binary_annotations,
+            sa_binary_annotations=self.sa_binary_annotations,
             span_id=self.zipkin_attrs.span_id,
         )
 
@@ -374,6 +383,50 @@ class zipkin_span(object):
             # Otherwise, we're in the context of the root span, so just update
             # the binary annotations for the logging context directly.
             self.logging_context.binary_annotations_dict.update(extra_annotations)
+
+    def add_sa_binary_annotation(
+        self,
+        port=0,
+        service_name='unknown',
+        host='127.0.0.1',
+    ):
+        """Adds a 'sa' binary annotation to the current span.
+
+        'sa' binary annotations are useful for situations where you need to log
+        where a request is going but the destination doesn't support zipkin.
+
+        Note that the span must have 'cs'/'cr' annotations.
+
+        :param port: The port number of the destination
+        :type port: int
+        :param service_name: The name of the destination service
+        :type service_name: str
+        :param host: Host address of the destination
+        :type host: str
+        """
+        if not self.zipkin_attrs or not self.zipkin_attrs.is_sampled:
+            return
+
+        if 'client' not in self.include:
+            # TODO: trying to set a sa binary annotation for a non-client span
+            # should result in a logged error
+            return
+
+        sa_endpoint = create_endpoint(
+            port=port,
+            service_name=service_name,
+            host=host,
+        )
+        sa_binary_annotation = create_binary_annotation(
+            key=zipkin_core.SERVER_ADDR,
+            value=SERVER_ADDR_VAL,
+            annotation_type=zipkin_core.AnnotationType.BOOL,
+            host=sa_endpoint,
+        )
+        if not self.logging_context:
+            self.sa_binary_annotations.append(sa_binary_annotation)
+        else:
+            self.logging_context.sa_binary_annotations.append(sa_binary_annotation)
 
 
 def _validate_args(kwargs):
