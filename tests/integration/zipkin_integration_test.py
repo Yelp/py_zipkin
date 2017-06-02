@@ -4,7 +4,7 @@ from thriftpy.transport import TMemoryBuffer
 
 from py_zipkin import zipkin
 from py_zipkin.logging_helper import zipkin_logger
-from py_zipkin.logging_helper import LOGGING_START_KEY
+from py_zipkin.logging_helper import LOGGING_END_KEY
 from py_zipkin.thrift import zipkin_core
 from py_zipkin.zipkin import ZipkinAttrs
 
@@ -12,7 +12,7 @@ from py_zipkin.zipkin import ZipkinAttrs
 @pytest.fixture
 def default_annotations():
     return set([
-        'ss', 'sr', LOGGING_START_KEY,
+        'ss', 'sr', LOGGING_END_KEY,
     ])
 
 

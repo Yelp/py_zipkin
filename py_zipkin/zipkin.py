@@ -143,8 +143,8 @@ class zipkin_span(object):
             can be one of {'client', 'server'}
             corresponding to ('cs', 'cr') and ('ss', 'sr') respectively
         :type include: iterable
-        :param add_logging_annotation: Whether to add a 'start_logging'
-            annotation when py_zipkin starts logging spans
+        :param add_logging_annotation: Whether to add a 'logging_end'
+            annotation when py_zipkin finishes logging spans
         :type add_logging_annotation: boolean
         :param report_root_timestamp: Whether the span should report timestamp
             and duration. Only applies to "root" spans in this local context,

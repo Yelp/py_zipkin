@@ -24,7 +24,7 @@ zipkin_logger = logging.getLogger('py_zipkin.logger')
 zipkin_logger.addHandler(null_handler)
 zipkin_logger.setLevel(logging.DEBUG)
 
-LOGGING_START_KEY = 'py_zipkin.logging_start'
+LOGGING_END_KEY = 'py_zipkin.logging_end'
 
 
 class ZipkinLoggingContext(object):
@@ -84,7 +84,7 @@ class ZipkinLoggingContext(object):
         a success. It also logs the service `ss` and `sr` annotations.
         """
         if self.zipkin_attrs.is_sampled:
-            logging_start = time.time()
+            server_end_time = time.time()
             # Collect additional annotations from the logging handler
             annotations_by_span_id = defaultdict(dict)
             binary_annotations_by_span_id = defaultdict(dict)
@@ -148,14 +148,14 @@ class ZipkinLoggingContext(object):
             extra_binary_annotations = binary_annotations_by_span_id[
                 self.zipkin_attrs.span_id
             ]
-            server_end_time = time.time()
+            logging_end = time.time()
             annotations = dict(
                 sr=self.start_timestamp,
                 ss=server_end_time,
                 **extra_annotations
             )
             if self.add_logging_annotation:
-                annotations[LOGGING_START_KEY] = logging_start
+                annotations[LOGGING_END_KEY] = logging_end
 
             thrift_annotations = annotation_list_builder(
                 annotations,
