@@ -1,3 +1,9 @@
+0.8.1 (2017-06-16)
+------------------
+- Fixed server send timing to more accurately reflect when server send
+  actually occurs.
+- Replaced logging_start annotation with logging_end
+
 0.8.0 (2017-06-01)
 ------------------
 - Added 128-bit trace id support
