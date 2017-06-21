@@ -1,3 +1,4 @@
+import json
 import mock
 import pytest
 
@@ -675,6 +676,33 @@ def test_adding_sa_binary_annotation_for_non_client_spans():
             host='1.2.3.4',
         )
         assert context.logging_context.sa_binary_annotations == []
+
+
+@mock.patch(
+    'py_zipkin.zipkin.zipkin_span.update_binary_annotations', autospec=True)
+def test_adding_error_annotation_on_exception(mock_update_binary_annotations):
+    zipkin_attrs = ZipkinAttrs(
+        trace_id='0',
+        span_id='1',
+        parent_span_id=None,
+        flags='0',
+        is_sampled=True,
+    )
+    context = zipkin.zipkin_span(
+        service_name='my_service',
+        span_name='span_name',
+        zipkin_attrs=zipkin_attrs,
+        transport_handler=mock.Mock(),
+        port=5,
+    )
+    with pytest.raises(ValueError):
+        with context:
+            raise ValueError('some value error')
+    assert mock_update_binary_annotations.call_count == 1
+    call_args, _ = mock_update_binary_annotations.call_args
+    assert 'error' in call_args[1]
+    logged_traceback = json.loads(call_args[1]['error'])
+    assert 'ValueError' in logged_traceback[-1]
 
 
 @mock.patch('py_zipkin.zipkin.generate_random_128bit_string', autospec=True)

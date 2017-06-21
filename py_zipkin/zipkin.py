@@ -2,6 +2,7 @@
 import functools
 import random
 import time
+import traceback
 from collections import namedtuple
 
 from py_zipkin.exception import ZipkinError
@@ -326,6 +327,18 @@ class zipkin_span(object):
 
         if not self.zipkin_attrs or not self.zipkin_attrs.is_sampled:
             return
+
+        # Add the error annotation if an exception occurred
+        if any((_exc_type, _exc_value, _exc_traceback)):
+            import json
+            error_msg = traceback.format_exception(
+                _exc_type,
+                _exc_value,
+                _exc_traceback,
+            )
+            self.update_binary_annotations({
+                zipkin_core.ERROR: json.dumps(error_msg),
+            })
 
         # Logging context is only initialized for "root" spans of the local
         # process (i.e. this zipkin_span not inside of any other local
