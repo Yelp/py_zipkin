@@ -161,6 +161,7 @@ def test_zipkin_logging_server_context_log_spans(
         'timestamp_s': 26,
     }
 
+
 @mock.patch('py_zipkin.logging_helper.time.time', autospec=True)
 @mock.patch('py_zipkin.logging_helper.log_span', autospec=True)
 @mock.patch('py_zipkin.logging_helper.annotation_list_builder',
@@ -226,6 +227,7 @@ def test_zipkin_logging_client_context_log_spans(
         'duration_s': 18,
         'timestamp_s': 24,
     }
+
 
 @mock.patch('py_zipkin.logging_helper.log_span', autospec=True)
 def test_log_span_not_called_if_not_sampled(log_span_mock):

@@ -60,7 +60,7 @@ class ZipkinLoggingContext(object):
         self.binary_annotations_dict = binary_annotations or {}
         self.sa_binary_annotations = []
         self.add_logging_annotation = add_logging_annotation
-        self.client_context=client_context
+        self.client_context = client_context
 
     def start(self):
         """Actions to be taken before request is handled.
