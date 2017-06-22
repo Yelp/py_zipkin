@@ -55,6 +55,7 @@ def test_zipkin_span_for_new_trace(
         report_root_timestamp=True,
         binary_annotations={},
         add_logging_annotation=False,
+        client_context=False,
     )
     pop_zipkin_attrs_mock.assert_called_once_with()
 
@@ -107,6 +108,7 @@ def test_zipkin_span_passed_sampled_attrs(
         report_root_timestamp=False,
         binary_annotations={},
         add_logging_annotation=False,
+        client_context=False,
     )
     pop_zipkin_attrs_mock.assert_called_once_with()
 
@@ -483,6 +485,7 @@ def test_zipkin_span_decorator(
         report_root_timestamp=True,
         binary_annotations={},
         add_logging_annotation=False,
+        client_context=False,
     )
     pop_zipkin_attrs_mock.assert_called_once_with()
 

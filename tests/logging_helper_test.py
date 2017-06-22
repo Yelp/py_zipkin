@@ -64,7 +64,7 @@ def test_zipkin_logging_context(time_mock, mock_logger, context):
             autospec=True)
 @mock.patch('py_zipkin.logging_helper.copy_endpoint_with_new_service_name',
             autospec=True)
-def test_zipkin_logging_context_log_spans(
+def test_zipkin_logging_server_context_log_spans(
     copy_endpoint_mock, bin_ann_list_builder, ann_list_builder,
     log_span_mock, time_mock
 ):
@@ -161,6 +161,71 @@ def test_zipkin_logging_context_log_spans(
         'timestamp_s': 26,
     }
 
+@mock.patch('py_zipkin.logging_helper.time.time', autospec=True)
+@mock.patch('py_zipkin.logging_helper.log_span', autospec=True)
+@mock.patch('py_zipkin.logging_helper.annotation_list_builder',
+            autospec=True)
+@mock.patch('py_zipkin.logging_helper.binary_annotation_list_builder',
+            autospec=True)
+@mock.patch('py_zipkin.logging_helper.copy_endpoint_with_new_service_name',
+            autospec=True)
+def test_zipkin_logging_client_context_log_spans(
+    copy_endpoint_mock, bin_ann_list_builder, ann_list_builder,
+    log_span_mock, time_mock
+):
+    # This lengthy function tests that the logging context properly
+    # logs root client span
+    trace_id = '000000000000000f'
+    client_span_id = '0000000000000003'
+    attr = ZipkinAttrs(
+        trace_id=trace_id,
+        span_id=client_span_id,
+        parent_span_id=None,
+        flags=None,
+        is_sampled=True,
+    )
+    handler = logging_helper.ZipkinLoggerHandler(attr)
+    handler.client_spans = []
+
+    # Each of the thrift annotation helpers just reflects its first arg
+    # so the annotation dicts can be checked.
+    ann_list_builder.side_effect = lambda x, y: x
+    bin_ann_list_builder.side_effect = lambda x, y: x
+
+    transport_handler = mock.Mock()
+
+    context = logging_helper.ZipkinLoggingContext(
+        zipkin_attrs=attr,
+        thrift_endpoint='thrift_endpoint',
+        log_handler=handler,
+        span_name='GET /foo',
+        transport_handler=transport_handler,
+        report_root_timestamp=True,
+        client_context=True
+    )
+
+    context.start_timestamp = 24
+    context.response_status_code = 200
+
+    context.binary_annotations_dict = {'k': 'v'}
+    time_mock.return_value = 42
+
+    expected_server_annotations = {'cs': 24, 'cr': 42}
+    expected_server_bin_annotations = {'k': 'v'}
+
+    context.log_spans()
+    log_call = log_span_mock.call_args_list[0]
+    assert log_call[1] == {
+        'span_id': client_span_id,
+        'parent_span_id': None,
+        'trace_id': trace_id,
+        'span_name': 'GET /foo',
+        'annotations': expected_server_annotations,
+        'binary_annotations': expected_server_bin_annotations,
+        'transport_handler': transport_handler,
+        'duration_s': 18,
+        'timestamp_s': 24,
+    }
 
 @mock.patch('py_zipkin.logging_helper.log_span', autospec=True)
 def test_log_span_not_called_if_not_sampled(log_span_mock):
