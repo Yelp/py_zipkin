@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import functools
+import json
 import random
 import time
 import traceback
@@ -330,7 +331,6 @@ class zipkin_span(object):
 
         # Add the error annotation if an exception occurred
         if any((_exc_type, _exc_value, _exc_traceback)):
-            import json
             error_msg = traceback.format_exception(
                 _exc_type,
                 _exc_value,
