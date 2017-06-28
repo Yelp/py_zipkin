@@ -281,7 +281,7 @@ class zipkin_span(object):
             if not self.zipkin_attrs.is_sampled:
                 return self
             endpoint = create_endpoint(self.port, self.service_name, self.host)
-            client_context = (self.include == {'client'})
+            client_context = set(self.include) == {'client'}
             self.log_handler = ZipkinLoggerHandler(self.zipkin_attrs)
             self.logging_context = ZipkinLoggingContext(
                 self.zipkin_attrs,

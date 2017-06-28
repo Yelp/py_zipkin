@@ -30,10 +30,8 @@ LOGGING_END_KEY = 'py_zipkin.logging_end'
 class ZipkinLoggingContext(object):
     """A logging context specific to a Zipkin trace. If the trace is sampled,
     the logging context sends serialized Zipkin spans to a transport_handler.
-
-    The trace can represent
-        1) server and contains root server span and child client spans (optionally)
-        2) client and contains root client span only
+    The logging context sends root "server" or "client" span, as well as all
+    local child spans collected within this context.
 
     This class should only be used by the main `zipkin_span` entrypoint.
     """
@@ -101,7 +99,6 @@ class ZipkinLoggingContext(object):
                 )
 
             # Collect, annotate, and log client spans from the logging handler
-            # In case of root client span client_spans list is empty
             for span in self.log_handler.client_spans:
                 # The parent_span_id is either the parent ID set in the
                 # logging handler or the current Zipkin context's span ID.

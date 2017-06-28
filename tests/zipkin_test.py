@@ -442,7 +442,7 @@ def test_span_context(
 @mock.patch('py_zipkin.zipkin.create_endpoint')
 @mock.patch('py_zipkin.zipkin.ZipkinLoggerHandler', autospec=True)
 @mock.patch('py_zipkin.zipkin.ZipkinLoggingContext', autospec=True)
-def test_zipkin_span_decorator(
+def test_zipkin_server_span_decorator(
     logging_context_cls_mock,
     logger_handler_cls_mock,
     create_endpoint_mock,
@@ -486,6 +486,61 @@ def test_zipkin_span_decorator(
         binary_annotations={},
         add_logging_annotation=False,
         client_context=False,
+    )
+    pop_zipkin_attrs_mock.assert_called_once_with()
+
+
+@mock.patch('py_zipkin.zipkin.pop_zipkin_attrs', autospec=True)
+@mock.patch('py_zipkin.zipkin.push_zipkin_attrs', autospec=True)
+@mock.patch('py_zipkin.zipkin.create_attrs_for_span', autospec=True)
+@mock.patch('py_zipkin.zipkin.create_endpoint')
+@mock.patch('py_zipkin.zipkin.ZipkinLoggerHandler', autospec=True)
+@mock.patch('py_zipkin.zipkin.ZipkinLoggingContext', autospec=True)
+def test_zipkin_client_span_decorator(
+    logging_context_cls_mock,
+    logger_handler_cls_mock,
+    create_endpoint_mock,
+    create_attrs_for_span_mock,
+    push_zipkin_attrs_mock,
+    pop_zipkin_attrs_mock,
+):
+    transport_handler = mock.Mock()
+
+    @zipkin.zipkin_span(
+        service_name='some_service_name',
+        span_name='span_name',
+        transport_handler=transport_handler,
+        port=5,
+        sample_rate=100.0,
+        include=('client',),
+        host='1.5.1.2',
+    )
+    def test_func(a, b):
+        return a + b
+
+    assert test_func(1, 2) == 3
+
+    create_attrs_for_span_mock.assert_called_once_with(
+        sample_rate=100.0,
+        use_128bit_trace_id=False,
+    )
+    push_zipkin_attrs_mock.assert_called_once_with(
+        create_attrs_for_span_mock.return_value)
+    create_endpoint_mock.assert_called_once_with(5, 'some_service_name', '1.5.1.2')
+    logger_handler_cls_mock.assert_called_once_with(
+        create_attrs_for_span_mock.return_value)
+    # The decorator was passed a sample rate and no Zipkin attrs, so it's
+    # assumed to be the root of a trace and it should report timestamp/duration
+    logging_context_cls_mock.assert_called_once_with(
+        create_attrs_for_span_mock.return_value,
+        create_endpoint_mock.return_value,
+        logger_handler_cls_mock.return_value,
+        'span_name',
+        transport_handler,
+        report_root_timestamp=True,
+        binary_annotations={},
+        add_logging_annotation=False,
+        client_context=True,
     )
     pop_zipkin_attrs_mock.assert_called_once_with()
 
