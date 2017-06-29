@@ -281,6 +281,7 @@ class zipkin_span(object):
             if not self.zipkin_attrs.is_sampled:
                 return self
             endpoint = create_endpoint(self.port, self.service_name, self.host)
+            client_context = set(self.include) == {'client'}
             self.log_handler = ZipkinLoggerHandler(self.zipkin_attrs)
             self.logging_context = ZipkinLoggingContext(
                 self.zipkin_attrs,
@@ -291,6 +292,7 @@ class zipkin_span(object):
                 report_root_timestamp or self.report_root_timestamp_override,
                 binary_annotations=self.binary_annotations,
                 add_logging_annotation=self.add_logging_annotation,
+                client_context=client_context
             )
             self.logging_context.start()
             return self
