@@ -1,3 +1,8 @@
+0.8.2 (2017-06-30)
+------------------
+- Don't log ss and sr annotations when in a client span context
+- Add error binary annotation if an exception occurs
+
 0.8.1 (2017-06-16)
 ------------------
 - Fixed server send timing to more accurately reflect when server send
