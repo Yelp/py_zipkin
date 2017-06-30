@@ -329,6 +329,13 @@ class zipkin_span(object):
         if not self.zipkin_attrs or not self.zipkin_attrs.is_sampled:
             return
 
+        # Add the error annotation if an exception occurred
+        if any((_exc_type, _exc_value, _exc_traceback)):
+            error_msg = '{0}: {1}'.format(_exc_type.__name__, _exc_value)
+            self.update_binary_annotations({
+                zipkin_core.ERROR: error_msg,
+            })
+
         # Logging context is only initialized for "root" spans of the local
         # process (i.e. this zipkin_span not inside of any other local
         # zipkin_spans)
