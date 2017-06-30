@@ -30,9 +30,8 @@ LOGGING_END_KEY = 'py_zipkin.logging_end'
 class ZipkinLoggingContext(object):
     """A logging context specific to a Zipkin trace. If the trace is sampled,
     the logging context sends serialized Zipkin spans to a transport_handler.
-    This is meant to only be used server-side, so the logging context sends
-    a single "server" span, as well as all local child spans collected within
-    the server context.
+    The logging context sends root "server" or "client" span, as well as all
+    local child spans collected within this context.
 
     This class should only be used by the main `zipkin_span` entrypoint.
     """
@@ -47,6 +46,7 @@ class ZipkinLoggingContext(object):
         report_root_timestamp,
         binary_annotations=None,
         add_logging_annotation=False,
+        client_context=False
     ):
         self.zipkin_attrs = zipkin_attrs
         self.thrift_endpoint = thrift_endpoint
@@ -58,6 +58,7 @@ class ZipkinLoggingContext(object):
         self.binary_annotations_dict = binary_annotations or {}
         self.sa_binary_annotations = []
         self.add_logging_annotation = add_logging_annotation
+        self.client_context = client_context
 
     def start(self):
         """Actions to be taken before request is handled.
@@ -81,10 +82,11 @@ class ZipkinLoggingContext(object):
     def log_spans(self):
         """Main function to log all the annotations stored during the entire
         request. This is done if the request is sampled and the response was
-        a success. It also logs the service `ss` and `sr` annotations.
+        a success. It also logs the service (`ss` and `sr`) or the client
+        ('cs' and 'cr') annotations.
         """
         if self.zipkin_attrs.is_sampled:
-            server_end_time = time.time()
+            end_timestamp = time.time()
             # Collect additional annotations from the logging handler
             annotations_by_span_id = defaultdict(dict)
             binary_annotations_by_span_id = defaultdict(dict)
@@ -142,20 +144,20 @@ class ZipkinLoggingContext(object):
                     duration_s=duration,
                 )
 
-            # Collect extra annotations for server span
             extra_annotations = annotations_by_span_id[
                 self.zipkin_attrs.span_id]
             extra_binary_annotations = binary_annotations_by_span_id[
                 self.zipkin_attrs.span_id
             ]
-            logging_end = time.time()
-            annotations = dict(
-                sr=self.start_timestamp,
-                ss=server_end_time,
-                **extra_annotations
-            )
+
+            k1, k2 = ('sr', 'ss')
+            if self.client_context:
+                k1, k2 = ('cs', 'cr')
+            annotations = {k1: self.start_timestamp, k2: end_timestamp}
+            annotations.update(extra_annotations)
+
             if self.add_logging_annotation:
-                annotations[LOGGING_END_KEY] = logging_end
+                annotations[LOGGING_END_KEY] = time.time()
 
             thrift_annotations = annotation_list_builder(
                 annotations,
@@ -174,7 +176,7 @@ class ZipkinLoggingContext(object):
 
             if self.report_root_timestamp:
                 timestamp = self.start_timestamp
-                duration = server_end_time - self.start_timestamp
+                duration = end_timestamp - self.start_timestamp
             else:
                 timestamp = duration = None
 
