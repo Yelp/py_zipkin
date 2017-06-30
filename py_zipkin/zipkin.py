@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
 import functools
-import json
 import random
 import time
-import traceback
 from collections import namedtuple
 
 from py_zipkin.exception import ZipkinError
@@ -331,13 +329,9 @@ class zipkin_span(object):
 
         # Add the error annotation if an exception occurred
         if any((_exc_type, _exc_value, _exc_traceback)):
-            error_msg = traceback.format_exception(
-                _exc_type,
-                _exc_value,
-                _exc_traceback,
-            )
+            error_msg = '{0}: {1}'.format(_exc_type.__name__, _exc_value)
             self.update_binary_annotations({
-                zipkin_core.ERROR: json.dumps(error_msg),
+                zipkin_core.ERROR: error_msg,
             })
 
         # Logging context is only initialized for "root" spans of the local

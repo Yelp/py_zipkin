@@ -1,4 +1,3 @@
-import json
 import mock
 import pytest
 
@@ -701,8 +700,7 @@ def test_adding_error_annotation_on_exception(mock_update_binary_annotations):
     assert mock_update_binary_annotations.call_count == 1
     call_args, _ = mock_update_binary_annotations.call_args
     assert 'error' in call_args[1]
-    logged_traceback = json.loads(call_args[1]['error'])
-    assert 'ValueError' in logged_traceback[-1]
+    assert 'ValueError: some value error' == call_args[1]['error']
 
 
 @mock.patch('py_zipkin.zipkin.generate_random_128bit_string', autospec=True)
