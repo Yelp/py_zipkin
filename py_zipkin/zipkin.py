@@ -174,6 +174,7 @@ class zipkin_span(object):
         self.report_root_timestamp_override = report_root_timestamp
         self.use_128bit_trace_id = use_128bit_trace_id
         self.host = host
+        self.logging_configured = False
 
         # Spans that log a 'cs' timestamp can additionally record
         # 'sa' binary annotations that show where the request is going.
@@ -295,6 +296,7 @@ class zipkin_span(object):
                 client_context=client_context
             )
             self.logging_context.start()
+            self.logging_configured = True
             return self
         else:
             # In the sampled case, patch the ZipkinLoggerHandler.
@@ -303,14 +305,22 @@ class zipkin_span(object):
                 # the thread, multithreaded frameworks can get in strange states.
                 # The logging is not going to be correct in these cases, so we set
                 # a flag that turns off logging on __exit__.
-                if len(zipkin_logger.handlers) > 0:
-                    # Put span ID on logging handler. Assume there's only a single
-                    # handler, since all logging should be set up in this package.
-                    self.log_handler = zipkin_logger.handlers[0]
-                    # Store the old parent_span_id, probably None, in case we have
-                    # nested zipkin_spans
-                    self.old_parent_span_id = self.log_handler.parent_span_id
-                    self.log_handler.parent_span_id = self.zipkin_attrs.span_id
+                try:
+                    # Assume there's only a single handler, since all logging
+                    # should be set up in this package.
+                    log_handler = zipkin_logger.handlers[0]
+                except IndexError:
+                    return self
+                # Make sure it's not a NullHandler or something
+                if not isinstance(log_handler, ZipkinLoggerHandler):
+                    return self
+                # Put span ID on logging handler.
+                self.log_handler = zipkin_logger.handlers[0]
+                # Store the old parent_span_id, probably None, in case we have
+                # nested zipkin_spans
+                self.old_parent_span_id = self.log_handler.parent_span_id
+                self.log_handler.parent_span_id = self.zipkin_attrs.span_id
+                self.logging_configured = True
 
             return self
 
@@ -326,7 +336,7 @@ class zipkin_span(object):
         if self.do_pop_attrs:
             pop_zipkin_attrs()
 
-        if not self.zipkin_attrs or not self.zipkin_attrs.is_sampled:
+        if not self.logging_configured:
             return
 
         # Add the error annotation if an exception occurred
