@@ -1,3 +1,8 @@
+0.8.3 (2017-07-10)
+------------------
+- Be defensive about having logging handlers configured to avoid throwing
+  NullHandler attribute errors
+
 0.8.2 (2017-06-30)
 ------------------
 - Don't log ss and sr annotations when in a client span context
