@@ -3,6 +3,7 @@ import pytest
 
 import py_zipkin.zipkin as zipkin
 from py_zipkin.exception import ZipkinError
+from py_zipkin.logging_helper import null_handler
 from py_zipkin.logging_helper import ZipkinLoggerHandler
 from py_zipkin.thread_local import get_zipkin_attrs
 from py_zipkin.thrift import SERVER_ADDR_VAL
@@ -330,6 +331,7 @@ def test_span_context_no_zipkin_attrs(
     assert not push_zipkin_attrs_mock.called
 
 
+@pytest.mark.parametrize('handlers', [[], [null_handler]])
 @mock.patch('py_zipkin.thread_local._thread_local', autospec=True)
 @mock.patch('py_zipkin.zipkin.generate_random_64bit_string', autospec=True)
 @mock.patch('py_zipkin.zipkin.zipkin_logger', autospec=True)
@@ -337,6 +339,7 @@ def test_span_context_sampled_no_handlers(
     zipkin_logger_mock,
     generate_string_mock,
     thread_local_mock,
+    handlers,
 ):
     zipkin_attrs = ZipkinAttrs(
         trace_id='1111111111111111',
@@ -347,14 +350,14 @@ def test_span_context_sampled_no_handlers(
     )
     thread_local_mock.zipkin_attrs = [zipkin_attrs]
 
-    zipkin_logger_mock.handlers = []
+    zipkin_logger_mock.handlers = handlers
     generate_string_mock.return_value = '1'
 
     context = zipkin.zipkin_span(
         service_name='my_service',
         port=5,
         transport_handler=mock.Mock(),
-        sample_rate=0.0,
+        sample_rate=None,
     )
     with context:
         # Assert that the new ZipkinAttrs were saved
