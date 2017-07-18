@@ -1,5 +1,5 @@
 import pytest
-from thriftpy.protocol.binary import TBinaryProtocol
+from thriftpy.protocol.binary import TBinaryProtocol, read_list_begin
 from thriftpy.transport import TMemoryBuffer
 
 from py_zipkin import zipkin
@@ -27,10 +27,19 @@ def mock_logger():
 
 
 def _decode_binary_thrift_obj(obj):
+    spans = _decode_binary_thrift_objs(obj)
+    return spans[0]
+
+
+def _decode_binary_thrift_objs(obj):
+    spans = []
     trans = TMemoryBuffer(obj)
-    span = zipkin_core.Span()
-    span.read(TBinaryProtocol(trans))
-    return span
+    _, size = read_list_begin(trans)
+    for _ in range(size):
+        span = zipkin_core.Span()
+        span.read(TBinaryProtocol(trans))
+        spans.append(span)
+    return spans
 
 
 def test_starting_zipkin_trace_with_sampling_rate(
@@ -101,8 +110,9 @@ def test_span_inside_trace(mock_logger):
         ):
             pass
 
-    root_span = _decode_binary_thrift_obj(mock_logs[1])
-    nested_span = _decode_binary_thrift_obj(mock_logs[0])
+    spans = _decode_binary_thrift_objs(mock_logs[0])
+    nested_span = spans[0]
+    root_span = spans[1]
     assert nested_span.name == 'nested_span'
     assert nested_span.annotations[0].host.service_name == 'nested_service'
     assert nested_span.parent_id == root_span.id
@@ -247,8 +257,9 @@ def test_log_debug_for_new_span(mock_logger):
         })
         pass
 
-    logged_span = _decode_binary_thrift_obj(mock_logs[0])
-    root_span = _decode_binary_thrift_obj(mock_logs[1])
+    spans = _decode_binary_thrift_objs(mock_logs[0])
+    logged_span = spans[0]
+    root_span = spans[1]
     assert logged_span.name == 'logged_name'
     assert logged_span.annotations[0].host.service_name == 'logged_service_name'
     assert logged_span.parent_id == root_span.id

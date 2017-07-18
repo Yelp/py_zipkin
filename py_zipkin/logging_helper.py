@@ -8,7 +8,7 @@ from py_zipkin.thrift import annotation_list_builder
 from py_zipkin.thrift import binary_annotation_list_builder
 from py_zipkin.thrift import copy_endpoint_with_new_service_name
 from py_zipkin.thrift import create_span
-from py_zipkin.thrift import thrift_obj_in_bytes
+from py_zipkin.thrift import thrift_objs_in_bytes
 from py_zipkin.util import generate_random_64bit_string
 
 
@@ -86,6 +86,7 @@ class ZipkinLoggingContext(object):
         ('cs' and 'cr') annotations.
         """
         if self.zipkin_attrs.is_sampled:
+            span_sender = ZipkinBatchSender(self.transport_handler)
             end_timestamp = time.time()
             # Collect additional annotations from the logging handler
             annotations_by_span_id = defaultdict(dict)
@@ -132,14 +133,13 @@ class ZipkinLoggingContext(object):
                 if span.get('sa_binary_annotations'):
                     thrift_binary_annotations += span['sa_binary_annotations']
 
-                log_span(
+                span_sender.add_span(
                     span_id=span_id,
                     parent_span_id=parent_span_id,
                     trace_id=self.zipkin_attrs.trace_id,
                     span_name=span['span_name'],
                     annotations=thrift_annotations,
                     binary_annotations=thrift_binary_annotations,
-                    transport_handler=self.transport_handler,
                     timestamp_s=timestamp,
                     duration_s=duration,
                 )
@@ -180,7 +180,7 @@ class ZipkinLoggingContext(object):
             else:
                 timestamp = duration = None
 
-            log_span(
+            span_sender.add_span(
                 span_id=self.zipkin_attrs.span_id,
                 parent_span_id=self.zipkin_attrs.parent_span_id,
                 trace_id=self.zipkin_attrs.trace_id,
@@ -189,8 +189,8 @@ class ZipkinLoggingContext(object):
                 binary_annotations=thrift_binary_annotations,
                 timestamp_s=timestamp,
                 duration_s=duration,
-                transport_handler=self.transport_handler,
             )
+            span_sender.flush()
 
 
 def get_local_span_timestamp_and_duration(annotations):
@@ -304,23 +304,16 @@ class ZipkinLoggerHandler(logging.StreamHandler, object):
             })
 
 
-def log_span(
-    span_id,
-    parent_span_id,
-    trace_id,
-    span_name,
-    annotations,
-    binary_annotations,
-    timestamp_s,
-    duration_s,
-    transport_handler,
-):
-    """Creates a span and logs it using the given transport_handler."""
-    # Be defensive about the lack of a transport handler
-    if not transport_handler:
-        return
+class ZipkinBatchSender(object):
 
-    span = create_span(
+    MAX_PORTION_SIZE = 100
+
+    def __init__(self, transport_handler):
+        self.transport_handler = transport_handler
+        self.queue = []
+
+    def add_span(
+        self,
         span_id,
         parent_span_id,
         trace_id,
@@ -329,6 +322,29 @@ def log_span(
         binary_annotations,
         timestamp_s,
         duration_s,
-    )
-    message = thrift_obj_in_bytes(span)
-    transport_handler(message)
+    ):
+        if not self.transport_handler:
+            return
+
+        thrift_span = create_span(
+            span_id,
+            parent_span_id,
+            trace_id,
+            span_name,
+            annotations,
+            binary_annotations,
+            timestamp_s,
+            duration_s,
+        )
+        self._add_span_to_queue(thrift_span)
+
+    def _add_span_to_queue(self, thrift_span):
+        self.queue.append(thrift_span)
+        if len(self.queue) >= self.MAX_PORTION_SIZE:
+            self.flush()
+
+    def flush(self):
+        if self.transport_handler and len(self.queue) > 0:
+            message = thrift_objs_in_bytes(self.queue)
+            self.transport_handler(message)
+            self.queue = []

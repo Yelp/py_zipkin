@@ -4,7 +4,8 @@ import socket
 import struct
 
 import thriftpy
-from thriftpy.protocol.binary import TBinaryProtocol
+from thriftpy.protocol.binary import TBinaryProtocol, write_list_begin
+from thriftpy.thrift import TType
 from thriftpy.transport import TMemoryBuffer
 
 from py_zipkin.util import unsigned_hex_to_signed_int
@@ -167,13 +168,17 @@ def create_span(
     return zipkin_core.Span(**span_dict)
 
 
-def thrift_obj_in_bytes(thrift_obj):  # pragma: no cover
+def thrift_objs_in_bytes(thrift_obj_list):  # pragma: no cover
     """
-    Returns TBinaryProtocol encoded Thrift object.
+    Returns TBinaryProtocol encoded Thrift objects.
 
-    :param thrift_obj: thrift object to encode
-    :returns: thrift object in TBinaryProtocol format bytes.
+    :param thrift_obj_list: thrift objects list to encode
+    :returns: thrift objects in TBinaryProtocol format bytes.
     """
-    trans = TMemoryBuffer()
-    thrift_obj.write(TBinaryProtocol(trans))
-    return bytes(trans.getvalue())
+    transport = TMemoryBuffer()
+    protocol = TBinaryProtocol(transport)
+    write_list_begin(transport, TType.STRUCT, len(thrift_obj_list))
+    for thrift_obj in thrift_obj_list:
+        thrift_obj.write(protocol)
+
+    return bytes(transport.getvalue())
