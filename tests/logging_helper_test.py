@@ -164,7 +164,6 @@ def test_zipkin_logging_server_context_log_spans(
     assert flush_mock.call_count == 1
 
 
-
 @mock.patch('py_zipkin.logging_helper.time.time', autospec=True)
 @mock.patch('py_zipkin.logging_helper.ZipkinBatchSender.flush',
             autospec=True)
