@@ -299,7 +299,7 @@ class zipkin_span(object):
                 binary_annotations=self.binary_annotations,
                 add_logging_annotation=self.add_logging_annotation,
                 client_context=client_context,
-                max_span_portion_size = self.max_span_portion_size,
+                max_span_portion_size=self.max_span_portion_size,
             )
             self.logging_context.start()
             self.logging_configured = True
