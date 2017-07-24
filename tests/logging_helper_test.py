@@ -333,6 +333,13 @@ def test_batch_sender_add_span(thrift_objs):
     assert thrift_objs.call_count == 1
 
 
+def test_batch_sender_with_error_on_exit():
+    sender = logging_helper.ZipkinBatchSender(mock_transport_handler)
+    with pytest.raises(ZipkinError):
+        with sender:
+            raise Exception('Error!')
+
+
 @mock.patch('py_zipkin.logging_helper.thrift_objs_in_bytes', autospec=True)
 def test_batch_sender_add_span_many_times(thrift_obj):
     sender = logging_helper.ZipkinBatchSender(mock_transport_handler)
