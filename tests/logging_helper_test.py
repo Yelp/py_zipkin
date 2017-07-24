@@ -319,25 +319,7 @@ def test_zipkin_handler_raises_exception_if_ann_and_bann_not_provided(
 def test_batch_sender_add_span(thrift_objs):
     # Not much logic here, so this is basically a smoke test
     sender = logging_helper.ZipkinBatchSender(mock_transport_handler)
-    sender.add_span(
-        span_id='0000000000000002',
-        parent_span_id='0000000000000001',
-        trace_id='000000000000000f',
-        span_name='span',
-        annotations='ann',
-        binary_annotations='binary_ann',
-        timestamp_s=None,
-        duration_s=None,
-    )
-    sender.flush()
-    assert thrift_objs.call_count == 1
-
-
-@mock.patch('py_zipkin.logging_helper.thrift_objs_in_bytes', autospec=True)
-def test_batch_sender_add_span_many_times(thrift_obj):
-    sender = logging_helper.ZipkinBatchSender(mock_transport_handler)
-    max_portion_size = logging_helper.ZipkinBatchSender.MAX_PORTION_SIZE
-    for _ in range(max_portion_size * 2 + 1):
+    with sender:
         sender.add_span(
             span_id='0000000000000002',
             parent_span_id='0000000000000001',
@@ -348,7 +330,25 @@ def test_batch_sender_add_span_many_times(thrift_obj):
             timestamp_s=None,
             duration_s=None,
         )
-    sender.flush()
+    assert thrift_objs.call_count == 1
+
+
+@mock.patch('py_zipkin.logging_helper.thrift_objs_in_bytes', autospec=True)
+def test_batch_sender_add_span_many_times(thrift_obj):
+    sender = logging_helper.ZipkinBatchSender(mock_transport_handler)
+    max_portion_size = logging_helper.ZipkinBatchSender.MAX_PORTION_SIZE
+    with sender:
+        for _ in range(max_portion_size * 2 + 1):
+            sender.add_span(
+                span_id='0000000000000002',
+                parent_span_id='0000000000000001',
+                trace_id='000000000000000f',
+                span_name='span',
+                annotations='ann',
+                binary_annotations='binary_ann',
+                timestamp_s=None,
+                duration_s=None,
+            )
     assert thrift_obj.call_count == 3
     assert len(thrift_obj.call_args_list[0][0][0]) == max_portion_size
     assert len(thrift_obj.call_args_list[1][0][0]) == max_portion_size
@@ -363,17 +363,17 @@ def test_batch_sender_flush_calls_transport_handler_with_correct_params(
 ):
     transport_handler = mock.Mock()
     sender = logging_helper.ZipkinBatchSender(transport_handler)
-    sender.add_span(
-        span_id='0000000000000002',
-        parent_span_id='0000000000000001',
-        trace_id='00000000000000015',
-        span_name='span',
-        annotations='ann',
-        binary_annotations='binary_ann',
-        timestamp_s=None,
-        duration_s=None,
-    )
-    sender.flush()
+    with sender:
+        sender.add_span(
+            span_id='0000000000000002',
+            parent_span_id='0000000000000001',
+            trace_id='00000000000000015',
+            span_name='span',
+            annotations='ann',
+            binary_annotations='binary_ann',
+            timestamp_s=None,
+            duration_s=None,
+        )
     transport_handler.assert_called_once_with(thrift_objs.return_value)
 
 
@@ -386,17 +386,17 @@ def test_batch_sender_defensive_about_transport_handler(
     """Make sure log_span doesn't try to call the transport handler if it's
     None."""
     sender = logging_helper.ZipkinBatchSender(None)
-    sender.add_span(
-        span_id='0000000000000002',
-        parent_span_id='0000000000000001',
-        trace_id='00000000000000015',
-        span_name='span',
-        annotations='ann',
-        binary_annotations='binary_ann',
-        timestamp_s=None,
-        duration_s=None,
-    )
-    sender.flush()
+    with sender:
+        sender.add_span(
+            span_id='0000000000000002',
+            parent_span_id='0000000000000001',
+            trace_id='00000000000000015',
+            span_name='span',
+            annotations='ann',
+            binary_annotations='binary_ann',
+            timestamp_s=None,
+            duration_s=None,
+        )
     assert thrift_obj.call_count == 0
     assert create_sp.call_count == 0
 

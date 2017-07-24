@@ -104,6 +104,7 @@ class zipkin_span(object):
         span_name='span',
         zipkin_attrs=None,
         transport_handler=None,
+        max_span_portion_size=None,
         annotations=None,
         binary_annotations=None,
         port=0,
@@ -126,6 +127,9 @@ class zipkin_span(object):
         :param transport_handler: Callback function that takes a message parameter
             and handles logging it
         :type transport_handler: function
+        :param max_span_portion_size: Spans in a trace are sent in batches,
+        max_span_portion_size defines max size of one batch
+        :type max_span_portion_size: int
         :param annotations: Optional dict of str -> timestamp annotations
         :type annotations: dict of str -> int
         :param binary_annotations: Optional dict of str -> str span attrs
@@ -164,6 +168,7 @@ class zipkin_span(object):
         self.span_name = span_name
         self.zipkin_attrs = zipkin_attrs
         self.transport_handler = transport_handler
+        self.max_span_portion_size = max_span_portion_size
         self.annotations = annotations or {}
         self.binary_annotations = binary_annotations or {}
         self.port = port
@@ -293,7 +298,8 @@ class zipkin_span(object):
                 report_root_timestamp or self.report_root_timestamp_override,
                 binary_annotations=self.binary_annotations,
                 add_logging_annotation=self.add_logging_annotation,
-                client_context=client_context
+                client_context=client_context,
+                max_span_portion_size = self.max_span_portion_size,
             )
             self.logging_context.start()
             self.logging_configured = True

@@ -4,7 +4,8 @@ import socket
 import struct
 
 import thriftpy
-from thriftpy.protocol.binary import TBinaryProtocol, write_list_begin
+from thriftpy.protocol.binary import TBinaryProtocol
+from thriftpy.protocol.binary import write_list_begin
 from thriftpy.thrift import TType
 from thriftpy.transport import TMemoryBuffer
 

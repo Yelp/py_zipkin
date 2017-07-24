@@ -46,7 +46,8 @@ class ZipkinLoggingContext(object):
         report_root_timestamp,
         binary_annotations=None,
         add_logging_annotation=False,
-        client_context=False
+        client_context=False,
+        max_span_portion_size=None,
     ):
         self.zipkin_attrs = zipkin_attrs
         self.thrift_endpoint = thrift_endpoint
@@ -59,6 +60,7 @@ class ZipkinLoggingContext(object):
         self.sa_binary_annotations = []
         self.add_logging_annotation = add_logging_annotation
         self.client_context = client_context
+        self.max_span_portion_size = max_span_portion_size
 
     def start(self):
         """Actions to be taken before request is handled.
@@ -85,8 +87,12 @@ class ZipkinLoggingContext(object):
         a success. It also logs the service (`ss` and `sr`) or the client
         ('cs' and 'cr') annotations.
         """
-        if self.zipkin_attrs.is_sampled:
-            span_sender = ZipkinBatchSender(self.transport_handler)
+        if not self.zipkin_attrs.is_sampled:
+            return
+
+        span_sender = ZipkinBatchSender(self.transport_handler,
+                                        self.max_span_portion_size)
+        with span_sender:
             end_timestamp = time.time()
             # Collect additional annotations from the logging handler
             annotations_by_span_id = defaultdict(dict)
@@ -190,7 +196,6 @@ class ZipkinLoggingContext(object):
                 timestamp_s=timestamp,
                 duration_s=duration,
             )
-            span_sender.flush()
 
 
 def get_local_span_timestamp_and_duration(annotations):
@@ -308,9 +313,20 @@ class ZipkinBatchSender(object):
 
     MAX_PORTION_SIZE = 100
 
-    def __init__(self, transport_handler):
+    def __init__(self, transport_handler, max_portion_size=None):
         self.transport_handler = transport_handler
+        self.max_portion_size = max_portion_size or self.MAX_PORTION_SIZE
+
+    def __enter__(self):
         self.queue = []
+        return self
+
+    def __exit__(self, _exc_type, _exc_value, _exc_traceback):
+        if any((_exc_type, _exc_value, _exc_traceback)):
+            error = '{0}: {1}'.format(_exc_type.__name__, _exc_value)
+            raise ZipkinError(error)
+        else:
+            self.flush()
 
     def add_span(
         self,
@@ -340,7 +356,7 @@ class ZipkinBatchSender(object):
 
     def _add_span_to_queue(self, thrift_span):
         self.queue.append(thrift_span)
-        if len(self.queue) >= self.MAX_PORTION_SIZE:
+        if len(self.queue) >= self.max_portion_size:
             self.flush()
 
     def flush(self):
