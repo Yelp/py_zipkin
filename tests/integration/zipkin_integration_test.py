@@ -1,5 +1,6 @@
 import pytest
-from thriftpy.protocol.binary import TBinaryProtocol, read_list_begin
+from thriftpy.protocol.binary import TBinaryProtocol
+from thriftpy.protocol.binary import read_list_begin
 from thriftpy.transport import TMemoryBuffer
 
 from py_zipkin import zipkin

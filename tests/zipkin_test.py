@@ -57,7 +57,7 @@ def test_zipkin_span_for_new_trace(
         binary_annotations={},
         add_logging_annotation=False,
         client_context=False,
-        max_span_portion_size=None,
+        max_span_batch_size=None,
     )
     pop_zipkin_attrs_mock.assert_called_once_with()
 
@@ -111,7 +111,7 @@ def test_zipkin_span_passed_sampled_attrs(
         binary_annotations={},
         add_logging_annotation=False,
         client_context=False,
-        max_span_portion_size=None,
+        max_span_batch_size=None,
     )
     pop_zipkin_attrs_mock.assert_called_once_with()
 
@@ -491,7 +491,7 @@ def test_zipkin_server_span_decorator(
         binary_annotations={},
         add_logging_annotation=False,
         client_context=False,
-        max_span_portion_size=None,
+        max_span_batch_size=None,
     )
     pop_zipkin_attrs_mock.assert_called_once_with()
 
@@ -547,7 +547,7 @@ def test_zipkin_client_span_decorator(
         binary_annotations={},
         add_logging_annotation=False,
         client_context=True,
-        max_span_portion_size=None,
+        max_span_batch_size=None,
     )
     pop_zipkin_attrs_mock.assert_called_once_with()
 

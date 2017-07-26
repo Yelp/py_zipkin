@@ -142,6 +142,7 @@ your Zipkin collector is running at localhost:9411.
 import requests
 
 def http_transport(encoded_span):
+    # The collector expects a thrift-encoded list of spans.
     requests.post(
         'http://localhost:9411/api/v1/spans',
         data=encoded_span,

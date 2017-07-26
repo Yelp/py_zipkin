@@ -392,7 +392,7 @@ def test_batch_sender_defensive_about_transport_handler(
 ):
     """Make sure log_span doesn't try to call the transport handler if it's
     None."""
-    sender = logging_helper.ZipkinBatchSender(None)
+    sender = logging_helper.ZipkinBatchSender(transport_handler=None)
     with sender:
         sender.add_span(
             span_id='0000000000000002',
@@ -404,8 +404,8 @@ def test_batch_sender_defensive_about_transport_handler(
             timestamp_s=None,
             duration_s=None,
         )
+    assert create_sp.call_count == 1
     assert thrift_obj.call_count == 0
-    assert create_sp.call_count == 0
 
 
 def test_get_local_span_timestamp_and_duration_client():

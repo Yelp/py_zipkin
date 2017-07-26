@@ -47,7 +47,7 @@ class ZipkinLoggingContext(object):
         binary_annotations=None,
         add_logging_annotation=False,
         client_context=False,
-        max_span_portion_size=None,
+        max_span_batch_size=None,
     ):
         self.zipkin_attrs = zipkin_attrs
         self.thrift_endpoint = thrift_endpoint
@@ -60,7 +60,7 @@ class ZipkinLoggingContext(object):
         self.sa_binary_annotations = []
         self.add_logging_annotation = add_logging_annotation
         self.client_context = client_context
-        self.max_span_portion_size = max_span_portion_size
+        self.max_span_batch_size = max_span_batch_size
 
     def start(self):
         """Actions to be taken before request is handled.
@@ -91,7 +91,7 @@ class ZipkinLoggingContext(object):
             return
 
         span_sender = ZipkinBatchSender(self.transport_handler,
-                                        self.max_span_portion_size)
+                                        self.max_span_batch_size)
         with span_sender:
             end_timestamp = time.time()
             # Collect additional annotations from the logging handler
@@ -339,9 +339,6 @@ class ZipkinBatchSender(object):
         timestamp_s,
         duration_s,
     ):
-        if not self.transport_handler:
-            return
-
         thrift_span = create_span(
             span_id,
             parent_span_id,
@@ -352,9 +349,7 @@ class ZipkinBatchSender(object):
             timestamp_s,
             duration_s,
         )
-        self._add_span_to_queue(thrift_span)
 
-    def _add_span_to_queue(self, thrift_span):
         self.queue.append(thrift_span)
         if len(self.queue) >= self.max_portion_size:
             self.flush()
