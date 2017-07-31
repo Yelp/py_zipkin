@@ -11,7 +11,7 @@ setup(
     provides=["py_zipkin"],
     author='Yelp, Inc.',
     author_email='opensource+py-zipkin@yelp.com',
-    license='Copyright Yelp 2016',
+    license='Copyright Yelp 2017',
     url="https://github.com/Yelp/py_zipkin",
     description='Library for using Zipkin in Python.',
     packages=find_packages(exclude=('tests*', 'testing*', 'tools*')),

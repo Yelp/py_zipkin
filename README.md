@@ -166,4 +166,4 @@ def transport_handler(message):
 License
 -------
 
-Copyright (c) 2016, Yelp, Inc. All Rights reserved. Apache v2
+Copyright (c) 2017, Yelp, Inc. All Rights reserved. Apache v2
