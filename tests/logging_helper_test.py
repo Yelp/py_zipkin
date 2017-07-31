@@ -57,7 +57,10 @@ def test_zipkin_logging_context(time_mock, mock_logger, context):
 
 
 @mock.patch('py_zipkin.logging_helper.time.time', autospec=True)
-@mock.patch('py_zipkin.logging_helper.log_span', autospec=True)
+@mock.patch('py_zipkin.logging_helper.ZipkinBatchSender.flush',
+            autospec=True)
+@mock.patch('py_zipkin.logging_helper.ZipkinBatchSender.add_span',
+            autospec=True)
 @mock.patch('py_zipkin.logging_helper.annotation_list_builder',
             autospec=True)
 @mock.patch('py_zipkin.logging_helper.binary_annotation_list_builder',
@@ -66,7 +69,7 @@ def test_zipkin_logging_context(time_mock, mock_logger, context):
             autospec=True)
 def test_zipkin_logging_server_context_log_spans(
     copy_endpoint_mock, bin_ann_list_builder, ann_list_builder,
-    log_span_mock, time_mock
+    add_span_mock, flush_mock, time_mock
 ):
     # This lengthy function tests that the logging context properly
     # logs both client and server spans, while attaching extra annotations
@@ -137,7 +140,7 @@ def test_zipkin_logging_server_context_log_spans(
     expected_client_bin_annotations = {'bann1': 'aww', 'bann2': 'yiss'}
 
     context.log_spans()
-    client_log_call, server_log_call = log_span_mock.call_args_list
+    client_log_call, server_log_call = add_span_mock.call_args_list
     assert server_log_call[1] == {
         'span_id': server_span_id,
         'parent_span_id': parent_span_id,
@@ -145,7 +148,6 @@ def test_zipkin_logging_server_context_log_spans(
         'span_name': 'GET /foo',
         'annotations': expected_server_annotations,
         'binary_annotations': expected_server_bin_annotations,
-        'transport_handler': transport_handler,
         'duration_s': 18,
         'timestamp_s': 24,
     }
@@ -156,14 +158,17 @@ def test_zipkin_logging_server_context_log_spans(
         'span_name': client_span_name,
         'annotations': expected_client_annotations,
         'binary_annotations': expected_client_bin_annotations,
-        'transport_handler': transport_handler,
         'duration_s': 4,
         'timestamp_s': 26,
     }
+    assert flush_mock.call_count == 1
 
 
 @mock.patch('py_zipkin.logging_helper.time.time', autospec=True)
-@mock.patch('py_zipkin.logging_helper.log_span', autospec=True)
+@mock.patch('py_zipkin.logging_helper.ZipkinBatchSender.flush',
+            autospec=True)
+@mock.patch('py_zipkin.logging_helper.ZipkinBatchSender.add_span',
+            autospec=True)
 @mock.patch('py_zipkin.logging_helper.annotation_list_builder',
             autospec=True)
 @mock.patch('py_zipkin.logging_helper.binary_annotation_list_builder',
@@ -172,7 +177,7 @@ def test_zipkin_logging_server_context_log_spans(
             autospec=True)
 def test_zipkin_logging_client_context_log_spans(
     copy_endpoint_mock, bin_ann_list_builder, ann_list_builder,
-    log_span_mock, time_mock
+    add_span_mock, flush_mock, time_mock
 ):
     # This lengthy function tests that the logging context properly
     # logs root client span
@@ -215,7 +220,7 @@ def test_zipkin_logging_client_context_log_spans(
     expected_server_bin_annotations = {'k': 'v'}
 
     context.log_spans()
-    log_call = log_span_mock.call_args_list[0]
+    log_call = add_span_mock.call_args_list[0]
     assert log_call[1] == {
         'span_id': client_span_id,
         'parent_span_id': None,
@@ -223,14 +228,18 @@ def test_zipkin_logging_client_context_log_spans(
         'span_name': 'GET /foo',
         'annotations': expected_server_annotations,
         'binary_annotations': expected_server_bin_annotations,
-        'transport_handler': transport_handler,
         'duration_s': 18,
         'timestamp_s': 24,
     }
+    assert flush_mock.call_count == 1
 
 
-@mock.patch('py_zipkin.logging_helper.log_span', autospec=True)
-def test_log_span_not_called_if_not_sampled(log_span_mock):
+@mock.patch('py_zipkin.logging_helper.ZipkinBatchSender.flush',
+            autospec=True)
+@mock.patch('py_zipkin.logging_helper.ZipkinBatchSender.add_span',
+            autospec=True)
+def test_batch_sender_add_span_not_called_if_not_sampled(add_span_mock,
+                                                         flush_mock):
     attr = ZipkinAttrs(
         trace_id='0000000000000001',
         span_id='0000000000000002',
@@ -249,7 +258,8 @@ def test_log_span_not_called_if_not_sampled(log_span_mock):
         report_root_timestamp=False,
     )
     context.log_spans()
-    assert log_span_mock.call_count == 0
+    assert add_span_mock.call_count == 0
+    assert flush_mock.call_count == 0
 
 
 def test_zipkin_handler_init():
@@ -305,66 +315,97 @@ def test_zipkin_handler_raises_exception_if_ann_and_bann_not_provided(
             " for foo span" == str(excinfo.value))
 
 
-@mock.patch('py_zipkin.logging_helper.thrift_obj_in_bytes', autospec=True)
-def test_log_span(thrift_obj):
+@mock.patch('py_zipkin.logging_helper.thrift_objs_in_bytes', autospec=True)
+def test_batch_sender_add_span(thrift_objs):
     # Not much logic here, so this is basically a smoke test
+    sender = logging_helper.ZipkinBatchSender(mock_transport_handler)
+    with sender:
+        sender.add_span(
+            span_id='0000000000000002',
+            parent_span_id='0000000000000001',
+            trace_id='000000000000000f',
+            span_name='span',
+            annotations='ann',
+            binary_annotations='binary_ann',
+            timestamp_s=None,
+            duration_s=None,
+        )
+    assert thrift_objs.call_count == 1
 
-    logging_helper.log_span(
-        span_id='0000000000000002',
-        parent_span_id='0000000000000001',
-        trace_id='000000000000000f',
-        span_name='span',
-        annotations='ann',
-        binary_annotations='binary_ann',
-        timestamp_s=None,
-        duration_s=None,
-        transport_handler=mock_transport_handler,
-    )
-    assert thrift_obj.call_count == 1
+
+def test_batch_sender_with_error_on_exit():
+    sender = logging_helper.ZipkinBatchSender(mock_transport_handler)
+    with pytest.raises(ZipkinError):
+        with sender:
+            raise Exception('Error!')
+
+
+@mock.patch('py_zipkin.logging_helper.thrift_objs_in_bytes', autospec=True)
+def test_batch_sender_add_span_many_times(thrift_obj):
+    sender = logging_helper.ZipkinBatchSender(mock_transport_handler)
+    max_portion_size = logging_helper.ZipkinBatchSender.MAX_PORTION_SIZE
+    with sender:
+        for _ in range(max_portion_size * 2 + 1):
+            sender.add_span(
+                span_id='0000000000000002',
+                parent_span_id='0000000000000001',
+                trace_id='000000000000000f',
+                span_name='span',
+                annotations='ann',
+                binary_annotations='binary_ann',
+                timestamp_s=None,
+                duration_s=None,
+            )
+    assert thrift_obj.call_count == 3
+    assert len(thrift_obj.call_args_list[0][0][0]) == max_portion_size
+    assert len(thrift_obj.call_args_list[1][0][0]) == max_portion_size
+    assert len(thrift_obj.call_args_list[2][0][0]) == 1
 
 
 @mock.patch('py_zipkin.logging_helper.create_span', autospec=True)
-@mock.patch('py_zipkin.logging_helper.thrift_obj_in_bytes', autospec=True)
-def test_log_span_calls_transport_handler_with_correct_params(
-    thrift_obj,
+@mock.patch('py_zipkin.logging_helper.thrift_objs_in_bytes', autospec=True)
+def test_batch_sender_flush_calls_transport_handler_with_correct_params(
+    thrift_objs,
     create_sp
 ):
     transport_handler = mock.Mock()
-    logging_helper.log_span(
-        span_id='0000000000000002',
-        parent_span_id='0000000000000001',
-        trace_id='00000000000000015',
-        span_name='span',
-        annotations='ann',
-        binary_annotations='binary_ann',
-        timestamp_s=None,
-        duration_s=None,
-        transport_handler=transport_handler,
-    )
-    transport_handler.assert_called_once_with(thrift_obj.return_value)
+    sender = logging_helper.ZipkinBatchSender(transport_handler)
+    with sender:
+        sender.add_span(
+            span_id='0000000000000002',
+            parent_span_id='0000000000000001',
+            trace_id='00000000000000015',
+            span_name='span',
+            annotations='ann',
+            binary_annotations='binary_ann',
+            timestamp_s=None,
+            duration_s=None,
+        )
+    transport_handler.assert_called_once_with(thrift_objs.return_value)
 
 
 @mock.patch('py_zipkin.logging_helper.create_span', autospec=True)
-@mock.patch('py_zipkin.logging_helper.thrift_obj_in_bytes', autospec=True)
-def test_log_span_defensive_about_transport_handler(
+@mock.patch('py_zipkin.logging_helper.thrift_objs_in_bytes', autospec=True)
+def test_batch_sender_defensive_about_transport_handler(
     thrift_obj,
     create_sp
 ):
     """Make sure log_span doesn't try to call the transport handler if it's
     None."""
-    logging_helper.log_span(
-        span_id='0000000000000002',
-        parent_span_id='0000000000000001',
-        trace_id='00000000000000015',
-        span_name='span',
-        annotations='ann',
-        binary_annotations='binary_ann',
-        timestamp_s=None,
-        duration_s=None,
-        transport_handler=None,
-    )
+    sender = logging_helper.ZipkinBatchSender(transport_handler=None)
+    with sender:
+        sender.add_span(
+            span_id='0000000000000002',
+            parent_span_id='0000000000000001',
+            trace_id='00000000000000015',
+            span_name='span',
+            annotations='ann',
+            binary_annotations='binary_ann',
+            timestamp_s=None,
+            duration_s=None,
+        )
+    assert create_sp.call_count == 1
     assert thrift_obj.call_count == 0
-    assert create_sp.call_count == 0
 
 
 def test_get_local_span_timestamp_and_duration_client():
