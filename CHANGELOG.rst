@@ -1,3 +1,7 @@
+0.9.0 (2017-07-31)
+------------------
+- Add batch span sending. Note that spans are now sent in lists.
+
 0.8.3 (2017-07-10)
 ------------------
 - Be defensive about having logging handlers configured to avoid throwing
