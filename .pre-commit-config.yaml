@@ -1,5 +1,5 @@
 -   repo: git://github.com/pre-commit/pre-commit-hooks
-    sha: v0.5.1
+    sha: v0.9.1
     hooks:
     -   id: trailing-whitespace
     -   id: end-of-file-fixer
@@ -11,11 +11,12 @@
     -   id: name-tests-test
         exclude: tests/acceptance/test_helper.py
     -   id: flake8
-        args: ['--max-line-length=83']
+        args:
+        - --max-line-length=83
         exclude: docs/source/conf.py
     -   id: requirements-txt-fixer
 -   repo: https://github.com/asottile/reorder_python_imports.git
-    sha: v0.3.0
+    sha: v0.3.5
     hooks:
     -   id: reorder-python-imports
         language_version: python2.7
