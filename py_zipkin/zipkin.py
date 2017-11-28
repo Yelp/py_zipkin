@@ -240,7 +240,8 @@ class zipkin_span(object):
         self.do_pop_attrs = False
         # If zipkin_attrs are passed in or this span is doing its own sampling,
         # it will need to actually log spans at __exit__.
-        self.perform_logging = bool(self.zipkin_attrs) or self.sample_rate is not None
+        self.perform_logging = bool(self.zipkin_attrs) or \
+                               self.sample_rate is not None
         report_root_timestamp = False
 
         if self.sample_rate is not None:
