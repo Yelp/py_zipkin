@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-import codecs
-import os
+import random
 import struct
 
 
@@ -11,7 +10,7 @@ def generate_random_64bit_string():
 
     :returns: random 16-character string
     """
-    return str(codecs.encode(os.urandom(8), 'hex_codec').decode('utf-8'))
+    return '{:016x}'.format(random.getrandbits(64))
 
 
 def generate_random_128bit_string():
@@ -20,7 +19,7 @@ def generate_random_128bit_string():
 
     :returns: random 32-character string
     """
-    return str(codecs.encode(os.urandom(16), 'hex_codec').decode('utf-8'))
+    return '{:032x}'.format(random.getrandbits(128))
 
 
 def unsigned_hex_to_signed_int(hex_string):
