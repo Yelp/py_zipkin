@@ -2,3 +2,4 @@ coverage
 mock
 ordereddict
 pytest
+pytest-benchmark[histogram]

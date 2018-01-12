@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-import codecs
-import os
+import random
 import struct
+import time
 
 
 def generate_random_64bit_string():
@@ -11,16 +11,22 @@ def generate_random_64bit_string():
 
     :returns: random 16-character string
     """
-    return str(codecs.encode(os.urandom(8), 'hex_codec').decode('utf-8'))
+    return '{:016x}'.format(random.getrandbits(64))
 
 
 def generate_random_128bit_string():
     """Returns a 128 bit UTF-8 encoded string. Follows the same conventions
     as generate_random_64bit_string().
 
-    :returns: random 32-character string
+    The upper 32 bits are the current time in epoch seconds, and the
+    lower 96 bits are random. This allows for AWS X-Ray `interop
+    <https://github.com/openzipkin/zipkin/issues/1754>`_
+
+    :returns: 32-character hex string
     """
-    return str(codecs.encode(os.urandom(16), 'hex_codec').decode('utf-8'))
+    t = int(time.time())
+    lower_96 = random.getrandbits(96)
+    return '{:032x}'.format((t << 96) | lower_96)
 
 
 def unsigned_hex_to_signed_int(hex_string):

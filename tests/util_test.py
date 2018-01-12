@@ -5,9 +5,9 @@ import mock
 from py_zipkin import util
 
 
-@mock.patch('py_zipkin.util.codecs.encode', autospec=True)
+@mock.patch('py_zipkin.util.random.getrandbits', autospec=True)
 def test_generate_random_64bit_string(rand):
-    rand.return_value = b'17133d482ba4f605'
+    rand.return_value = 0x17133d482ba4f605
     random_string = util.generate_random_64bit_string()
     assert random_string == '17133d482ba4f605'
     # This acts as a contract test of sorts. This should return a str
@@ -15,11 +15,14 @@ def test_generate_random_64bit_string(rand):
     assert isinstance(random_string, str)
 
 
-@mock.patch('py_zipkin.util.codecs.encode', autospec=True)
-def test_generate_random_128bit_string(rand):
-    rand.return_value = b'17133d482ba4f60517133d482ba4f605'
+@mock.patch('py_zipkin.util.time.time', autospec=True)
+@mock.patch('py_zipkin.util.random.getrandbits', autospec=True)
+def test_generate_random_128bit_string(rand, mock_time):
+    rand.return_value = 0x2ba4f60517133d482ba4f605
+    mock_time.return_value = float(0x17133d48)
     random_string = util.generate_random_128bit_string()
     assert random_string == '17133d482ba4f60517133d482ba4f605'
+    rand.assert_called_once_with(96)  # 96 bits
     # This acts as a contract test of sorts. This should return a str
     # in both py2 and py3. IOW, no unicode objects.
     assert isinstance(random_string, str)
