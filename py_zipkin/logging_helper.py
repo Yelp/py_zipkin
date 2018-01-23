@@ -48,6 +48,7 @@ class ZipkinLoggingContext(object):
         add_logging_annotation=False,
         client_context=False,
         max_span_batch_size=None,
+        firehose_handler=None,
     ):
         self.zipkin_attrs = zipkin_attrs
         self.thrift_endpoint = thrift_endpoint
@@ -61,6 +62,7 @@ class ZipkinLoggingContext(object):
         self.add_logging_annotation = add_logging_annotation
         self.client_context = client_context
         self.max_span_batch_size = max_span_batch_size
+        self.firehose_handler = firehose_handler
 
     def start(self):
         """Actions to be taken before request is handled.
@@ -87,11 +89,23 @@ class ZipkinLoggingContext(object):
         a success. It also logs the service (`ss` and `sr`) or the client
         ('cs' and 'cr') annotations.
         """
+
+        # FIXME: Should have a single aggregate handler
+        if self.firehose_handler:
+            self._log_spans_with_span_sender(
+                ZipkinBatchSender(self.firehose_handler,
+                                  self.max_span_batch_size)
+            )
+
         if not self.zipkin_attrs.is_sampled:
             return
 
         span_sender = ZipkinBatchSender(self.transport_handler,
                                         self.max_span_batch_size)
+
+        self._log_spans_with_span_sender(span_sender)
+
+    def _log_spans_with_span_sender(self, span_sender):
         with span_sender:
             end_timestamp = time.time()
             # Collect additional annotations from the logging handler

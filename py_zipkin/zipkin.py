@@ -11,12 +11,12 @@ from py_zipkin.logging_helper import ZipkinLoggingContext
 from py_zipkin.thread_local import get_zipkin_attrs
 from py_zipkin.thread_local import pop_zipkin_attrs
 from py_zipkin.thread_local import push_zipkin_attrs
-from py_zipkin.thrift import SERVER_ADDR_VAL
 from py_zipkin.thrift import create_binary_annotation
 from py_zipkin.thrift import create_endpoint
+from py_zipkin.thrift import SERVER_ADDR_VAL
 from py_zipkin.thrift import zipkin_core
-from py_zipkin.util import generate_random_64bit_string
 from py_zipkin.util import generate_random_128bit_string
+from py_zipkin.util import generate_random_64bit_string
 
 
 """
@@ -113,7 +113,8 @@ class zipkin_span(object):
         add_logging_annotation=False,
         report_root_timestamp=False,
         use_128bit_trace_id=False,
-        host=None
+        host=None,
+        firehose_handler=None
     ):
         """Logs a zipkin span. If this is the root span, then a zipkin
         trace is started as well.
@@ -179,6 +180,7 @@ class zipkin_span(object):
         self.report_root_timestamp_override = report_root_timestamp
         self.use_128bit_trace_id = use_128bit_trace_id
         self.host = host
+        self.firehose_handler = firehose_handler
         self.logging_configured = False
 
         # Spans that log a 'cs' timestamp can additionally record
@@ -219,7 +221,8 @@ class zipkin_span(object):
                 port=self.port,
                 sample_rate=self.sample_rate,
                 include=self.include,
-                host=self.host
+                host=self.host,
+                firehose_handler=self.firehose_handler
             ):
                 return f(*args, **kwargs)
         return decorated
@@ -301,6 +304,7 @@ class zipkin_span(object):
                 add_logging_annotation=self.add_logging_annotation,
                 client_context=client_context,
                 max_span_batch_size=self.max_span_batch_size,
+                firehose_handler=self.firehose_handler,
             )
             self.logging_context.start()
             self.logging_configured = True

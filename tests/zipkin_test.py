@@ -6,9 +6,9 @@ from py_zipkin.exception import ZipkinError
 from py_zipkin.logging_helper import null_handler
 from py_zipkin.logging_helper import ZipkinLoggerHandler
 from py_zipkin.thread_local import get_zipkin_attrs
-from py_zipkin.thrift import SERVER_ADDR_VAL
 from py_zipkin.thrift import create_binary_annotation
 from py_zipkin.thrift import create_endpoint
+from py_zipkin.thrift import SERVER_ADDR_VAL
 from py_zipkin.thrift import zipkin_core
 from py_zipkin.util import generate_random_64bit_string
 from py_zipkin.zipkin import ZipkinAttrs
@@ -58,6 +58,7 @@ def test_zipkin_span_for_new_trace(
         add_logging_annotation=False,
         client_context=False,
         max_span_batch_size=None,
+        firehose_handler=None,
     )
     pop_zipkin_attrs_mock.assert_called_once_with()
 
@@ -112,6 +113,7 @@ def test_zipkin_span_passed_sampled_attrs(
         add_logging_annotation=False,
         client_context=False,
         max_span_batch_size=None,
+        firehose_handler=None
     )
     pop_zipkin_attrs_mock.assert_called_once_with()
 
@@ -492,6 +494,7 @@ def test_zipkin_server_span_decorator(
         add_logging_annotation=False,
         client_context=False,
         max_span_batch_size=None,
+        firehose_handler=None,
     )
     pop_zipkin_attrs_mock.assert_called_once_with()
 
@@ -548,6 +551,7 @@ def test_zipkin_client_span_decorator(
         add_logging_annotation=False,
         client_context=True,
         max_span_batch_size=None,
+        firehose_handler=None,
     )
     pop_zipkin_attrs_mock.assert_called_once_with()
 
