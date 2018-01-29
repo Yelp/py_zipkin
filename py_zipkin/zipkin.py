@@ -288,7 +288,7 @@ class zipkin_span(object):
 
         if self.perform_logging:
             # Don't set up any logging if we're not sampling
-            if not self.zipkin_attrs.is_sampled:
+            if not self.zipkin_attrs.is_sampled and not self.firehose_handler:
                 return self
             endpoint = create_endpoint(self.port, self.service_name, self.host)
             client_context = set(self.include) == {'client'}
