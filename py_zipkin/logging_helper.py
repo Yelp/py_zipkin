@@ -92,6 +92,7 @@ class ZipkinLoggingContext(object):
 
         # FIXME: Should have a single aggregate handler
         if self.firehose_handler:
+            # FIXME: We need to allow different batching settings per handler
             self._log_spans_with_span_sender(
                 ZipkinBatchSender(self.firehose_handler,
                                   self.max_span_batch_size)

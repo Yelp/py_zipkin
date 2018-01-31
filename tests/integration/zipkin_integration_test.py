@@ -338,3 +338,52 @@ def test_log_debug_for_existing_span(default_annotations):
     assert len(mock_logs) == 1
     check_span(_decode_binary_thrift_obj(mock_logs[0]))
     check_span(_decode_binary_thrift_obj(mock_firehose_logs[0]))
+
+
+def test_zipkin_trace_with_no_sampling_no_firehose(
+    default_annotations
+):
+    mock_transport_handler, mock_logs = mock_logger()
+    with zipkin.zipkin_span(
+        service_name='test_service_name',
+        span_name='test_span_name',
+        transport_handler=mock_transport_handler,
+        sample_rate=None,
+        binary_annotations={'some_key': 'some_value'},
+        add_logging_annotation=True,
+    ):
+        pass
+
+    assert len(mock_logs) == 0
+
+
+def test_zipkin_trace_with_no_sampling_with_firehose(
+    default_annotations
+):
+    mock_transport_handler, mock_logs = mock_logger()
+    mock_firehose_handler, mock_firehose_logs = mock_logger()
+    with zipkin.zipkin_span(
+        service_name='test_service_name',
+        span_name='test_span_name',
+        transport_handler=mock_transport_handler,
+        sample_rate=None,
+        binary_annotations={'some_key': 'some_value'},
+        add_logging_annotation=True,
+        firehose_handler=mock_firehose_handler,
+    ):
+        pass
+
+    def check_span(span):
+        assert span.name == 'test_span_name'
+        assert span.annotations[0].host.service_name == 'test_service_name'
+        assert span.parent_id is None
+        assert span.trace_id_high is None
+        # timestamp and duration are microsecond conversions of time.time()
+        assert span.timestamp is not None
+        assert span.duration is not None
+        assert span.binary_annotations[0].key == 'some_key'
+        assert span.binary_annotations[0].value == 'some_value'
+        assert set([ann.value for ann in span.annotations]) == default_annotations
+
+    assert len(mock_logs) == 0
+    check_span(_decode_binary_thrift_obj(mock_firehose_logs[0]))

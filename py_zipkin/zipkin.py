@@ -244,7 +244,8 @@ class zipkin_span(object):
         # If zipkin_attrs are passed in or this span is doing its own sampling,
         # it will need to actually log spans at __exit__.
         self.perform_logging = bool(self.zipkin_attrs or
-                                    self.sample_rate is not None)
+                                    self.sample_rate is not None or
+                                    self.firehose_handler is not None)
         report_root_timestamp = False
 
         if self.sample_rate is not None:
@@ -263,7 +264,7 @@ class zipkin_span(object):
                 )
 
         if not self.zipkin_attrs:
-            # This span is inside the context of an existing trace
+            # Is this span is inside the context of an existing trace?
             existing_zipkin_attrs = get_zipkin_attrs()
             if existing_zipkin_attrs:
                 self.zipkin_attrs = ZipkinAttrs(
@@ -272,6 +273,15 @@ class zipkin_span(object):
                     parent_span_id=existing_zipkin_attrs.span_id,
                     flags=existing_zipkin_attrs.flags,
                     is_sampled=existing_zipkin_attrs.is_sampled,
+                )
+            elif self.firehose_handler is not None:
+                # If it has gotten here, the only thing that is
+                # causing a trace is the firehose. So we force a trace
+                # with sample rate of 0
+                report_root_timestamp = True
+                self.zipkin_attrs = create_attrs_for_span(
+                    sample_rate=0.0,
+                    use_128bit_trace_id=self.use_128bit_trace_id,
                 )
 
         # If zipkin_attrs are not set up by now, that means this span is not
