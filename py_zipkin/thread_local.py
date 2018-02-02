@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import threading
+import warnings
 
 _thread_local = threading.local()
 
@@ -21,9 +22,12 @@ def get_zipkin_attrs():
     :returns: tuple containing zipkin attrs
     :rtype: :class:`zipkin.ZipkinAttrs`
     """
-    zipkin_attrs = get_thread_local_zipkin_attrs()
-    if zipkin_attrs:
-        return zipkin_attrs[-1]
+    from py_zipkin.stack import ThreadLocalStack
+    warnings.warn(
+        'Use py_zipkin.stack.ThreadLocalStack().get',
+        DeprecationWarning,
+    )
+    return ThreadLocalStack().get()
 
 
 def pop_zipkin_attrs():
@@ -32,9 +36,12 @@ def pop_zipkin_attrs():
     :returns: tuple containing zipkin attrs
     :rtype: :class:`zipkin.ZipkinAttrs`
     """
-    zipkin_attrs = get_thread_local_zipkin_attrs()
-    if zipkin_attrs:
-        return zipkin_attrs.pop()
+    from py_zipkin.stack import ThreadLocalStack
+    warnings.warn(
+        'Use py_zipkin.stack.ThreadLocalStack().pop',
+        DeprecationWarning,
+    )
+    return ThreadLocalStack().pop()
 
 
 def push_zipkin_attrs(zipkin_attr):
@@ -43,4 +50,9 @@ def push_zipkin_attrs(zipkin_attr):
     :param zipkin_attr: tuple containing zipkin related attrs
     :type zipkin_attr: :class:`zipkin.ZipkinAttrs`
     """
-    get_thread_local_zipkin_attrs().append(zipkin_attr)
+    from py_zipkin.stack import ThreadLocalStack
+    warnings.warn(
+        'Use py_zipkin.stack.ThreadLocalStack().push',
+        DeprecationWarning,
+    )
+    return ThreadLocalStack().push(zipkin_attr)

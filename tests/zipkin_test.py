@@ -12,10 +12,17 @@ from py_zipkin.thrift import create_endpoint
 from py_zipkin.thrift import zipkin_core
 from py_zipkin.util import generate_random_64bit_string
 from py_zipkin.zipkin import ZipkinAttrs
+from py_zipkin.stack import ThreadLocalStack
 
 
-@mock.patch('py_zipkin.zipkin.pop_zipkin_attrs', autospec=True)
-@mock.patch('py_zipkin.zipkin.push_zipkin_attrs', autospec=True)
+@pytest.fixture
+def mock_context_stack():
+    with mock.patch(
+        'py_zipkin.stack.Stack', autospec=True,
+    ) as mock_context_stack:
+        yield mock_context_stack
+
+
 @mock.patch('py_zipkin.zipkin.create_attrs_for_span', autospec=True)
 @mock.patch('py_zipkin.zipkin.create_endpoint')
 @mock.patch('py_zipkin.zipkin.ZipkinLoggerHandler', autospec=True)
@@ -25,8 +32,7 @@ def test_zipkin_span_for_new_trace(
     logger_handler_cls_mock,
     create_endpoint_mock,
     create_attrs_for_span_mock,
-    push_zipkin_attrs_mock,
-    pop_zipkin_attrs_mock,
+    mock_context_stack,
 ):
     transport_handler = mock.Mock()
     with zipkin.zipkin_span(
@@ -35,6 +41,7 @@ def test_zipkin_span_for_new_trace(
         transport_handler=transport_handler,
         port=5,
         sample_rate=100.0,
+        context_stack=mock_context_stack,
     ) as zipkin_context:
         assert zipkin_context.port == 5
         pass
@@ -42,8 +49,9 @@ def test_zipkin_span_for_new_trace(
         sample_rate=100.0,
         use_128bit_trace_id=False,
     )
-    push_zipkin_attrs_mock.assert_called_once_with(
-        create_attrs_for_span_mock.return_value)
+    mock_context_stack.push.assert_called_once_with(
+        create_attrs_for_span_mock.return_value,
+    )
     create_endpoint_mock.assert_called_once_with(5, 'some_service_name', None)
     logger_handler_cls_mock.assert_called_once_with(
         create_attrs_for_span_mock.return_value)
@@ -59,11 +67,9 @@ def test_zipkin_span_for_new_trace(
         client_context=False,
         max_span_batch_size=None,
     )
-    pop_zipkin_attrs_mock.assert_called_once_with()
+    mock_context_stack.pop.assert_called_once_with()
 
 
-@mock.patch('py_zipkin.zipkin.pop_zipkin_attrs', autospec=True)
-@mock.patch('py_zipkin.zipkin.push_zipkin_attrs', autospec=True)
 @mock.patch('py_zipkin.zipkin.create_attrs_for_span', autospec=True)
 @mock.patch('py_zipkin.zipkin.create_endpoint')
 @mock.patch('py_zipkin.zipkin.ZipkinLoggerHandler', autospec=True)
@@ -73,8 +79,7 @@ def test_zipkin_span_passed_sampled_attrs(
     logger_handler_cls_mock,
     create_endpoint_mock,
     create_attrs_for_span_mock,
-    push_zipkin_attrs_mock,
-    pop_zipkin_attrs_mock,
+    mock_context_stack,
 ):
     # Make sure that if zipkin_span is passed *sampled* ZipkinAttrs, but is
     # also configured to do sampling itself, the passed ZipkinAttrs are used.
@@ -93,10 +98,11 @@ def test_zipkin_span_passed_sampled_attrs(
         port=5,
         sample_rate=100.0,
         zipkin_attrs=zipkin_attrs,
+        context_stack=mock_context_stack,
     ) as zipkin_context:
         assert zipkin_context.port == 5
     assert not create_attrs_for_span_mock.called
-    push_zipkin_attrs_mock.assert_called_once_with(zipkin_attrs)
+    mock_context_stack.push.assert_called_once_with(zipkin_attrs)
     create_endpoint_mock.assert_called_once_with(5, 'some_service_name', None)
     logger_handler_cls_mock.assert_called_once_with(zipkin_attrs)
     # Logging context should not report timestamp/duration for the server span,
@@ -113,11 +119,9 @@ def test_zipkin_span_passed_sampled_attrs(
         client_context=False,
         max_span_batch_size=None,
     )
-    pop_zipkin_attrs_mock.assert_called_once_with()
+    mock_context_stack.pop.assert_called_once_with()
 
 
-@mock.patch('py_zipkin.zipkin.pop_zipkin_attrs', autospec=True)
-@mock.patch('py_zipkin.zipkin.push_zipkin_attrs', autospec=True)
 @mock.patch('py_zipkin.zipkin.create_attrs_for_span', autospec=True)
 @mock.patch('py_zipkin.zipkin.create_endpoint')
 @mock.patch('py_zipkin.zipkin.ZipkinLoggerHandler', autospec=True)
@@ -127,8 +131,7 @@ def test_zipkin_span_trace_with_0_sample_rate(
     logger_handler_cls_mock,
     create_endpoint_mock,
     create_attrs_for_span_mock,
-    push_zipkin_attrs_mock,
-    pop_zipkin_attrs_mock,
+    mock_context_stack,
 ):
     create_attrs_for_span_mock.return_value = ZipkinAttrs(
         trace_id=generate_random_64bit_string(),
@@ -142,6 +145,7 @@ def test_zipkin_span_trace_with_0_sample_rate(
         span_name='span_name',
         transport_handler=mock.Mock(),
         sample_rate=0.0,
+        context_stack=mock_context_stack,
     ) as zipkin_context:
         assert zipkin_context.port == 0
         pass
@@ -149,12 +153,13 @@ def test_zipkin_span_trace_with_0_sample_rate(
         sample_rate=0.0,
         use_128bit_trace_id=False,
     )
-    push_zipkin_attrs_mock.assert_called_once_with(
-        create_attrs_for_span_mock.return_value)
+    mock_context_stack.push.assert_called_once_with(
+        create_attrs_for_span_mock.return_value,
+    )
     assert create_endpoint_mock.call_count == 0
     assert logger_handler_cls_mock.call_count == 0
     assert logging_context_cls_mock.call_count == 0
-    pop_zipkin_attrs_mock.assert_called_once_with()
+    mock_context_stack.pop.assert_called_once_with()
 
 
 def test_zipkin_span_sample_rate_required_params():
@@ -218,8 +223,6 @@ def test_zipkin_extraneous_include_raises(mock_zipkin_span, span_func):
             assert mock_zipkin_span.__init__.call_count == 0
 
 
-@mock.patch('py_zipkin.zipkin.pop_zipkin_attrs', autospec=True)
-@mock.patch('py_zipkin.zipkin.push_zipkin_attrs', autospec=True)
 @mock.patch('py_zipkin.zipkin.create_attrs_for_span', autospec=True)
 @mock.patch('py_zipkin.zipkin.create_endpoint')
 @mock.patch('py_zipkin.zipkin.ZipkinLoggerHandler', autospec=True)
@@ -229,8 +232,7 @@ def test_zipkin_span_trace_with_no_sampling(
     logger_handler_cls_mock,
     create_endpoint_mock,
     create_attrs_for_span_mock,
-    push_zipkin_attrs_mock,
-    pop_zipkin_attrs_mock,
+    mock_context_stack,
 ):
     zipkin_attrs = ZipkinAttrs(
         trace_id='0',
@@ -245,14 +247,17 @@ def test_zipkin_span_trace_with_no_sampling(
         zipkin_attrs=zipkin_attrs,
         transport_handler=mock.Mock(),
         port=5,
+        context_stack=mock_context_stack,
     ):
         pass
     assert create_attrs_for_span_mock.call_count == 0
-    push_zipkin_attrs_mock.assert_called_once_with(zipkin_attrs)
+    mock_context_stack.push.assert_called_once_with(
+        zipkin_attrs,
+    )
     assert create_endpoint_mock.call_count == 0
     assert logger_handler_cls_mock.call_count == 0
     assert logging_context_cls_mock.call_count == 0
-    pop_zipkin_attrs_mock.assert_called_once_with()
+    mock_context_stack.pop.assert_called_once_with()
 
 
 def test_zipkin_span_with_zipkin_attrs_required_params():
@@ -267,8 +272,6 @@ def test_zipkin_span_with_zipkin_attrs_required_params():
             pass
 
 
-@mock.patch('py_zipkin.zipkin.pop_zipkin_attrs', autospec=True)
-@mock.patch('py_zipkin.zipkin.push_zipkin_attrs', autospec=True)
 @mock.patch('py_zipkin.zipkin.create_attrs_for_span', autospec=True)
 @mock.patch('py_zipkin.zipkin.create_endpoint')
 @mock.patch('py_zipkin.zipkin.ZipkinLoggerHandler', autospec=True)
@@ -278,8 +281,7 @@ def test_zipkin_trace_context_attrs_is_always_popped(
     logger_handler_cls_mock,
     create_endpoint_mock,
     create_attrs_for_span_mock,
-    push_zipkin_attrs_mock,
-    pop_zipkin_attrs_mock,
+    mock_context_stack,
 ):
     with pytest.raises(Exception):
         with zipkin.zipkin_span(
@@ -288,23 +290,27 @@ def test_zipkin_trace_context_attrs_is_always_popped(
             transport_handler=mock.Mock(),
             port=22,
             sample_rate=100.0,
+            context_stack=mock_context_stack,
         ):
             raise Exception
-    pop_zipkin_attrs_mock.assert_called_once_with()
+    mock_context_stack.pop.assert_called_once_with()
 
 
-@mock.patch('py_zipkin.zipkin.get_zipkin_attrs', autospec=True)
-def test_create_headers_for_new_span_empty_if_no_active_request(get_mock):
-    get_mock.return_value = None
+def test_create_headers_for_new_span_empty_if_no_active_request(
+    mock_context_stack,
+):
+    mock_context_stack.get.return_value = None
     assert {} == zipkin.create_http_headers_for_new_span()
 
 
-@mock.patch('py_zipkin.zipkin.get_zipkin_attrs', autospec=True)
 @mock.patch('py_zipkin.zipkin.generate_random_64bit_string', autospec=True)
-def test_create_headers_for_new_span_returns_header_if_active_request(
-        gen_mock, get_mock):
-    get_mock.return_value = mock.Mock(
-        trace_id='27133d482ba4f605', span_id='37133d482ba4f605', is_sampled=True)
+def test_create_headers_for_new_span_returns_header_if_active_request(gen_mock):
+    mock_context_stack = mock.Mock()
+    mock_context_stack.get.return_value = mock.Mock(
+        trace_id='27133d482ba4f605',
+        span_id='37133d482ba4f605',
+        is_sampled=True,
+    )
     gen_mock.return_value = '17133d482ba4f605'
     expected = {
         'X-B3-TraceId': '27133d482ba4f605',
@@ -313,24 +319,19 @@ def test_create_headers_for_new_span_returns_header_if_active_request(
         'X-B3-Flags': '0',
         'X-B3-Sampled': '1',
     }
-    assert expected == zipkin.create_http_headers_for_new_span()
+    assert expected == zipkin.create_http_headers_for_new_span(
+        context_stack=mock_context_stack,
+    )
 
 
-@mock.patch('py_zipkin.zipkin.pop_zipkin_attrs', autospec=True)
-@mock.patch('py_zipkin.zipkin.push_zipkin_attrs', autospec=True)
-@mock.patch('py_zipkin.zipkin.get_zipkin_attrs', autospec=True)
-def test_span_context_no_zipkin_attrs(
-    get_zipkin_attrs_mock,
-    push_zipkin_attrs_mock,
-    pop_zipkin_attrs_mock,
-):
+def test_span_context_no_zipkin_attrs(mock_context_stack):
     # When not in a Zipkin context, don't do anything
-    get_zipkin_attrs_mock.return_value = None
+    mock_context_stack.get.return_value = None
     context = zipkin.zipkin_span(service_name='my_service')
     with context:
         pass
-    assert not pop_zipkin_attrs_mock.called
-    assert not push_zipkin_attrs_mock.called
+    assert not mock_context_stack.pop.called
+    assert not mock_context_stack.push.called
 
 
 @pytest.mark.parametrize('handlers', [[], [null_handler]])
@@ -363,11 +364,11 @@ def test_span_context_sampled_no_handlers(
     )
     with context:
         # Assert that the new ZipkinAttrs were saved
-        new_zipkin_attrs = get_zipkin_attrs()
+        new_zipkin_attrs = ThreadLocalStack().get()
         assert new_zipkin_attrs.span_id == '1'
 
     # Outside of the context, things should be returned to normal
-    assert get_zipkin_attrs() == zipkin_attrs
+    assert ThreadLocalStack().get() == zipkin_attrs
 
 
 @pytest.mark.parametrize('span_func, expected_annotations', [
@@ -441,8 +442,6 @@ def test_span_context(
     assert generate_string_128bit_mock.call_count == 0
 
 
-@mock.patch('py_zipkin.zipkin.pop_zipkin_attrs', autospec=True)
-@mock.patch('py_zipkin.zipkin.push_zipkin_attrs', autospec=True)
 @mock.patch('py_zipkin.zipkin.create_attrs_for_span', autospec=True)
 @mock.patch('py_zipkin.zipkin.create_endpoint')
 @mock.patch('py_zipkin.zipkin.ZipkinLoggerHandler', autospec=True)
@@ -452,8 +451,7 @@ def test_zipkin_server_span_decorator(
     logger_handler_cls_mock,
     create_endpoint_mock,
     create_attrs_for_span_mock,
-    push_zipkin_attrs_mock,
-    pop_zipkin_attrs_mock,
+    mock_context_stack,
 ):
     transport_handler = mock.Mock()
 
@@ -464,6 +462,7 @@ def test_zipkin_server_span_decorator(
         port=5,
         sample_rate=100.0,
         host='1.5.1.2',
+        context_stack=mock_context_stack,
     )
     def test_func(a, b):
         return a + b
@@ -474,11 +473,13 @@ def test_zipkin_server_span_decorator(
         sample_rate=100.0,
         use_128bit_trace_id=False,
     )
-    push_zipkin_attrs_mock.assert_called_once_with(
-        create_attrs_for_span_mock.return_value)
+    mock_context_stack.push.assert_called_once_with(
+        create_attrs_for_span_mock.return_value,
+    )
     create_endpoint_mock.assert_called_once_with(5, 'some_service_name', '1.5.1.2')
     logger_handler_cls_mock.assert_called_once_with(
-        create_attrs_for_span_mock.return_value)
+        create_attrs_for_span_mock.return_value,
+    )
     # The decorator was passed a sample rate and no Zipkin attrs, so it's
     # assumed to be the root of a trace and it should report timestamp/duration
     logging_context_cls_mock.assert_called_once_with(
@@ -493,11 +494,9 @@ def test_zipkin_server_span_decorator(
         client_context=False,
         max_span_batch_size=None,
     )
-    pop_zipkin_attrs_mock.assert_called_once_with()
+    mock_context_stack.pop.assert_called_once_with()
 
 
-@mock.patch('py_zipkin.zipkin.pop_zipkin_attrs', autospec=True)
-@mock.patch('py_zipkin.zipkin.push_zipkin_attrs', autospec=True)
 @mock.patch('py_zipkin.zipkin.create_attrs_for_span', autospec=True)
 @mock.patch('py_zipkin.zipkin.create_endpoint')
 @mock.patch('py_zipkin.zipkin.ZipkinLoggerHandler', autospec=True)
@@ -507,8 +506,7 @@ def test_zipkin_client_span_decorator(
     logger_handler_cls_mock,
     create_endpoint_mock,
     create_attrs_for_span_mock,
-    push_zipkin_attrs_mock,
-    pop_zipkin_attrs_mock,
+    mock_context_stack,
 ):
     transport_handler = mock.Mock()
 
@@ -520,6 +518,7 @@ def test_zipkin_client_span_decorator(
         sample_rate=100.0,
         include=('client',),
         host='1.5.1.2',
+        context_stack=mock_context_stack,
     )
     def test_func(a, b):
         return a + b
@@ -530,8 +529,9 @@ def test_zipkin_client_span_decorator(
         sample_rate=100.0,
         use_128bit_trace_id=False,
     )
-    push_zipkin_attrs_mock.assert_called_once_with(
-        create_attrs_for_span_mock.return_value)
+    mock_context_stack.push.assert_called_once_with(
+        create_attrs_for_span_mock.return_value,
+    )
     create_endpoint_mock.assert_called_once_with(5, 'some_service_name', '1.5.1.2')
     logger_handler_cls_mock.assert_called_once_with(
         create_attrs_for_span_mock.return_value)
@@ -549,7 +549,7 @@ def test_zipkin_client_span_decorator(
         client_context=True,
         max_span_batch_size=None,
     )
-    pop_zipkin_attrs_mock.assert_called_once_with()
+    mock_context_stack.pop.assert_called_once_with()
 
 
 @mock.patch('py_zipkin.zipkin.create_endpoint', wraps=zipkin.create_endpoint)
