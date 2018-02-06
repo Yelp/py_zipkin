@@ -1,3 +1,14 @@
+0.10.0 (2018-02-05)
+------------------
+- Add support for using explicit in-process context storage instead of
+  using thread_local. This allows you to use py_zipkin in cooperative
+  multitasking environments e.g. asyncio
+- `py_zipkin.thread_local` is now deprecated. Instead use
+  `py_zipkin.stack.ThreadLocalStack()`
+- TraceId and SpanId generation performance improvements.
+- 128-bit TraceIds now start with an epoch timestamp to support easy
+  interop with AWS X-Ray
+
 0.9.0 (2017-07-31)
 ------------------
 - Add batch span sending. Note that spans are now sent in lists.
