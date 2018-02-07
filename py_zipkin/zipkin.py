@@ -112,7 +112,7 @@ class zipkin_span(object):
         report_root_timestamp=False,
         use_128bit_trace_id=False,
         host=None,
-        context_stack=ThreadLocalStack(),
+        context_stack=None,
     ):
         """Logs a zipkin span. If this is the root span, then a zipkin
         trace is started as well.
@@ -183,6 +183,8 @@ class zipkin_span(object):
         self.host = host
         self.logging_configured = False
         self._context_stack = context_stack
+        if self._context_stack is None:
+            self._context_stack = ThreadLocalStack()
 
         # Spans that log a 'cs' timestamp can additionally record
         # 'sa' binary annotations that show where the request is going.
@@ -540,7 +542,7 @@ def create_attrs_for_span(
     )
 
 
-def create_http_headers_for_new_span(context_stack=ThreadLocalStack()):
+def create_http_headers_for_new_span(context_stack=None):
     """
     Generate the headers for a new zipkin span.
 
@@ -552,6 +554,8 @@ def create_http_headers_for_new_span(context_stack=ThreadLocalStack()):
     :returns: dict containing (X-B3-TraceId, X-B3-SpanId, X-B3-ParentSpanId,
                 X-B3-Flags and X-B3-Sampled) keys OR an empty dict.
     """
+    if context_stack is None:
+        context_stack = ThreadLocalStack()
     zipkin_attrs = context_stack.get()
     if not zipkin_attrs:
         return {}
