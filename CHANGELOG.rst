@@ -1,5 +1,10 @@
+0.10.1 (2018-02-05)
+-------------------
+- context_stack will now default to `ThreadLocalStack()` if passed as
+  `None`
+
 0.10.0 (2018-02-05)
-------------------
+-------------------
 - Add support for using explicit in-process context storage instead of
   using thread_local. This allows you to use py_zipkin in cooperative
   multitasking environments e.g. asyncio
