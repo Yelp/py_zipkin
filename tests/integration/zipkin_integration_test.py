@@ -387,3 +387,47 @@ def test_zipkin_trace_with_no_sampling_with_firehose(
 
     assert len(mock_logs) == 0
     check_span(_decode_binary_thrift_obj(mock_firehose_logs[0]))
+
+
+def test_no_sampling_with_inner_span():
+    mock_transport_handler, mock_logs = mock_logger()
+    mock_firehose_handler, mock_firehose_logs = mock_logger()
+    with zipkin.zipkin_span(
+        service_name='test_service_name',
+        span_name='test_span_name',
+        transport_handler=mock_transport_handler,
+        sample_rate=None,
+        binary_annotations={'some_key': 'some_value'},
+        add_logging_annotation=True,
+        firehose_handler=mock_firehose_handler,
+    ):
+        with zipkin.zipkin_span(
+            service_name='nested_service',
+            span_name='nested_span',
+            annotations={'nested_annotation': 43},
+            binary_annotations={'nested_key': 'nested_value'},
+        ):
+            pass
+
+        pass
+
+    def check_spans(spans):
+        nested_span = spans[0]
+        root_span = spans[1]
+        assert nested_span.name == 'nested_span'
+        assert nested_span.annotations[0].host.service_name == 'nested_service'
+        assert nested_span.parent_id == root_span.id
+        assert nested_span.binary_annotations[0].key == 'nested_key'
+        assert nested_span.binary_annotations[0].value == 'nested_value'
+        # Local nested spans report timestamp and duration
+        assert nested_span.timestamp is not None
+        assert nested_span.duration is not None
+        assert len(nested_span.annotations) == 5
+        assert set([ann.value for ann in nested_span.annotations]) == set([
+            'ss', 'sr', 'cs', 'cr', 'nested_annotation'])
+        for ann in nested_span.annotations:
+            if ann.value == 'nested_annotation':
+                assert ann.timestamp == 43000000
+
+    assert len(mock_logs) == 0
+    check_spans(_decode_binary_thrift_objs(mock_firehose_logs[0]))

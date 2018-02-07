@@ -320,29 +320,27 @@ class zipkin_span(object):
             self.logging_configured = True
             return self
         else:
-            # In the sampled case, patch the ZipkinLoggerHandler.
-            if self.zipkin_attrs.is_sampled:
-                # Be defensive about logging setup. Since ZipkinAttrs are local to
-                # the thread, multithreaded frameworks can get in strange states.
-                # The logging is not going to be correct in these cases, so we set
-                # a flag that turns off logging on __exit__.
-                try:
-                    # Assume there's only a single handler, since all logging
-                    # should be set up in this package.
-                    log_handler = zipkin_logger.handlers[0]
-                except IndexError:
-                    return self
-                # Make sure it's not a NullHandler or something
-                if not isinstance(log_handler, ZipkinLoggerHandler):
-                    return self
-                # Put span ID on logging handler.
-                self.log_handler = zipkin_logger.handlers[0]
-                # Store the old parent_span_id, probably None, in case we have
-                # nested zipkin_spans
-                self.old_parent_span_id = self.log_handler.parent_span_id
-                self.log_handler.parent_span_id = self.zipkin_attrs.span_id
-                self.logging_configured = True
-
+            # Patch the ZipkinLoggerHandler.
+            # Be defensive about logging setup. Since ZipkinAttrs are local to
+            # the thread, multithreaded frameworks can get in strange states.
+            # The logging is not going to be correct in these cases, so we set
+            # a flag that turns off logging on __exit__.
+            try:
+                # Assume there's only a single handler, since all logging
+                # should be set up in this package.
+                log_handler = zipkin_logger.handlers[0]
+            except IndexError:
+                return self
+            # Make sure it's not a NullHandler or something
+            if not isinstance(log_handler, ZipkinLoggerHandler):
+                return self
+            # Put span ID on logging handler.
+            self.log_handler = zipkin_logger.handlers[0]
+            # Store the old parent_span_id, probably None, in case we have
+            # nested zipkin_spans
+            self.old_parent_span_id = self.log_handler.parent_span_id
+            self.log_handler.parent_span_id = self.zipkin_attrs.span_id
+            self.logging_configured = True
             return self
 
     def __exit__(self, _exc_type, _exc_value, _exc_traceback):
@@ -354,6 +352,7 @@ class zipkin_span(object):
         popped off. The actual logging of spans depends on sampling and that
         the logging was correctly set up.
         """
+
         if self.do_pop_attrs:
             pop_zipkin_attrs()
 
@@ -413,7 +412,7 @@ class zipkin_span(object):
         """
         if not self.zipkin_attrs:
             return
-        if not self.zipkin_attrs.is_sampled:
+        if not self.zipkin_attrs.is_sampled and self.firehose_handler is None:
             return
         if not self.logging_context:
             # This is not the root span, so binary annotations will be added
@@ -444,7 +443,8 @@ class zipkin_span(object):
         :param host: Host address of the destination
         :type host: str
         """
-        if not self.zipkin_attrs or not self.zipkin_attrs.is_sampled:
+        if not self.zipkin_attrs or (not self.zipkin_attrs.is_sampled
+                                     and self.firehose_handler is None):
             return
 
         if 'client' not in self.include:
