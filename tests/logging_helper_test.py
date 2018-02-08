@@ -175,6 +175,118 @@ def test_zipkin_logging_server_context_log_spans(
             autospec=True)
 @mock.patch('py_zipkin.logging_helper.copy_endpoint_with_new_service_name',
             autospec=True)
+def test_zipkin_logging_server_context_log_spans_with_firehose(
+    copy_endpoint_mock, bin_ann_list_builder, ann_list_builder,
+    add_span_mock, flush_mock, time_mock
+):
+    # This lengthy function tests that the logging context properly
+    # logs both client and server spans, while attaching extra annotations
+    # logged throughout the context of the trace.
+    trace_id = '000000000000000f'
+    parent_span_id = '0000000000000001'
+    server_span_id = '0000000000000002'
+    client_span_id = '0000000000000003'
+    client_span_name = 'breadcrumbs'
+    client_svc_name = 'svc'
+    attr = ZipkinAttrs(
+        trace_id=trace_id,
+        span_id=server_span_id,
+        parent_span_id=parent_span_id,
+        flags=None,
+        is_sampled=True,
+    )
+    handler = logging_helper.ZipkinLoggerHandler(attr)
+    extra_server_annotations = {
+        'parent_span_id': None,
+        'annotations': {'foo': 1},
+        'binary_annotations': {'what': 'whoa'},
+    }
+    extra_client_annotations = {
+        'parent_span_id': client_span_id,
+        'annotations': {'ann1': 1},
+        'binary_annotations': {'bann1': 'aww'},
+    }
+    handler.extra_annotations = [
+        extra_server_annotations,
+        extra_client_annotations,
+    ]
+    handler.client_spans = [{
+        'span_id': client_span_id,
+        'parent_span_id': None,
+        'span_name': client_span_name,
+        'service_name': client_svc_name,
+        'annotations': {'ann2': 2, 'cs': 26, 'cr': 30},
+        'binary_annotations': {'bann2': 'yiss'},
+    }]
+
+    # Each of the thrift annotation helpers just reflects its first arg
+    # so the annotation dicts can be checked.
+    ann_list_builder.side_effect = lambda x, y: x
+    bin_ann_list_builder.side_effect = lambda x, y: x
+
+    transport_handler = mock.Mock()
+    firehose_handler = mock.Mock()
+
+    context = logging_helper.ZipkinLoggingContext(
+        zipkin_attrs=attr,
+        thrift_endpoint='thrift_endpoint',
+        log_handler=handler,
+        span_name='GET /foo',
+        transport_handler=transport_handler,
+        report_root_timestamp=True,
+        firehose_handler=firehose_handler
+    )
+
+    context.start_timestamp = 24
+    context.response_status_code = 200
+
+    context.binary_annotations_dict = {'k': 'v'}
+    time_mock.return_value = 42
+
+    expected_server_annotations = {'foo': 1, 'sr': 24, 'ss': 42}
+    expected_server_bin_annotations = {'k': 'v', 'what': 'whoa'}
+
+    expected_client_annotations = {'ann1': 1, 'ann2': 2, 'cs': 26, 'cr': 30}
+    expected_client_bin_annotations = {'bann1': 'aww', 'bann2': 'yiss'}
+
+    context.log_spans()
+    call_args = add_span_mock.call_args_list
+    firehose_client_log_call, client_log_call = call_args[0], call_args[2]
+    firehose_server_log_call, server_log_call = call_args[1], call_args[3]
+    assert server_log_call[1] == firehose_server_log_call[1] == {
+        'span_id': server_span_id,
+        'parent_span_id': parent_span_id,
+        'trace_id': trace_id,
+        'span_name': 'GET /foo',
+        'annotations': expected_server_annotations,
+        'binary_annotations': expected_server_bin_annotations,
+        'duration_s': 18,
+        'timestamp_s': 24,
+    }
+    assert client_log_call[1] == firehose_client_log_call[1] == {
+        'span_id': client_span_id,
+        'parent_span_id': server_span_id,
+        'trace_id': trace_id,
+        'span_name': client_span_name,
+        'annotations': expected_client_annotations,
+        'binary_annotations': expected_client_bin_annotations,
+        'duration_s': 4,
+        'timestamp_s': 26,
+    }
+    assert flush_mock.call_count == 2
+
+
+@mock.patch('py_zipkin.logging_helper.time.time', autospec=True)
+@mock.patch('py_zipkin.logging_helper.ZipkinBatchSender.flush',
+            autospec=True)
+@mock.patch('py_zipkin.logging_helper.ZipkinBatchSender.add_span',
+            autospec=True)
+@mock.patch('py_zipkin.logging_helper.annotation_list_builder',
+            autospec=True)
+@mock.patch('py_zipkin.logging_helper.binary_annotation_list_builder',
+            autospec=True)
+@mock.patch('py_zipkin.logging_helper.copy_endpoint_with_new_service_name',
+            autospec=True)
 def test_zipkin_logging_client_context_log_spans(
     copy_endpoint_mock, bin_ann_list_builder, ann_list_builder,
     add_span_mock, flush_mock, time_mock
@@ -260,6 +372,44 @@ def test_batch_sender_add_span_not_called_if_not_sampled(add_span_mock,
     context.log_spans()
     assert add_span_mock.call_count == 0
     assert flush_mock.call_count == 0
+
+
+@mock.patch('py_zipkin.logging_helper.time.time', autospec=True)
+@mock.patch('py_zipkin.logging_helper.ZipkinBatchSender.flush',
+            autospec=True)
+@mock.patch('py_zipkin.logging_helper.ZipkinBatchSender.add_span',
+            autospec=True)
+def test_batch_sender_add_span_not_sampled_with_firehose(add_span_mock,
+                                                         flush_mock,
+                                                         time_mock):
+    attr = ZipkinAttrs(
+        trace_id='0000000000000001',
+        span_id='0000000000000002',
+        parent_span_id=None,
+        flags=None,
+        is_sampled=False,
+    )
+    log_handler = logging_helper.ZipkinLoggerHandler(attr)
+    transport_handler = mock.Mock()
+    firehose_handler = mock.Mock()
+    context = logging_helper.ZipkinLoggingContext(
+        zipkin_attrs=attr,
+        thrift_endpoint='thrift_endpoint',
+        log_handler=log_handler,
+        span_name='span_name',
+        transport_handler=transport_handler,
+        report_root_timestamp=False,
+        firehose_handler=firehose_handler,
+    )
+    context.start_timestamp = 24
+    context.response_status_code = 200
+
+    context.binary_annotations_dict = {'k': 'v'}
+    time_mock.return_value = 42
+
+    context.log_spans()
+    assert add_span_mock.call_count == 1
+    assert flush_mock.call_count == 1
 
 
 def test_zipkin_handler_init():
