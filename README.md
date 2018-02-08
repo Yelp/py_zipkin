@@ -173,6 +173,21 @@ By default, py_zipkin uses a thread local storage for the attributes, which is
 defined in `py_zipkin.stack.ThreadLocalStack`.
 
 
+Firehose mode [EXPERIMENTAL]
+----------------------------
+
+"Firehose mode" records 100% of the spans, regardless of
+sampling rate. This is useful if you want to treat these spans
+differently, e.g. send them to a different backend that has limited
+retention. It works in tandem with normal operation, however there may
+be additional overhead. In order to use this, you add a
+`firehose_handler` just like you add a `transport_handler`.
+
+This feature should be considered experimental and may be removed at
+any time without warning. If you do use this, be sure to send
+asynchronously to avoid excess overhead for every request.
+
+
 License
 -------
 
