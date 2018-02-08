@@ -1,3 +1,8 @@
+0.11.0 (2018-02-08)
+-------------------
+- Add support for "firehose mode", which logs 100% of the spans
+  regardless of sample rate.
+
 0.10.1 (2018-02-05)
 -------------------
 - context_stack will now default to `ThreadLocalStack()` if passed as
