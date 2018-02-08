@@ -163,7 +163,17 @@ def transport_handler(message):
     producer.send_messages('kafka_topic_name', message)
 ```
 
+Using in multithreading evironments
+-----------------------------------
+
+If you want to use py_zipkin in a cooperative multithreading environment,
+e.g. asyncio, you need to explicitly pass an instance of `py_zipkin.stack.Stack`
+as parameter `context_stack` for `zipkin_span` and `create_http_headers_for_new_span`.
+By default, py_zipkin uses a thread local storage for the attributes, which is
+defined in `py_zipkin.stack.ThreadLocalStack`.
+
+
 License
 -------
 
-Copyright (c) 2017, Yelp, Inc. All Rights reserved. Apache v2
+Copyright (c) 2018, Yelp, Inc. All Rights reserved. Apache v2

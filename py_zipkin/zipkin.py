@@ -8,9 +8,7 @@ from py_zipkin.exception import ZipkinError
 from py_zipkin.logging_helper import zipkin_logger
 from py_zipkin.logging_helper import ZipkinLoggerHandler
 from py_zipkin.logging_helper import ZipkinLoggingContext
-from py_zipkin.thread_local import get_zipkin_attrs
-from py_zipkin.thread_local import pop_zipkin_attrs
-from py_zipkin.thread_local import push_zipkin_attrs
+from py_zipkin.stack import ThreadLocalStack
 from py_zipkin.thrift import create_binary_annotation
 from py_zipkin.thrift import create_endpoint
 from py_zipkin.thrift import SERVER_ADDR_VAL
@@ -114,6 +112,7 @@ class zipkin_span(object):
         report_root_timestamp=False,
         use_128bit_trace_id=False,
         host=None,
+        context_stack=None,
         firehose_handler=None
     ):
         """Logs a zipkin span. If this is the root span, then a zipkin
@@ -164,6 +163,13 @@ class zipkin_span(object):
         :param host: Contains the ipv4 value of the host. The ipv4 value isn't
             automatically determined in a docker environment
         :type host: string
+        :param context_stack: explicit context stack for storing
+            zipkin attributes
+        :type context_stack: list
+        :param firehose_handler: [EXPERIMENTAL] Similar to transport_handler,
+            except that it will receive 100% of the spans regardless of trace
+            sampling rate
+        :type firehose_handler: function
         """
         self.service_name = service_name
         self.span_name = span_name
@@ -182,6 +188,9 @@ class zipkin_span(object):
         self.host = host
         self.firehose_handler = firehose_handler
         self.logging_configured = False
+        self._context_stack = context_stack
+        if self._context_stack is None:
+            self._context_stack = ThreadLocalStack()
 
         # Spans that log a 'cs' timestamp can additionally record
         # 'sa' binary annotations that show where the request is going.
@@ -222,7 +231,8 @@ class zipkin_span(object):
                 sample_rate=self.sample_rate,
                 include=self.include,
                 host=self.host,
-                firehose_handler=self.firehose_handler
+                context_stack=self._context_stack,
+                firehose_handler=self.firehose_handler,
             ):
                 return f(*args, **kwargs)
         return decorated
@@ -264,8 +274,8 @@ class zipkin_span(object):
                 )
 
         if not self.zipkin_attrs:
-            # Is this span is inside the context of an existing trace?
-            existing_zipkin_attrs = get_zipkin_attrs()
+            # This span is inside the context of an existing trace
+            existing_zipkin_attrs = self._context_stack.get()
             if existing_zipkin_attrs:
                 self.zipkin_attrs = ZipkinAttrs(
                     trace_id=existing_zipkin_attrs.trace_id,
@@ -291,7 +301,7 @@ class zipkin_span(object):
         if not self.zipkin_attrs:
             return self
 
-        push_zipkin_attrs(self.zipkin_attrs)
+        self._context_stack.push(self.zipkin_attrs)
         self.do_pop_attrs = True
 
         self.start_timestamp = time.time()
@@ -354,7 +364,7 @@ class zipkin_span(object):
         """
 
         if self.do_pop_attrs:
-            pop_zipkin_attrs()
+            self._context_stack.pop()
 
         if not self.logging_configured:
             return
@@ -550,7 +560,7 @@ def create_attrs_for_span(
     )
 
 
-def create_http_headers_for_new_span():
+def create_http_headers_for_new_span(context_stack=None):
     """
     Generate the headers for a new zipkin span.
 
@@ -562,8 +572,9 @@ def create_http_headers_for_new_span():
     :returns: dict containing (X-B3-TraceId, X-B3-SpanId, X-B3-ParentSpanId,
                 X-B3-Flags and X-B3-Sampled) keys OR an empty dict.
     """
-    zipkin_attrs = get_zipkin_attrs()
-
+    if context_stack is None:
+        context_stack = ThreadLocalStack()
+    zipkin_attrs = context_stack.get()
     if not zipkin_attrs:
         return {}
 

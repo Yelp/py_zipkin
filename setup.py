@@ -3,7 +3,7 @@
 from setuptools import find_packages
 from setuptools import setup
 
-__version__ = '0.9.0'
+__version__ = '0.10.0'
 
 setup(
     name='py_zipkin',
@@ -11,7 +11,7 @@ setup(
     provides=["py_zipkin"],
     author='Yelp, Inc.',
     author_email='opensource+py-zipkin@yelp.com',
-    license='Copyright Yelp 2017',
+    license='Copyright Yelp 2018',
     url="https://github.com/Yelp/py_zipkin",
     description='Library for using Zipkin in Python.',
     packages=find_packages(exclude=('tests*', 'testing*', 'tools*')),

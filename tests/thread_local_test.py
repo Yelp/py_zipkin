@@ -18,19 +18,9 @@ def test_get_thread_local_zipkin_attrs_creates_empty_list_if_not_attached():
     assert hasattr(thread_local._thread_local, "zipkin_attrs")
 
 
-@mock.patch('py_zipkin.thread_local._thread_local.zipkin_attrs', [])
-def test_get_zipkin_attrs_returns_none_if_no_zipkin_attrs():
-    assert not thread_local.get_zipkin_attrs()
-
-
 @mock.patch('py_zipkin.thread_local._thread_local.zipkin_attrs', ['foo'])
 def test_get_zipkin_attrs_returns_the_last_of_the_list():
     assert 'foo' == thread_local.get_zipkin_attrs()
-
-
-@mock.patch('py_zipkin.thread_local._thread_local.zipkin_attrs', [])
-def test_pop_zipkin_attrs_does_nothing_if_no_requests():
-    assert not thread_local.pop_zipkin_attrs()
 
 
 @mock.patch(
