@@ -126,6 +126,7 @@ def test_zipkin_span_passed_sampled_attrs(
     mock_context_stack.pop.assert_called_once_with()
 
 
+@pytest.mark.parametrize('firehose_enabled', [True, False])
 @mock.patch('py_zipkin.zipkin.create_attrs_for_span', autospec=True)
 @mock.patch('py_zipkin.zipkin.create_endpoint')
 @mock.patch('py_zipkin.zipkin.ZipkinLoggerHandler', autospec=True)
@@ -136,6 +137,7 @@ def test_zipkin_span_trace_with_0_sample_rate(
     create_endpoint_mock,
     create_attrs_for_span_mock,
     mock_context_stack,
+    firehose_enabled,
 ):
     create_attrs_for_span_mock.return_value = ZipkinAttrs(
         trace_id=generate_random_64bit_string(),
@@ -151,7 +153,7 @@ def test_zipkin_span_trace_with_0_sample_rate(
         transport_handler=transport_handler,
         sample_rate=0.0,
         context_stack=mock_context_stack,
-        firehose_handler=None
+        firehose_handler=mock.Mock() if firehose_enabled else None
     ) as zipkin_context:
         assert zipkin_context.port == 0
         pass
@@ -162,52 +164,10 @@ def test_zipkin_span_trace_with_0_sample_rate(
     mock_context_stack.push.assert_called_once_with(
         create_attrs_for_span_mock.return_value)
 
-    assert create_endpoint_mock.call_count == 0
-    assert logger_handler_cls_mock.call_count == 0
-    assert logging_context_cls_mock.call_count == 0
-    mock_context_stack.pop.assert_called_once_with()
-
-
-@mock.patch('py_zipkin.zipkin.create_attrs_for_span', autospec=True)
-@mock.patch('py_zipkin.zipkin.create_endpoint')
-@mock.patch('py_zipkin.zipkin.ZipkinLoggerHandler', autospec=True)
-@mock.patch('py_zipkin.zipkin.ZipkinLoggingContext', autospec=True)
-def test_zipkin_span_trace_with_0_sample_rate_firehose(
-    logging_context_cls_mock,
-    logger_handler_cls_mock,
-    create_endpoint_mock,
-    create_attrs_for_span_mock,
-    mock_context_stack,
-):
-    create_attrs_for_span_mock.return_value = ZipkinAttrs(
-        trace_id=generate_random_64bit_string(),
-        span_id=generate_random_64bit_string(),
-        parent_span_id=None,
-        flags='0',
-        is_sampled=False,
-    )
-    transport_handler = mock.Mock()
-    with zipkin.zipkin_span(
-        service_name='some_service_name',
-        span_name='span_name',
-        transport_handler=transport_handler,
-        sample_rate=0.0,
-        context_stack=mock_context_stack,
-        firehose_handler=mock.Mock(),
-    ) as zipkin_context:
-        assert zipkin_context.port == 0
-        pass
-    create_attrs_for_span_mock.assert_called_once_with(
-        sample_rate=0.0,
-        use_128bit_trace_id=False,
-    )
-    mock_context_stack.push.assert_called_once_with(
-        create_attrs_for_span_mock.return_value)
-
-    # Once just for the firehose handler
-    assert create_endpoint_mock.call_count == 1
-    assert logger_handler_cls_mock.call_count == 1
-    assert logging_context_cls_mock.call_count == 1
+    # When firehose mode is on, we log regardless of sample rate
+    assert create_endpoint_mock.call_count == (1 if firehose_enabled else 0)
+    assert logger_handler_cls_mock.call_count == (1 if firehose_enabled else 0)
+    assert logging_context_cls_mock.call_count == (1 if firehose_enabled else 0)
     mock_context_stack.pop.assert_called_once_with()
 
 
