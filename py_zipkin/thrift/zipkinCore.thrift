@@ -75,6 +75,34 @@ const string SERVER_SEND = "ss"
  */
 const string SERVER_RECV = "sr"
 /**
+ * Message send ("ms") is a request to send a message to a destination, usually
+ * a broker. This may be the only annotation in a messaging span. If WIRE_SEND
+ * exists in the same span, it follows this moment and clarifies delays sending
+ * the message, such as batching.
+ *
+ * Unlike RPC annotations like CLIENT_SEND, messaging spans never share a span
+ * ID. For example, "ms" should always be the parent of "mr".
+ *
+ * Annotation.host is not the destination, it is the host which logged the send
+ * event: the producer. When annotating MESSAGE_SEND, instrumentation should
+ * also tag the MESSAGE_ADDR.
+ */
+const string MESSAGE_SEND = "ms"
+/**
+ * A consumer received ("mr") a message from a broker. This may be the only
+ * annotation in a messaging span. If WIRE_RECV exists in the same span, it
+ * precedes this moment and clarifies any local queuing delay.
+ *
+ * Unlike RPC annotations like SERVER_RECV, messaging spans never share a span
+ * ID. For example, "mr" should always be a child of "ms" unless it is a root
+ * span.
+ *
+ * Annotation.host is not the broker, it is the host which logged the receive
+ * event: the consumer.  When annotating MESSAGE_RECV, instrumentation should
+ * also tag the MESSAGE_ADDR.
+ */
+const string MESSAGE_RECV = "mr"
+/**
  * Optionally logs an attempt to send a message on the wire. Multiple wire send
  * events could indicate network retries. A lag between client or server send
  * and wire send might indicate queuing or processing delay.
@@ -125,19 +153,32 @@ const string HTTP_METHOD = "http.method"
 /**
  * The absolute http path, without any query parameters. Ex. "/objects/abcd-ff"
  *
- * Used to filter against an http route, portably with zipkin v1.
+ * Used as a filter or to clarify the request path for a given route. For example, the path for
+ * a route "/objects/:objectId" could be "/objects/abdc-ff". This does not limit cardinality like
+ * HTTP_ROUTE("http.route") can, so is not a good input to a span name.
  *
- * In zipkin v1, only equals filters are supported. Dropping query parameters makes the number
+ * The Zipkin query api only supports equals filters. Dropping query parameters makes the number
  * of distinct URIs less. For example, one can query for the same resource, regardless of signing
- * parameters encoded in the query line. This does not reduce cardinality to a HTTP single route.
- * For example, it is common to express a route as an http URI template like
- * "/resource/{resource_id}". In systems where only equals queries are available, searching for
- * http/path=/resource won't match if the actual request was /resource/abcd-ff.
+ * parameters encoded in the query line. Dropping query parameters also limits the security impact
+ * of this tag.
  *
- * Historical note: This was commonly expressed as "http.uri" in zipkin, eventhough it was most
- * often just a path.
+ * Historical note: This was commonly expressed as "http.uri" in zipkin, even though it was most
  */
 const string HTTP_PATH = "http.path"
+
+/**
+ * The route which a request matched or "" (empty string) if routing is supported, but there was no
+ * match. Ex "/users/{userId}"
+ *
+ * Unlike HTTP_PATH("http.path"), this value is fixed cardinality, so is a safe input to a span
+ * name function or a metrics dimension. Different formats are possible. For example, the following
+ * are all valid route templates: "/users" "/users/:userId" "/users/*"
+ *
+ * Route-based span name generation often uses other tags, such as HTTP_METHOD("http.method") and
+ * HTTP_STATUS_CODE("http.status_code"). Route-based names can look like "get /users/{userId}",
+ * "post /users", "get not_found" or "get redirected".
+ */
+const string HTTP_ROUTE = "http.route"
 
 /**
  * The entire URL, including the scheme, host and query parameters if available. Ex.
@@ -230,6 +271,10 @@ const string CLIENT_ADDR = "ca"
  * different server ip or port.
  */
 const string SERVER_ADDR = "sa"
+/**
+ * Indicates the remote address of a messaging span, usually the broker.
+ */
+const string MESSAGE_ADDR = "ma"
 
 /**
  * Indicates the network context of a service recording an annotation with two
@@ -420,7 +465,7 @@ struct Span {
    * precise value possible. For example, gettimeofday or syncing nanoTime
    * against a tick of currentTimeMillis.
    *
-   * For compatibilty with instrumentation that precede this field, collectors
+   * For compatibility with instrumentation that precede this field, collectors
    * or span stores can derive this via Annotation.timestamp.
    * For example, SERVER_RECV.timestamp or CLIENT_SEND.timestamp.
    *
