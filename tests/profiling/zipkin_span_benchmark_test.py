@@ -112,7 +112,7 @@ def test_zipkin_span_logging(
     def benchmark_zipkin_span(context):
         context.stop()
 
-    benchmark.pedantic(benchmark_zipkin_span, setup=build_trace)
+    benchmark.pedantic(benchmark_zipkin_span, setup=build_trace, rounds=100)
 
 
 @pytest.mark.parametrize('use_128', [False, True])
