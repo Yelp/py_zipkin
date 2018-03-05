@@ -9,3 +9,5 @@ dist/
 venv
 tags
 *.swp
+.pytest_cache
+.benchmarks
