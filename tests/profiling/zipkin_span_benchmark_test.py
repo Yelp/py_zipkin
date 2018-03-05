@@ -82,7 +82,7 @@ def test_zipkin_span_thread_local(
     TCPTransportHandler(),
 ])
 @pytest.mark.parametrize('sample_rate', [0.15, 100])
-@pytest.mark.parametrize('num_spans', [1, 10, 100])
+@pytest.mark.parametrize('num_spans', [1, 100, 1000])
 def test_zipkin_span_logging(
     benchmark,
     transport_handler,
