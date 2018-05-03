@@ -19,6 +19,7 @@ setup(
     install_requires=[
         'six',
         'thriftpy',
+        'yelp-clog>=0.1.7',
     ],
     classifiers=[
         "Development Status :: 3 - Alpha",
