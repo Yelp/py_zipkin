@@ -58,3 +58,17 @@ def signed_int_to_unsigned_hex(signed_int):
     if hex_string.endswith('L'):
         return hex_string[:-1]
     return hex_string
+
+
+def get_local_span_timestamp_and_duration(annotations):
+    """Returns the timestamp and duration provided a set of client or
+    server annotations.
+
+    :param annotations: a list of annotations
+    :returns: timestamp, duration (as integers)
+    """
+    if 'cs' in annotations and 'cr' in annotations:
+        return annotations['cs'], annotations['cr'] - annotations['cs']
+    elif 'sr' in annotations and 'ss' in annotations:
+        return annotations['sr'], annotations['ss'] - annotations['sr']
+    return None, None

@@ -10,6 +10,7 @@ def zipkin_attributes():
         'span_id': '27133d482ba4f605',
         'parent_span_id': '37133d482ba4f605',
         'flags': '45',
+        'client_spans': [],
     }
 
 
