@@ -1,3 +1,8 @@
+0.11.1 (2018-05-23)
+-------------------
+- Add binary annotations to the span even if the request is not being
+  sampled. This fixes binary annotations for firehose spans.
+
 0.11.0 (2018-02-08)
 -------------------
 - Add support for "firehose mode", which logs 100% of the spans
