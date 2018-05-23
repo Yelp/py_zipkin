@@ -721,6 +721,9 @@ def test_add_sa_binary_annotation():
 
 
 def test_adding_sa_binary_annotation_without_sampling():
+    """Even if we're not sampling, we still want to add binary annotations
+    since they're useful for firehose traces.
+    """
     context = zipkin.zipkin_span(
         service_name='my_service',
         span_name='span_name',
@@ -733,7 +736,32 @@ def test_adding_sa_binary_annotation_without_sampling():
             service_name='test_service',
             host='1.2.3.4',
         )
-        assert context.logging_context is None
+        expected_sa_binary_annotation = create_binary_annotation(
+            key=zipkin_core.SERVER_ADDR,
+            value=SERVER_ADDR_VAL,
+            annotation_type=zipkin_core.AnnotationType.BOOL,
+            host=create_endpoint(
+                port=123,
+                service_name='test_service',
+                host='1.2.3.4',
+            ),
+        )
+
+        assert context.sa_binary_annotations[0] == expected_sa_binary_annotation
+
+
+def test_adding_sa_binary_annotation_missing_zipkin_attrs():
+    context = zipkin.zipkin_span(
+        service_name='my_service',
+        span_name='span_name',
+    )
+    with context:
+        context.add_sa_binary_annotation(
+            port=123,
+            service_name='test_service',
+            host='1.2.3.4',
+        )
+        assert context.sa_binary_annotations == []
 
 
 def test_adding_sa_binary_annotation_for_non_client_spans():

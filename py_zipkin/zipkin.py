@@ -422,8 +422,6 @@ class zipkin_span(object):
         """
         if not self.zipkin_attrs:
             return
-        if not self.zipkin_attrs.is_sampled and self.firehose_handler is None:
-            return
         if not self.logging_context:
             # This is not the root span, so binary annotations will be added
             # to the log handler when this span context exits.
@@ -453,8 +451,7 @@ class zipkin_span(object):
         :param host: Host address of the destination
         :type host: str
         """
-        if not self.zipkin_attrs or (not self.zipkin_attrs.is_sampled
-                                     and self.firehose_handler is None):
+        if not self.zipkin_attrs:
             return
 
         if 'client' not in self.include:
