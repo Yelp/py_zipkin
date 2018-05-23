@@ -1,3 +1,7 @@
+0.11.2 (2018-05-23)
+-------------------
+- Don't overwrite passed in annotations
+
 0.11.1 (2018-05-23)
 -------------------
 - Add binary annotations to the span even if the request is not being
