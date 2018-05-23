@@ -763,7 +763,11 @@ def test_adding_sa_binary_annotation_for_non_client_spans():
 )
 @mock.patch(
     'py_zipkin.zipkin.zipkin_span.update_binary_annotations', autospec=True)
-def test_adding_error_annotation_on_exception(mock_update_binary_annotations, exception_message, expected_error_string):
+def test_adding_error_annotation_on_exception(
+    mock_update_binary_annotations,
+    exception_message,
+    expected_error_string,
+):
     zipkin_attrs = ZipkinAttrs(
         trace_id='0',
         span_id='1',
