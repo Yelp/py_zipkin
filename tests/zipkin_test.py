@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import mock
 import pytest
 
@@ -753,9 +754,16 @@ def test_adding_sa_binary_annotation_for_non_client_spans():
         assert context.logging_context.sa_binary_annotations == []
 
 
+@pytest.mark.parametrize(
+    'exception_message, expected_error_string',
+    (
+        ('some value error', u'ValueError: some value error'),
+        (u'unicøde error', u'ValueError: unicøde error'),
+    ),
+)
 @mock.patch(
     'py_zipkin.zipkin.zipkin_span.update_binary_annotations', autospec=True)
-def test_adding_error_annotation_on_exception(mock_update_binary_annotations):
+def test_adding_error_annotation_on_exception(mock_update_binary_annotations, exception_message, expected_error_string):
     zipkin_attrs = ZipkinAttrs(
         trace_id='0',
         span_id='1',
@@ -772,11 +780,11 @@ def test_adding_error_annotation_on_exception(mock_update_binary_annotations):
     )
     with pytest.raises(ValueError):
         with context:
-            raise ValueError('some value error')
+            raise ValueError(exception_message)
     assert mock_update_binary_annotations.call_count == 1
     call_args, _ = mock_update_binary_annotations.call_args
     assert 'error' in call_args[1]
-    assert 'ValueError: some value error' == call_args[1]['error']
+    assert expected_error_string == call_args[1]['error']
 
 
 @mock.patch('py_zipkin.zipkin.generate_random_128bit_string', autospec=True)
