@@ -398,13 +398,12 @@ class zipkin_span(object):
             'ss': end_timestamp,
             'cr': end_timestamp,
         }
-        # But we filter down if we only want to emit some of the annotations
-        filtered_annotations = {
-            k: v for k, v in full_annotations.items()
-            if k in self.annotation_filter
-        }
 
-        self.annotations.update(filtered_annotations)
+        # Update the the annotations if they aren't already set
+        # This prevents overwriting user-defined annotations
+        for annotation, timestamp in full_annotations.items():
+            if annotation in self.annotation_filter:
+                self.annotations.setdefault(annotation, timestamp)
 
         self.log_handler.store_local_span(
             span_name=self.span_name,
