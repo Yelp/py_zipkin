@@ -328,7 +328,7 @@ class ZipkinBatchSender(object):
         self.transport_handler = transport_handler
         self.max_portion_size = max_portion_size or self.MAX_PORTION_SIZE
 
-        if getattr(self.transport_handler, 'get_max_payload_bytes', None):
+        if isinstance(self.transport_handler, ITransportHandler):
             self.max_payload_bytes = self.transport_handler.get_max_payload_bytes()
         else:
             self.max_payload_bytes = None
@@ -346,7 +346,7 @@ class ZipkinBatchSender(object):
 
     def _reset_queue(self):
         self.queue = []
-        self.current_size = 5  # Thrift list size
+        self.current_size = thrift.LIST_HEADER_SIZE
 
     def add_span(
         self,
@@ -389,3 +389,28 @@ class ZipkinBatchSender(object):
             message = thrift.encode_bytes_list(self.queue)
             self.transport_handler(message)
         self._reset_queue()
+
+
+class ITransportHandler(object):
+
+    def get_max_payload_bytes(self):  # pragma: no cover
+        """Returns the maximum payload size for this transport.
+
+        Most transports have a maximum packet size that can be sent. For example,
+        UDP has a 65507 bytes MTU.
+        py_zipkin automatically batches collected spans for performance reasons.
+        The batch size is gonna be the minimum between `get_max_payload_bytes` and
+        `max_span_batch_size` from `zipkin_span`.
+
+        If you don't want to enforce a max payload size, return None.
+
+        :returns: max payload size in bytes or None.
+        """
+        raise NotImplementedError('get_max_payload_bytes is not implemented')
+
+    def __call__(self, payload):  # pragma: no cover
+        """Sends the encoded payload over the transport.
+
+        :argument payload: encoded list of spans.
+        """
+        raise NotImplementedError('_call is not implemented')

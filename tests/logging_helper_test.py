@@ -538,7 +538,7 @@ def test_batch_sender_add_span_too_big(
 ):
     # This time we set max_payload_bytes to 1000, so we have to send more batches.
     # Each encoded span is 65 bytes, so we can fit 15 of those in 1000 bytes.
-    mock_transport_handler = mock.Mock()
+    mock_transport_handler = mock.Mock(spec=MockTransportHandler)
     mock_transport_handler.get_max_payload_bytes = lambda: 1000
     sender = logging_helper.ZipkinBatchSender(mock_transport_handler, 100)
     with sender:

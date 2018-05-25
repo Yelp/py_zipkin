@@ -16,6 +16,7 @@ thrift_filepath = os.path.join(os.path.dirname(__file__), 'zipkinCore.thrift')
 zipkin_core = thriftpy.load(thrift_filepath, module_name="zipkinCore_thrift")
 
 SERVER_ADDR_VAL = '\x01'
+LIST_HEADER_SIZE = 5  # size in bytes of the encoded list header
 
 dummy_endpoint = zipkin_core.Endpoint()
 
