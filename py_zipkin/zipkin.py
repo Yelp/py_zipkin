@@ -371,7 +371,7 @@ class zipkin_span(object):
 
         # Add the error annotation if an exception occurred
         if any((_exc_type, _exc_value, _exc_traceback)):
-            error_msg = '{0}: {1}'.format(_exc_type.__name__, _exc_value)
+            error_msg = u'{0}: {1}'.format(_exc_type.__name__, _exc_value)
             self.update_binary_annotations({
                 zipkin_core.ERROR: error_msg,
             })

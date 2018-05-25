@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import mock
 import pytest
 import socket
@@ -146,10 +147,14 @@ def test_annotation_list_builder(ann_mock):
     assert ann_mock.call_count == 2
 
 
-def test_create_binary_annotation():
+@pytest.mark.parametrize(
+    'value',
+    [(b'binary', u'unicøde')],
+)
+def test_create_binary_annotation(value):
     bann = thrift.create_binary_annotation(
-        'foo', 'bar', 'baz', 'bla')
-    assert ('foo', 'bar', 'baz', 'bla') == (
+        'foo', value, 'baz', 'bla')
+    assert ('foo', value, 'baz', 'bla') == (
         bann.key, bann.value, bann.annotation_type, bann.host)
 
 
