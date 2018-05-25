@@ -169,17 +169,29 @@ def create_span(
     return zipkin_core.Span(**span_dict)
 
 
-def thrift_objs_in_bytes(thrift_obj_list):  # pragma: no cover
+def span_to_bytes(thrift_span):
     """
-    Returns TBinaryProtocol encoded Thrift objects.
+    Returns a TBinaryProtocol encoded Thrift span.
 
-    :param thrift_obj_list: thrift objects list to encode
-    :returns: thrift objects in TBinaryProtocol format bytes.
+    :param thrift_span: thrift object to encode.
+    :returns: thrift object in TBinaryProtocol format bytes.
     """
     transport = TMemoryBuffer()
     protocol = TBinaryProtocol(transport)
-    write_list_begin(transport, TType.STRUCT, len(thrift_obj_list))
-    for thrift_obj in thrift_obj_list:
-        thrift_obj.write(protocol)
+    thrift_span.write(protocol)
+
+    return bytes(transport.getvalue())
+
+
+def encode_bytes_list(binary_thrift_obj_list):  # pragma: no cover
+    """
+    Returns TBinaryProtocol encoded Thrift objects.
+
+    :param binary_thrift_obj_list: thrift objects list to encode
+    """
+    transport = TMemoryBuffer()
+    write_list_begin(transport, TType.STRUCT, len(binary_thrift_obj_list))
+    for thrift_bin in binary_thrift_obj_list:
+        transport.write(thrift_bin)
 
     return bytes(transport.getvalue())

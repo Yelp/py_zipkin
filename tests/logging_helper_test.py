@@ -2,6 +2,7 @@ import mock
 import pytest
 
 from py_zipkin import logging_helper
+from py_zipkin import thrift
 from py_zipkin.exception import ZipkinError
 from py_zipkin.zipkin import ZipkinAttrs
 
@@ -21,8 +22,16 @@ def test_zipkin_doesnt_spew_on_first_log(capfd):
     assert not out
 
 
-def mock_transport_handler(message):
-    return message
+class MockTransportHandler(object):
+
+    def __init__(self, max_payload_bytes=None):
+        self.max_payload_bytes = max_payload_bytes
+
+    def __call__(self, *args, **kwargs):
+        return args[0]
+
+    def get_max_payload_bytes(self):
+        return self.max_payload_bytes
 
 
 @pytest.fixture
@@ -34,7 +43,7 @@ def context():
         thrift_endpoint='thrift_endpoint',
         log_handler=log_handler,
         span_name='span_name',
-        transport_handler=mock_transport_handler,
+        transport_handler=MockTransportHandler(),
         report_root_timestamp=False,
     )
 
@@ -61,11 +70,11 @@ def test_zipkin_logging_context(time_mock, mock_logger, context):
             autospec=True)
 @mock.patch('py_zipkin.logging_helper.ZipkinBatchSender.add_span',
             autospec=True)
-@mock.patch('py_zipkin.logging_helper.annotation_list_builder',
+@mock.patch('py_zipkin.logging_helper.thrift.annotation_list_builder',
             autospec=True)
-@mock.patch('py_zipkin.logging_helper.binary_annotation_list_builder',
+@mock.patch('py_zipkin.logging_helper.thrift.binary_annotation_list_builder',
             autospec=True)
-@mock.patch('py_zipkin.logging_helper.copy_endpoint_with_new_service_name',
+@mock.patch('py_zipkin.logging_helper.thrift.copy_endpoint_with_new_service_name',
             autospec=True)
 def test_zipkin_logging_server_context_log_spans(
     copy_endpoint_mock, bin_ann_list_builder, ann_list_builder,
@@ -169,11 +178,11 @@ def test_zipkin_logging_server_context_log_spans(
             autospec=True)
 @mock.patch('py_zipkin.logging_helper.ZipkinBatchSender.add_span',
             autospec=True)
-@mock.patch('py_zipkin.logging_helper.annotation_list_builder',
+@mock.patch('py_zipkin.logging_helper.thrift.annotation_list_builder',
             autospec=True)
-@mock.patch('py_zipkin.logging_helper.binary_annotation_list_builder',
+@mock.patch('py_zipkin.logging_helper.thrift.binary_annotation_list_builder',
             autospec=True)
-@mock.patch('py_zipkin.logging_helper.copy_endpoint_with_new_service_name',
+@mock.patch('py_zipkin.logging_helper.thrift.copy_endpoint_with_new_service_name',
             autospec=True)
 def test_zipkin_logging_server_context_log_spans_with_firehose(
     copy_endpoint_mock, bin_ann_list_builder, ann_list_builder,
@@ -281,11 +290,11 @@ def test_zipkin_logging_server_context_log_spans_with_firehose(
             autospec=True)
 @mock.patch('py_zipkin.logging_helper.ZipkinBatchSender.add_span',
             autospec=True)
-@mock.patch('py_zipkin.logging_helper.annotation_list_builder',
+@mock.patch('py_zipkin.logging_helper.thrift.annotation_list_builder',
             autospec=True)
-@mock.patch('py_zipkin.logging_helper.binary_annotation_list_builder',
+@mock.patch('py_zipkin.logging_helper.thrift.binary_annotation_list_builder',
             autospec=True)
-@mock.patch('py_zipkin.logging_helper.copy_endpoint_with_new_service_name',
+@mock.patch('py_zipkin.logging_helper.thrift.copy_endpoint_with_new_service_name',
             autospec=True)
 def test_zipkin_logging_client_context_log_spans(
     copy_endpoint_mock, bin_ann_list_builder, ann_list_builder,
@@ -465,34 +474,38 @@ def test_zipkin_handler_raises_exception_if_ann_and_bann_not_provided(
             " for foo span" == str(excinfo.value))
 
 
-@mock.patch('py_zipkin.logging_helper.thrift_objs_in_bytes', autospec=True)
-def test_batch_sender_add_span(thrift_objs):
-    # Not much logic here, so this is basically a smoke test
-    sender = logging_helper.ZipkinBatchSender(mock_transport_handler)
+@mock.patch('py_zipkin.logging_helper.thrift.encode_bytes_list', autospec=True)
+def test_batch_sender_add_span(mock_encode_bytes_list):
+    # This test verifies it's possible to add 1 span without throwing errors.
+    # It also checks that exiting the ZipkinBatchSender context manager
+    # triggers a flush of all the already added spans.
+    sender = logging_helper.ZipkinBatchSender(MockTransportHandler())
     with sender:
         sender.add_span(
             span_id='0000000000000002',
             parent_span_id='0000000000000001',
             trace_id='000000000000000f',
             span_name='span',
-            annotations='ann',
-            binary_annotations='binary_ann',
+            annotations=thrift.annotation_list_builder({}, thrift.create_endpoint()),
+            binary_annotations=thrift.binary_annotation_list_builder({}, thrift.create_endpoint()),
             timestamp_s=None,
             duration_s=None,
         )
-    assert thrift_objs.call_count == 1
+    assert mock_encode_bytes_list.call_count == 1
 
 
 def test_batch_sender_with_error_on_exit():
-    sender = logging_helper.ZipkinBatchSender(mock_transport_handler)
+    sender = logging_helper.ZipkinBatchSender(MockTransportHandler())
     with pytest.raises(ZipkinError):
         with sender:
             raise Exception('Error!')
 
 
-@mock.patch('py_zipkin.logging_helper.thrift_objs_in_bytes', autospec=True)
-def test_batch_sender_add_span_many_times(thrift_obj):
-    sender = logging_helper.ZipkinBatchSender(mock_transport_handler)
+@mock.patch('py_zipkin.logging_helper.thrift.encode_bytes_list', autospec=True)
+def test_batch_sender_add_span_many_times(mock_encode_bytes_list):
+    # We create MAX_PORTION_SIZE * 2 + 1 spans, so we should trigger flush 3
+    # times, once every MAX_PORTION_SIZE spans.
+    sender = logging_helper.ZipkinBatchSender(MockTransportHandler())
     max_portion_size = logging_helper.ZipkinBatchSender.MAX_PORTION_SIZE
     with sender:
         for _ in range(max_portion_size * 2 + 1):
@@ -501,43 +514,71 @@ def test_batch_sender_add_span_many_times(thrift_obj):
                 parent_span_id='0000000000000001',
                 trace_id='000000000000000f',
                 span_name='span',
-                annotations='ann',
-                binary_annotations='binary_ann',
+                annotations=thrift.annotation_list_builder({}, thrift.create_endpoint()),
+                binary_annotations=thrift.binary_annotation_list_builder({}, thrift.create_endpoint()),
                 timestamp_s=None,
                 duration_s=None,
             )
-    assert thrift_obj.call_count == 3
-    assert len(thrift_obj.call_args_list[0][0][0]) == max_portion_size
-    assert len(thrift_obj.call_args_list[1][0][0]) == max_portion_size
-    assert len(thrift_obj.call_args_list[2][0][0]) == 1
+    assert mock_encode_bytes_list.call_count == 3
+    assert len(mock_encode_bytes_list.call_args_list[0][0][0]) == max_portion_size
+    assert len(mock_encode_bytes_list.call_args_list[1][0][0]) == max_portion_size
+    assert len(mock_encode_bytes_list.call_args_list[2][0][0]) == 1
 
 
-@mock.patch('py_zipkin.logging_helper.create_span', autospec=True)
-@mock.patch('py_zipkin.logging_helper.thrift_objs_in_bytes', autospec=True)
+def test_batch_sender_add_span_too_big():
+    # This time we set max_payload_bytes to 1000, so we end up sending more batches.
+    # Each encoded span is 65 bytes, so we can fit 15 of those in 1000 bytes.
+    mock_transport_handler = mock.Mock()
+    mock_transport_handler.get_max_payload_bytes = lambda: 1000
+    sender = logging_helper.ZipkinBatchSender(mock_transport_handler, 100)
+    with sender:
+        for _ in range(201):
+            sender.add_span(
+                span_id='0000000000000002',
+                parent_span_id='0000000000000001',
+                trace_id='000000000000000f',
+                span_name='span',
+                annotations=thrift.annotation_list_builder({}, thrift.create_endpoint()),
+                binary_annotations=thrift.binary_annotation_list_builder({}, thrift.create_endpoint()),
+                timestamp_s=None,
+                duration_s=None,
+            )
+    # 15 spans per batch, means we need upper(201 / 15) = 14 batches to send them all.
+    assert mock_transport_handler.call_count == 14
+    for i in range(13):
+        # The first 13 batches have 15 spans of 65 bytes + 5 bytes of list headers = 980 bytes
+        assert len(mock_transport_handler.call_args_list[i][0][0]) == 980
+    # The last batch has the 6 remaining spans of 65 bytes + 5 bytes of list headers = 395 bytes
+    assert len(mock_transport_handler.call_args_list[13][0][0]) == 395
+
+
+@mock.patch('py_zipkin.logging_helper.thrift.encode_bytes_list', autospec=True)
 def test_batch_sender_flush_calls_transport_handler_with_correct_params(
-    thrift_objs,
-    create_sp
+    mock_encode_bytes_list,
 ):
+    # Tests that the transport handler is called with the value returned
+    # by thrift.encode_bytes_list.
     transport_handler = mock.Mock()
+    transport_handler.get_max_payload_bytes = lambda: None
     sender = logging_helper.ZipkinBatchSender(transport_handler)
     with sender:
         sender.add_span(
             span_id='0000000000000002',
             parent_span_id='0000000000000001',
-            trace_id='00000000000000015',
+            trace_id='000000000000000f',
             span_name='span',
-            annotations='ann',
-            binary_annotations='binary_ann',
+            annotations=thrift.annotation_list_builder({}, thrift.create_endpoint()),
+            binary_annotations=thrift.binary_annotation_list_builder({}, thrift.create_endpoint()),
             timestamp_s=None,
             duration_s=None,
         )
-    transport_handler.assert_called_once_with(thrift_objs.return_value)
+    transport_handler.assert_called_once_with(mock_encode_bytes_list.return_value)
 
 
-@mock.patch('py_zipkin.logging_helper.create_span', autospec=True)
-@mock.patch('py_zipkin.logging_helper.thrift_objs_in_bytes', autospec=True)
+@mock.patch('py_zipkin.logging_helper.thrift.create_span', autospec=True)
+@mock.patch('py_zipkin.logging_helper.thrift.encode_bytes_list', autospec=True)
 def test_batch_sender_defensive_about_transport_handler(
-    thrift_obj,
+        mock_encode_bytes_list,
     create_sp
 ):
     """Make sure log_span doesn't try to call the transport handler if it's
@@ -555,7 +596,7 @@ def test_batch_sender_defensive_about_transport_handler(
             duration_s=None,
         )
     assert create_sp.call_count == 1
-    assert thrift_obj.call_count == 0
+    assert mock_encode_bytes_list.call_count == 0
 
 
 def test_get_local_span_timestamp_and_duration_client():
