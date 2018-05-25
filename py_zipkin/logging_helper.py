@@ -334,7 +334,7 @@ class ZipkinBatchSender(object):
             self.max_payload_bytes = None
 
     def __enter__(self):
-        self._init_queue()
+        self._reset_queue()
         return self
 
     def __exit__(self, _exc_type, _exc_value, _exc_traceback):
@@ -342,9 +342,9 @@ class ZipkinBatchSender(object):
             error = '{0}: {1}'.format(_exc_type.__name__, _exc_value)
             raise ZipkinError(error)
         else:
-            self.flush(self.queue)
+            self.flush()
 
-    def _init_queue(self):
+    def _reset_queue(self):
         self.queue = []
         self.current_size = 5  # Thrift list size
 
@@ -372,18 +372,20 @@ class ZipkinBatchSender(object):
 
         encoded_span = thrift.span_to_bytes(thrift_span)
 
-        # If we've already reached the max batch size or the new span doesn't fit in
-        # max_payload_bytes, send what we've collected until now and start a new batch.
-        if (self.max_payload_bytes and self.current_size + len(encoded_span) > self.max_payload_bytes) \
-                or len(self.queue) >= self.max_portion_size:
-            self.flush(self.queue)
-            self._init_queue()
+        # If we've already reached the max batch size or the new span doesn't
+        # fit in max_payload_bytes, send what we've collected until now and
+        # start a new batch.
+        if ((self.max_payload_bytes and
+             self.current_size + len(encoded_span) > self.max_payload_bytes) or
+                len(self.queue) >= self.max_portion_size):
+            self.flush()
 
         self.queue.append(encoded_span)
         self.current_size += len(encoded_span)
 
-    def flush(self, queue):
-        if self.transport_handler and len(queue) > 0:
+    def flush(self):
+        if self.transport_handler and len(self.queue) > 0:
 
-            message = thrift.encode_bytes_list(queue)
+            message = thrift.encode_bytes_list(self.queue)
             self.transport_handler(message)
+        self._reset_queue()

@@ -1,5 +1,4 @@
 import pytest
-import mock
 
 import py_zipkin.zipkin as zipkin
 from tests.conftest import MockTransportHandler

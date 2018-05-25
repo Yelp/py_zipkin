@@ -37,6 +37,16 @@ def context():
     )
 
 
+@pytest.fixture
+def empty_binary_annotations_list():
+    return thrift.binary_annotation_list_builder({}, thrift.create_endpoint())
+
+
+@pytest.fixture
+def empty_annotations_list():
+    return thrift.annotation_list_builder({}, thrift.create_endpoint())
+
+
 @mock.patch('py_zipkin.logging_helper.zipkin_logger', autospec=True)
 @mock.patch('py_zipkin.logging_helper.time.time', autospec=True)
 def test_zipkin_logging_context(time_mock, mock_logger, context):
@@ -464,7 +474,11 @@ def test_zipkin_handler_raises_exception_if_ann_and_bann_not_provided(
 
 
 @mock.patch('py_zipkin.logging_helper.thrift.encode_bytes_list', autospec=True)
-def test_batch_sender_add_span(mock_encode_bytes_list):
+def test_batch_sender_add_span(
+    mock_encode_bytes_list,
+    empty_annotations_list,
+    empty_binary_annotations_list,
+):
     # This test verifies it's possible to add 1 span without throwing errors.
     # It also checks that exiting the ZipkinBatchSender context manager
     # triggers a flush of all the already added spans.
@@ -475,8 +489,8 @@ def test_batch_sender_add_span(mock_encode_bytes_list):
             parent_span_id='0000000000000001',
             trace_id='000000000000000f',
             span_name='span',
-            annotations=thrift.annotation_list_builder({}, thrift.create_endpoint()),
-            binary_annotations=thrift.binary_annotation_list_builder({}, thrift.create_endpoint()),
+            annotations=empty_annotations_list,
+            binary_annotations=empty_binary_annotations_list,
             timestamp_s=None,
             duration_s=None,
         )
@@ -491,7 +505,11 @@ def test_batch_sender_with_error_on_exit():
 
 
 @mock.patch('py_zipkin.logging_helper.thrift.encode_bytes_list', autospec=True)
-def test_batch_sender_add_span_many_times(mock_encode_bytes_list):
+def test_batch_sender_add_span_many_times(
+    mock_encode_bytes_list,
+    empty_annotations_list,
+    empty_binary_annotations_list,
+):
     # We create MAX_PORTION_SIZE * 2 + 1 spans, so we should trigger flush 3
     # times, once every MAX_PORTION_SIZE spans.
     sender = logging_helper.ZipkinBatchSender(MockTransportHandler())
@@ -503,8 +521,8 @@ def test_batch_sender_add_span_many_times(mock_encode_bytes_list):
                 parent_span_id='0000000000000001',
                 trace_id='000000000000000f',
                 span_name='span',
-                annotations=thrift.annotation_list_builder({}, thrift.create_endpoint()),
-                binary_annotations=thrift.binary_annotation_list_builder({}, thrift.create_endpoint()),
+                annotations=empty_annotations_list,
+                binary_annotations=empty_binary_annotations_list,
                 timestamp_s=None,
                 duration_s=None,
             )
@@ -514,8 +532,11 @@ def test_batch_sender_add_span_many_times(mock_encode_bytes_list):
     assert len(mock_encode_bytes_list.call_args_list[2][0][0]) == 1
 
 
-def test_batch_sender_add_span_too_big():
-    # This time we set max_payload_bytes to 1000, so we end up sending more batches.
+def test_batch_sender_add_span_too_big(
+    empty_annotations_list,
+    empty_binary_annotations_list,
+):
+    # This time we set max_payload_bytes to 1000, so we have to send more batches.
     # Each encoded span is 65 bytes, so we can fit 15 of those in 1000 bytes.
     mock_transport_handler = mock.Mock()
     mock_transport_handler.get_max_payload_bytes = lambda: 1000
@@ -527,23 +548,27 @@ def test_batch_sender_add_span_too_big():
                 parent_span_id='0000000000000001',
                 trace_id='000000000000000f',
                 span_name='span',
-                annotations=thrift.annotation_list_builder({}, thrift.create_endpoint()),
-                binary_annotations=thrift.binary_annotation_list_builder({}, thrift.create_endpoint()),
+                annotations=empty_annotations_list,
+                binary_annotations=empty_binary_annotations_list,
                 timestamp_s=None,
                 duration_s=None,
             )
-    # 15 spans per batch, means we need upper(201 / 15) = 14 batches to send them all.
+    # 15 spans per batch, means we need 201 / 15 = 14 batches to send them all.
     assert mock_transport_handler.call_count == 14
     for i in range(13):
-        # The first 13 batches have 15 spans of 65 bytes + 5 bytes of list headers = 980 bytes
+        # The first 13 batches have 15 spans of 65 bytes + 5 bytes of
+        # list headers = 980 bytes
         assert len(mock_transport_handler.call_args_list[i][0][0]) == 980
-    # The last batch has the 6 remaining spans of 65 bytes + 5 bytes of list headers = 395 bytes
+    # The last batch has the 6 remaining spans of 65 bytes + 5 bytes of
+    # list headers = 395 bytes
     assert len(mock_transport_handler.call_args_list[13][0][0]) == 395
 
 
 @mock.patch('py_zipkin.logging_helper.thrift.encode_bytes_list', autospec=True)
 def test_batch_sender_flush_calls_transport_handler_with_correct_params(
     mock_encode_bytes_list,
+    empty_annotations_list,
+    empty_binary_annotations_list,
 ):
     # Tests that the transport handler is called with the value returned
     # by thrift.encode_bytes_list.
@@ -556,8 +581,8 @@ def test_batch_sender_flush_calls_transport_handler_with_correct_params(
             parent_span_id='0000000000000001',
             trace_id='000000000000000f',
             span_name='span',
-            annotations=thrift.annotation_list_builder({}, thrift.create_endpoint()),
-            binary_annotations=thrift.binary_annotation_list_builder({}, thrift.create_endpoint()),
+            annotations=empty_annotations_list,
+            binary_annotations=empty_binary_annotations_list,
             timestamp_s=None,
             duration_s=None,
         )
@@ -567,8 +592,8 @@ def test_batch_sender_flush_calls_transport_handler_with_correct_params(
 @mock.patch('py_zipkin.logging_helper.thrift.create_span', autospec=True)
 @mock.patch('py_zipkin.logging_helper.thrift.encode_bytes_list', autospec=True)
 def test_batch_sender_defensive_about_transport_handler(
-        mock_encode_bytes_list,
-    create_sp
+    mock_encode_bytes_list,
+    create_sp,
 ):
     """Make sure log_span doesn't try to call the transport handler if it's
     None."""
