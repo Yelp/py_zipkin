@@ -1,6 +1,7 @@
 import mock
 import pytest
 
+from tests.conftest import MockTransportHandler
 from py_zipkin import logging_helper
 from py_zipkin import thrift
 from py_zipkin.exception import ZipkinError
@@ -20,18 +21,6 @@ def test_zipkin_doesnt_spew_on_first_log(capfd):
 
     assert not err
     assert not out
-
-
-class MockTransportHandler(object):
-
-    def __init__(self, max_payload_bytes=None):
-        self.max_payload_bytes = max_payload_bytes
-
-    def __call__(self, *args, **kwargs):
-        return args[0]
-
-    def get_max_payload_bytes(self):
-        return self.max_payload_bytes
 
 
 @pytest.fixture
