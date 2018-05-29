@@ -29,7 +29,7 @@ class MockTransportHandler(ITransportHandler):
     def __init__(self, max_payload_bytes=None):
         self.max_payload_bytes = max_payload_bytes
 
-    def __call__(self, payload):
+    def send(self, payload):
         return payload
 
     def get_max_payload_bytes(self):

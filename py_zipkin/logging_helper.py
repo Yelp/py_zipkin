@@ -408,9 +408,20 @@ class ITransportHandler(object):
         """
         raise NotImplementedError('get_max_payload_bytes is not implemented')
 
-    def __call__(self, payload):  # pragma: no cover
+    def send(self, payload):  # pragma: no cover
         """Sends the encoded payload over the transport.
 
         :argument payload: encoded list of spans.
         """
         raise NotImplementedError('_call is not implemented')
+
+    def __call__(self, payload):
+        """Internal wrapper around `send`. Do not override.
+
+        Mostly used to keep backward compatibility with older transports
+        implemented as functions. However decoupling the function developers
+        override and what's internally called by py_zipkin will allow us to add
+        extra logic here in the future without having the users update their
+        code every time.
+        """
+        self.send(payload)
