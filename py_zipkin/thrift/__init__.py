@@ -186,9 +186,10 @@ def span_to_bytes(thrift_span):
 
 def encode_bytes_list(binary_thrift_obj_list):  # pragma: no cover
     """
-    Returns TBinaryProtocol encoded Thrift objects.
+    Returns a TBinaryProtocol encoded list of Thrift objects.
 
-    :param binary_thrift_obj_list: thrift objects list to encode
+    :param binary_thrift_obj_list: list of TBinaryProtocol objects to encode.
+    :returns: bynary object representing the encoded list.
     """
     transport = TMemoryBuffer()
     write_list_begin(transport, TType.STRUCT, len(binary_thrift_obj_list))
