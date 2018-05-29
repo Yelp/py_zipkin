@@ -134,7 +134,7 @@ py_zipkin (for the moment) thrift-encodes spans. The actual transport layer is
 pluggable, though.
 
 The recommended way to implement a new transport handler is to subclass
-`py_zipkin.logging_helper.ITransportHandler` and implement the `send` and 
+`py_zipkin.transport.BaseTransportHandler` and implement the `send` and 
 `get_max_payload_bytes` methods.
 
 `send` receives an already encoded thrift list as argument.
@@ -152,10 +152,10 @@ your Zipkin collector is running at localhost:9411.
 ```python
 import requests
 
-from py_zipkin.logging_helper import ITransportHandler
+from py_zipkin.transport import BaseTransportHandler
 
 
-class HttpTransport(ITransportHandler):
+class HttpTransport(BaseTransportHandler):
 
     def get_max_payload_bytes(self):
         return None
@@ -176,10 +176,10 @@ in production), you'd do something like the following, using the
 ```python
 from kafka import SimpleProducer, KafkaClient
 
-from py_zipkin.logging_helper import ITransportHandler
+from py_zipkin.transport import BaseTransportHandler
 
 
-class KafkaTransport(ITransportHandler):
+class KafkaTransport(BaseTransportHandler):
 
     def get_max_payload_bytes(self):
         # By default Kafka rejects messages bigger than 1000012 bytes.

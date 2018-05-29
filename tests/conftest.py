@@ -1,7 +1,7 @@
 import pytest
 
 from py_zipkin.zipkin import ZipkinAttrs
-from py_zipkin.logging_helper import ITransportHandler
+from py_zipkin.transport import BaseTransportHandler
 
 
 @pytest.fixture
@@ -24,7 +24,7 @@ def unsampled_zipkin_attr(zipkin_attributes):
     return ZipkinAttrs(is_sampled=False, **zipkin_attributes)
 
 
-class MockTransportHandler(ITransportHandler):
+class MockTransportHandler(BaseTransportHandler):
 
     def __init__(self, max_payload_bytes=None):
         self.max_payload_bytes = max_payload_bytes

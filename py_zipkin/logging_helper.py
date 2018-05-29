@@ -3,8 +3,9 @@ import logging
 import time
 from collections import defaultdict
 
-from py_zipkin.exception import ZipkinError
 from py_zipkin import thrift
+from py_zipkin.exception import ZipkinError
+from py_zipkin.transport import BaseTransportHandler
 from py_zipkin.util import generate_random_64bit_string
 
 
@@ -328,7 +329,7 @@ class ZipkinBatchSender(object):
         self.transport_handler = transport_handler
         self.max_portion_size = max_portion_size or self.MAX_PORTION_SIZE
 
-        if isinstance(self.transport_handler, ITransportHandler):
+        if isinstance(self.transport_handler, BaseTransportHandler):
             self.max_payload_bytes = self.transport_handler.get_max_payload_bytes()
         else:
             self.max_payload_bytes = None
@@ -375,9 +376,12 @@ class ZipkinBatchSender(object):
         # If we've already reached the max batch size or the new span doesn't
         # fit in max_payload_bytes, send what we've collected until now and
         # start a new batch.
-        if ((self.max_payload_bytes and
-             self.current_size + len(encoded_span) > self.max_payload_bytes) or
-                len(self.queue) >= self.max_portion_size):
+        is_over_size_limit = (
+            self.max_payload_bytes is not None and
+            self.current_size + len(encoded_span) > self.max_payload_bytes
+        )
+        is_over_portion_limit = len(self.queue) >= self.max_portion_size
+        if is_over_size_limit or is_over_portion_limit:
             self.flush()
 
         self.queue.append(encoded_span)
@@ -389,39 +393,3 @@ class ZipkinBatchSender(object):
             message = thrift.encode_bytes_list(self.queue)
             self.transport_handler(message)
         self._reset_queue()
-
-
-class ITransportHandler(object):
-
-    def get_max_payload_bytes(self):  # pragma: no cover
-        """Returns the maximum payload size for this transport.
-
-        Most transports have a maximum packet size that can be sent. For example,
-        UDP has a 65507 bytes MTU.
-        py_zipkin automatically batches collected spans for performance reasons.
-        The batch size is gonna be the minimum between `get_max_payload_bytes` and
-        `max_span_batch_size` from `zipkin_span`.
-
-        If you don't want to enforce a max payload size, return None.
-
-        :returns: max payload size in bytes or None.
-        """
-        raise NotImplementedError('get_max_payload_bytes is not implemented')
-
-    def send(self, payload):  # pragma: no cover
-        """Sends the encoded payload over the transport.
-
-        :argument payload: encoded list of spans.
-        """
-        raise NotImplementedError('_call is not implemented')
-
-    def __call__(self, payload):
-        """Internal wrapper around `send`. Do not override.
-
-        Mostly used to keep backward compatibility with older transports
-        implemented as functions. However decoupling the function developers
-        override and what's internally called by py_zipkin will allow us to add
-        extra logic here in the future without having the users update their
-        code every time.
-        """
-        self.send(payload)

@@ -635,12 +635,3 @@ def test_get_local_span_timestamp_and_duration_none():
     )
     assert timestamp is None
     assert duration is None
-
-
-def test_transport_handler_call_calls_send():
-    with mock.patch.object(MockTransportHandler, 'send', autospec=True):
-        transport = MockTransportHandler()
-        transport("foobar")
-
-        assert transport.send.call_count == 1
-        assert transport.send.call_args == mock.call(transport, "foobar")
