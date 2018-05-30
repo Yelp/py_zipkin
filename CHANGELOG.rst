@@ -1,3 +1,9 @@
+0.12.0 (2018-05-29)
+-------------------
+- Support max payload size for transport handlers.
+- Transport handlers should now be implemented as classes
+  extending py_zipkin.transport.BaseTransportHandler.
+
 0.11.2 (2018-05-23)
 -------------------
 - Don't overwrite passed in annotations
