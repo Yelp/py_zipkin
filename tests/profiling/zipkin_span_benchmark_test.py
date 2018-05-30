@@ -1,6 +1,7 @@
 import pytest
-import mock
+
 import py_zipkin.zipkin as zipkin
+from tests.conftest import MockTransportHandler
 
 
 def _create_root_span(is_sampled, firehose_enabled):
@@ -8,8 +9,8 @@ def _create_root_span(is_sampled, firehose_enabled):
         'root_span': zipkin.zipkin_span(
             service_name='my_service',
             span_name='my_span_name',
-            transport_handler=mock.Mock(),
-            firehose_handler=mock.Mock() if firehose_enabled else None,
+            transport_handler=MockTransportHandler(),
+            firehose_handler=MockTransportHandler() if firehose_enabled else None,
             port=42,
             sample_rate=0 if not is_sampled else 100,
         )

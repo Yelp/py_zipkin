@@ -14,6 +14,7 @@ from py_zipkin.thrift import SERVER_ADDR_VAL
 from py_zipkin.thrift import zipkin_core
 from py_zipkin.util import generate_random_64bit_string
 from py_zipkin.zipkin import ZipkinAttrs
+from tests.conftest import MockTransportHandler
 
 
 @pytest.fixture
@@ -35,7 +36,7 @@ def test_zipkin_span_for_new_trace(
     create_attrs_for_span_mock,
     mock_context_stack,
 ):
-    transport_handler = mock.Mock()
+    transport_handler = MockTransportHandler()
     firehose_handler = mock.Mock()
     with zipkin.zipkin_span(
         service_name='some_service_name',
@@ -87,7 +88,7 @@ def test_zipkin_span_passed_sampled_attrs(
 ):
     # Make sure that if zipkin_span is passed *sampled* ZipkinAttrs, but is
     # also configured to do sampling itself, the passed ZipkinAttrs are used.
-    transport_handler = mock.Mock()
+    transport_handler = MockTransportHandler()
     zipkin_attrs = ZipkinAttrs(
         trace_id='0',
         span_id='1',
@@ -147,7 +148,7 @@ def test_zipkin_span_trace_with_0_sample_rate(
         flags='0',
         is_sampled=False,
     )
-    transport_handler = mock.Mock()
+    transport_handler = MockTransportHandler()
     with zipkin.zipkin_span(
         service_name='some_service_name',
         span_name='span_name',
@@ -189,7 +190,7 @@ def test_zipkin_invalid_sample_rate():
         with zipkin.zipkin_span(
             service_name='some_service_name',
             span_name='span_name',
-            transport_handler=mock.Mock(),
+            transport_handler=MockTransportHandler(),
             sample_rate=101.0,
         ):
             pass
@@ -198,7 +199,7 @@ def test_zipkin_invalid_sample_rate():
         with zipkin.zipkin_span(
             service_name='some_service_name',
             span_name='span_name',
-            transport_handler=mock.Mock(),
+            transport_handler=MockTransportHandler(),
             sample_rate=-0.1,
         ):
             pass
@@ -209,7 +210,7 @@ def test_zipkin_invalid_include():
         with zipkin.zipkin_span(
             service_name='some_service_name',
             span_name='span_name',
-            transport_handler=mock.Mock(),
+            transport_handler=MockTransportHandler(),
             sample_rate=100.0,
             include=('clawyant',)
         ):
@@ -226,7 +227,7 @@ def test_zipkin_extraneous_include_raises(mock_zipkin_span, span_func):
         with span_func(
             service_name='some_service_name',
             span_name='span_name',
-            transport_handler=mock.Mock(),
+            transport_handler=MockTransportHandler(),
             sample_rate=100.0,
             include=('foobar',)
         ):
@@ -255,7 +256,7 @@ def test_zipkin_span_trace_with_no_sampling(
         service_name='my_service',
         span_name='span_name',
         zipkin_attrs=zipkin_attrs,
-        transport_handler=mock.Mock(),
+        transport_handler=MockTransportHandler(),
         port=5,
         context_stack=mock_context_stack,
     ):
@@ -297,7 +298,7 @@ def test_zipkin_trace_context_attrs_is_always_popped(
         with zipkin.zipkin_span(
             service_name='my_service',
             span_name='my_span_name',
-            transport_handler=mock.Mock(),
+            transport_handler=MockTransportHandler(),
             port=22,
             sample_rate=100.0,
             context_stack=mock_context_stack,
@@ -369,7 +370,7 @@ def test_span_context_sampled_no_handlers(
     context = zipkin.zipkin_span(
         service_name='my_service',
         port=5,
-        transport_handler=mock.Mock(),
+        transport_handler=MockTransportHandler(),
         sample_rate=None,
     )
     with context:
@@ -463,7 +464,7 @@ def test_zipkin_server_span_decorator(
     create_attrs_for_span_mock,
     mock_context_stack,
 ):
-    transport_handler = mock.Mock()
+    transport_handler = MockTransportHandler()
 
     @zipkin.zipkin_span(
         service_name='some_service_name',
@@ -519,7 +520,7 @@ def test_zipkin_client_span_decorator(
     create_attrs_for_span_mock,
     mock_context_stack,
 ):
-    transport_handler = mock.Mock()
+    transport_handler = MockTransportHandler()
 
     @zipkin.zipkin_span(
         service_name='some_service_name',
@@ -574,7 +575,7 @@ def test_zipkin_span_decorator_many(create_endpoint_mock):
     assert create_endpoint_mock.call_count == 0
     with zipkin.zipkin_span(
         service_name='context_manager',
-        transport_handler=mock.Mock(),
+        transport_handler=MockTransportHandler(),
         sample_rate=100.0,
     ):
         assert test_func(1, 2) == 3
@@ -587,7 +588,7 @@ def test_zipkin_span_decorator_many(create_endpoint_mock):
 def test_zipkin_span_add_logging_annotation(mock_context):
     with zipkin.zipkin_span(
         service_name='my_service',
-        transport_handler=mock.Mock(),
+        transport_handler=MockTransportHandler(),
         sample_rate=100.0,
         add_logging_annotation=True,
     ):
@@ -608,7 +609,7 @@ def test_update_binary_annotations():
         service_name='my_service',
         span_name='span_name',
         zipkin_attrs=zipkin_attrs,
-        transport_handler=mock.Mock(),
+        transport_handler=MockTransportHandler(),
         port=5,
     )
 
@@ -641,7 +642,7 @@ def test_update_binary_annotations_should_not_error_if_not_tracing():
         service_name='my_service',
         span_name='span_name',
         zipkin_attrs=zipkin_attrs,
-        transport_handler=mock.Mock(),
+        transport_handler=MockTransportHandler(),
         port=5,
     )
 
@@ -673,7 +674,7 @@ def test_add_sa_binary_annotation():
         service_name='my_service',
         span_name='span_name',
         zipkin_attrs=zipkin_attrs,
-        transport_handler=mock.Mock(),
+        transport_handler=MockTransportHandler(),
         port=5,
     )
 
@@ -728,7 +729,7 @@ def test_adding_sa_binary_annotation_without_sampling():
     context = zipkin.zipkin_span(
         service_name='my_service',
         span_name='span_name',
-        transport_handler=mock.Mock(),
+        transport_handler=MockTransportHandler(),
         sample_rate=0.0,
     )
     with context:
@@ -769,7 +770,7 @@ def test_adding_sa_binary_annotation_for_non_client_spans():
     context = zipkin.zipkin_span(
         service_name='my_service',
         span_name='span_name',
-        transport_handler=mock.Mock(),
+        transport_handler=MockTransportHandler(),
         include=('server',),
         sample_rate=100.0,
     )
@@ -807,7 +808,7 @@ def test_adding_error_annotation_on_exception(
         service_name='my_service',
         span_name='span_name',
         zipkin_attrs=zipkin_attrs,
-        transport_handler=mock.Mock(),
+        transport_handler=MockTransportHandler(),
         port=5,
     )
     with pytest.raises(ValueError):

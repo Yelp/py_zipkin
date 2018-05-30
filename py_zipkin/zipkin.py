@@ -562,7 +562,7 @@ def create_http_headers_for_new_span(context_stack=None):
 
     .. note::
 
-        If the method is not called from within a zipkin_trace conext,
+        If the method is not called from within a zipkin_trace context,
         empty dict will be returned back.
 
     :returns: dict containing (X-B3-TraceId, X-B3-SpanId, X-B3-ParentSpanId,

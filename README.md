@@ -19,7 +19,7 @@ pip install py_zipkin
 Usage
 -----
 
-py_zipkin requires a `transport_handler` function that handles logging zipkin
+py_zipkin requires a `transport_handler` object that handles logging zipkin
 messages to a central logging service such as kafka or scribe.
 
 `py_zipkin.zipkin.zipkin_span` is the main tool for starting zipkin traces or
@@ -131,23 +131,42 @@ Transport
 ---------
 
 py_zipkin (for the moment) thrift-encodes spans. The actual transport layer is
-pluggable, though. The `transport_handler` is a function that takes a single
-argument - the thrift-encoded bytes.
+pluggable, though.
+
+The recommended way to implement a new transport handler is to subclass
+`py_zipkin.transport.BaseTransportHandler` and implement the `send` and 
+`get_max_payload_bytes` methods.
+
+`send` receives an already encoded thrift list as argument.
+`get_max_payload_bytes` should return the maximum payload size supported by your
+transport, or `None` if you can send arbitrarily big messages.
 
 The simplest way to get spans to the collector is via HTTP POST. Here's an
 example of a simple HTTP transport using the `requests` library. This assumes
 your Zipkin collector is running at localhost:9411.
 
+> NOTE: older versions of py_zipkin suggested implementing the transport handler
+> as a function with a single argument. That's still supported and should work
+> with the current py_zipkin version, but it's deprecated. 
+
 ```python
 import requests
 
-def http_transport(encoded_span):
-    # The collector expects a thrift-encoded list of spans.
-    requests.post(
-        'http://localhost:9411/api/v1/spans',
-        data=encoded_span,
-        headers={'Content-Type': 'application/x-thrift'},
-    )
+from py_zipkin.transport import BaseTransportHandler
+
+
+class HttpTransport(BaseTransportHandler):
+
+    def get_max_payload_bytes(self):
+        return None
+
+    def send(self, encoded_span):
+        # The collector expects a thrift-encoded list of spans.
+        requests.post(
+            'http://localhost:9411/api/v1/spans',
+            data=encoded_span,
+            headers={'Content-Type': 'application/x-thrift'},
+        )
 ```
 
 If you have the ability to send spans over Kafka (more like what you might do
@@ -157,10 +176,19 @@ in production), you'd do something like the following, using the
 ```python
 from kafka import SimpleProducer, KafkaClient
 
-def transport_handler(message):
-    kafka_client = KafkaClient('{}:{}'.format('localhost', 9092))
-    producer = SimpleProducer(kafka_client)
-    producer.send_messages('kafka_topic_name', message)
+from py_zipkin.transport import BaseTransportHandler
+
+
+class KafkaTransport(BaseTransportHandler):
+
+    def get_max_payload_bytes(self):
+        # By default Kafka rejects messages bigger than 1000012 bytes.
+        return 1000012
+
+    def send(self, message):
+        kafka_client = KafkaClient('{}:{}'.format('localhost', 9092))
+        producer = SimpleProducer(kafka_client)
+        producer.send_messages('kafka_topic_name', message)
 ```
 
 Using in multithreading evironments

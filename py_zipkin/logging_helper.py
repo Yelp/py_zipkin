@@ -3,12 +3,9 @@ import logging
 import time
 from collections import defaultdict
 
+from py_zipkin import thrift
 from py_zipkin.exception import ZipkinError
-from py_zipkin.thrift import annotation_list_builder
-from py_zipkin.thrift import binary_annotation_list_builder
-from py_zipkin.thrift import copy_endpoint_with_new_service_name
-from py_zipkin.thrift import create_span
-from py_zipkin.thrift import thrift_objs_in_bytes
+from py_zipkin.transport import BaseTransportHandler
 from py_zipkin.util import generate_random_64bit_string
 
 
@@ -130,7 +127,7 @@ class ZipkinLoggingContext(object):
                 )
                 # A new client span's span ID can be overridden
                 span_id = span['span_id'] or generate_random_64bit_string()
-                endpoint = copy_endpoint_with_new_service_name(
+                endpoint = thrift.copy_endpoint_with_new_service_name(
                     self.thrift_endpoint, span['service_name']
                 )
                 # Collect annotations both logged with the new spans and
@@ -145,10 +142,10 @@ class ZipkinLoggingContext(object):
                     annotations
                 )
                 # Create serializable thrift objects of annotations
-                thrift_annotations = annotation_list_builder(
+                thrift_annotations = thrift.annotation_list_builder(
                     annotations, endpoint
                 )
-                thrift_binary_annotations = binary_annotation_list_builder(
+                thrift_binary_annotations = thrift.binary_annotation_list_builder(
                     binary_annotations, endpoint
                 )
                 if span.get('sa_binary_annotations'):
@@ -180,7 +177,7 @@ class ZipkinLoggingContext(object):
             if self.add_logging_annotation:
                 annotations[LOGGING_END_KEY] = time.time()
 
-            thrift_annotations = annotation_list_builder(
+            thrift_annotations = thrift.annotation_list_builder(
                 annotations,
                 self.thrift_endpoint,
             )
@@ -188,7 +185,7 @@ class ZipkinLoggingContext(object):
             # Binary annotations can be set through debug messages or the
             # set_extra_binary_annotations registry setting.
             self.binary_annotations_dict.update(extra_binary_annotations)
-            thrift_binary_annotations = binary_annotation_list_builder(
+            thrift_binary_annotations = thrift.binary_annotation_list_builder(
                 self.binary_annotations_dict,
                 self.thrift_endpoint,
             )
@@ -332,8 +329,13 @@ class ZipkinBatchSender(object):
         self.transport_handler = transport_handler
         self.max_portion_size = max_portion_size or self.MAX_PORTION_SIZE
 
+        if isinstance(self.transport_handler, BaseTransportHandler):
+            self.max_payload_bytes = self.transport_handler.get_max_payload_bytes()
+        else:
+            self.max_payload_bytes = None
+
     def __enter__(self):
-        self.queue = []
+        self._reset_queue()
         return self
 
     def __exit__(self, _exc_type, _exc_value, _exc_traceback):
@@ -342,6 +344,10 @@ class ZipkinBatchSender(object):
             raise ZipkinError(error)
         else:
             self.flush()
+
+    def _reset_queue(self):
+        self.queue = []
+        self.current_size = thrift.LIST_HEADER_SIZE
 
     def add_span(
         self,
@@ -354,7 +360,7 @@ class ZipkinBatchSender(object):
         timestamp_s,
         duration_s,
     ):
-        thrift_span = create_span(
+        thrift_span = thrift.create_span(
             span_id,
             parent_span_id,
             trace_id,
@@ -365,12 +371,25 @@ class ZipkinBatchSender(object):
             duration_s,
         )
 
-        self.queue.append(thrift_span)
-        if len(self.queue) >= self.max_portion_size:
+        encoded_span = thrift.span_to_bytes(thrift_span)
+
+        # If we've already reached the max batch size or the new span doesn't
+        # fit in max_payload_bytes, send what we've collected until now and
+        # start a new batch.
+        is_over_size_limit = (
+            self.max_payload_bytes is not None and
+            self.current_size + len(encoded_span) > self.max_payload_bytes
+        )
+        is_over_portion_limit = len(self.queue) >= self.max_portion_size
+        if is_over_size_limit or is_over_portion_limit:
             self.flush()
+
+        self.queue.append(encoded_span)
+        self.current_size += len(encoded_span)
 
     def flush(self):
         if self.transport_handler and len(self.queue) > 0:
-            message = thrift_objs_in_bytes(self.queue)
+
+            message = thrift.encode_bytes_list(self.queue)
             self.transport_handler(message)
-            self.queue = []
+        self._reset_queue()
