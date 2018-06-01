@@ -3,7 +3,7 @@ import pytest
 
 from tests.conftest import MockTransportHandler
 from py_zipkin import logging_helper
-from py_zipkin import thrift
+from py_zipkin import encoding
 from py_zipkin.exception import ZipkinError
 from py_zipkin.zipkin import ZipkinAttrs
 
@@ -29,7 +29,7 @@ def context():
     log_handler = logging_helper.ZipkinLoggerHandler(attr)
     return logging_helper.ZipkinLoggingContext(
         zipkin_attrs=attr,
-        thrift_endpoint='thrift_endpoint',
+        endpoint=encoding.create_endpoint(80, 'test_server', '127.0.0.1'),
         log_handler=log_handler,
         span_name='span_name',
         transport_handler=MockTransportHandler(),
@@ -38,13 +38,23 @@ def context():
 
 
 @pytest.fixture
-def empty_binary_annotations_list():
-    return thrift.binary_annotation_list_builder({}, thrift.create_endpoint())
+def empty_binary_annotations_dict():
+    return {}
 
 
 @pytest.fixture
-def empty_annotations_list():
-    return thrift.annotation_list_builder({}, thrift.create_endpoint())
+def empty_annotations_dict():
+    return {}
+
+
+@pytest.fixture
+def fake_endpoint():
+    return encoding.Endpoint(
+        service_name='test_server',
+        ipv4='127.0.0.1',
+        ipv6=None,
+        port=80,
+    )
 
 
 @mock.patch('py_zipkin.logging_helper.zipkin_logger', autospec=True)
@@ -69,15 +79,8 @@ def test_zipkin_logging_context(time_mock, mock_logger, context):
             autospec=True)
 @mock.patch('py_zipkin.logging_helper.ZipkinBatchSender.add_span',
             autospec=True)
-@mock.patch('py_zipkin.logging_helper.thrift.annotation_list_builder',
-            autospec=True)
-@mock.patch('py_zipkin.logging_helper.thrift.binary_annotation_list_builder',
-            autospec=True)
-@mock.patch('py_zipkin.logging_helper.thrift.copy_endpoint_with_new_service_name',
-            autospec=True)
 def test_zipkin_logging_server_context_log_spans(
-    copy_endpoint_mock, bin_ann_list_builder, ann_list_builder,
-    add_span_mock, flush_mock, time_mock
+    add_span_mock, flush_mock, time_mock, fake_endpoint
 ):
     # This lengthy function tests that the logging context properly
     # logs both client and server spans, while attaching extra annotations
@@ -119,16 +122,11 @@ def test_zipkin_logging_server_context_log_spans(
         'binary_annotations': {'bann2': 'yiss'},
     }]
 
-    # Each of the thrift annotation helpers just reflects its first arg
-    # so the annotation dicts can be checked.
-    ann_list_builder.side_effect = lambda x, y: x
-    bin_ann_list_builder.side_effect = lambda x, y: x
-
     transport_handler = mock.Mock()
 
     context = logging_helper.ZipkinLoggingContext(
         zipkin_attrs=attr,
-        thrift_endpoint='thrift_endpoint',
+        endpoint=fake_endpoint,
         log_handler=handler,
         span_name='GET /foo',
         transport_handler=transport_handler,
@@ -158,6 +156,8 @@ def test_zipkin_logging_server_context_log_spans(
         'binary_annotations': expected_server_bin_annotations,
         'duration_s': 18,
         'timestamp_s': 24,
+        'endpoint': fake_endpoint,
+        'sa_endpoints': [],
     }
     assert client_log_call[1] == {
         'span_id': client_span_id,
@@ -168,6 +168,8 @@ def test_zipkin_logging_server_context_log_spans(
         'binary_annotations': expected_client_bin_annotations,
         'duration_s': 4,
         'timestamp_s': 26,
+        'endpoint': encoding.create_endpoint(80, 'svc', '127.0.0.1'),
+        'sa_endpoints': [],
     }
     assert flush_mock.call_count == 1
 
@@ -177,15 +179,8 @@ def test_zipkin_logging_server_context_log_spans(
             autospec=True)
 @mock.patch('py_zipkin.logging_helper.ZipkinBatchSender.add_span',
             autospec=True)
-@mock.patch('py_zipkin.logging_helper.thrift.annotation_list_builder',
-            autospec=True)
-@mock.patch('py_zipkin.logging_helper.thrift.binary_annotation_list_builder',
-            autospec=True)
-@mock.patch('py_zipkin.logging_helper.thrift.copy_endpoint_with_new_service_name',
-            autospec=True)
 def test_zipkin_logging_server_context_log_spans_with_firehose(
-    copy_endpoint_mock, bin_ann_list_builder, ann_list_builder,
-    add_span_mock, flush_mock, time_mock
+    add_span_mock, flush_mock, time_mock, fake_endpoint
 ):
     # This lengthy function tests that the logging context properly
     # logs both client and server spans, while attaching extra annotations
@@ -227,17 +222,12 @@ def test_zipkin_logging_server_context_log_spans_with_firehose(
         'binary_annotations': {'bann2': 'yiss'},
     }]
 
-    # Each of the thrift annotation helpers just reflects its first arg
-    # so the annotation dicts can be checked.
-    ann_list_builder.side_effect = lambda x, y: x
-    bin_ann_list_builder.side_effect = lambda x, y: x
-
     transport_handler = mock.Mock()
     firehose_handler = mock.Mock()
 
     context = logging_helper.ZipkinLoggingContext(
         zipkin_attrs=attr,
-        thrift_endpoint='thrift_endpoint',
+        endpoint=fake_endpoint,
         log_handler=handler,
         span_name='GET /foo',
         transport_handler=transport_handler,
@@ -270,6 +260,8 @@ def test_zipkin_logging_server_context_log_spans_with_firehose(
         'binary_annotations': expected_server_bin_annotations,
         'duration_s': 18,
         'timestamp_s': 24,
+        'endpoint': fake_endpoint,
+        'sa_endpoints': [],
     }
     assert client_log_call[1] == firehose_client_log_call[1] == {
         'span_id': client_span_id,
@@ -280,6 +272,8 @@ def test_zipkin_logging_server_context_log_spans_with_firehose(
         'binary_annotations': expected_client_bin_annotations,
         'duration_s': 4,
         'timestamp_s': 26,
+        'endpoint': encoding.create_endpoint(80, 'svc', '127.0.0.1'),
+        'sa_endpoints': [],
     }
     assert flush_mock.call_count == 2
 
@@ -289,15 +283,8 @@ def test_zipkin_logging_server_context_log_spans_with_firehose(
             autospec=True)
 @mock.patch('py_zipkin.logging_helper.ZipkinBatchSender.add_span',
             autospec=True)
-@mock.patch('py_zipkin.logging_helper.thrift.annotation_list_builder',
-            autospec=True)
-@mock.patch('py_zipkin.logging_helper.thrift.binary_annotation_list_builder',
-            autospec=True)
-@mock.patch('py_zipkin.logging_helper.thrift.copy_endpoint_with_new_service_name',
-            autospec=True)
 def test_zipkin_logging_client_context_log_spans(
-    copy_endpoint_mock, bin_ann_list_builder, ann_list_builder,
-    add_span_mock, flush_mock, time_mock
+    add_span_mock, flush_mock, time_mock, fake_endpoint
 ):
     # This lengthy function tests that the logging context properly
     # logs root client span
@@ -313,16 +300,11 @@ def test_zipkin_logging_client_context_log_spans(
     handler = logging_helper.ZipkinLoggerHandler(attr)
     handler.client_spans = []
 
-    # Each of the thrift annotation helpers just reflects its first arg
-    # so the annotation dicts can be checked.
-    ann_list_builder.side_effect = lambda x, y: x
-    bin_ann_list_builder.side_effect = lambda x, y: x
-
     transport_handler = mock.Mock()
 
     context = logging_helper.ZipkinLoggingContext(
         zipkin_attrs=attr,
-        thrift_endpoint='thrift_endpoint',
+        endpoint=fake_endpoint,
         log_handler=handler,
         span_name='GET /foo',
         transport_handler=transport_handler,
@@ -350,6 +332,8 @@ def test_zipkin_logging_client_context_log_spans(
         'binary_annotations': expected_server_bin_annotations,
         'duration_s': 18,
         'timestamp_s': 24,
+        'endpoint': fake_endpoint,
+        'sa_endpoints': [],
     }
     assert flush_mock.call_count == 1
 
@@ -371,7 +355,7 @@ def test_batch_sender_add_span_not_called_if_not_sampled(add_span_mock,
     transport_handler = mock.Mock()
     context = logging_helper.ZipkinLoggingContext(
         zipkin_attrs=attr,
-        thrift_endpoint='thrift_endpoint',
+        endpoint=encoding.create_endpoint(80, 'test_server', '127.0.0.1'),
         log_handler=log_handler,
         span_name='span_name',
         transport_handler=transport_handler,
@@ -402,7 +386,7 @@ def test_batch_sender_add_span_not_sampled_with_firehose(add_span_mock,
     firehose_handler = mock.Mock()
     context = logging_helper.ZipkinLoggingContext(
         zipkin_attrs=attr,
-        thrift_endpoint='thrift_endpoint',
+        endpoint=encoding.create_endpoint(80, 'test_server', '127.0.0.1'),
         log_handler=log_handler,
         span_name='span_name',
         transport_handler=transport_handler,
@@ -446,7 +430,7 @@ def test_handler_stores_client_span_on_emit(sampled_zipkin_attr):
         'span_id': None,
         'annotations': 'ann1',
         'binary_annotations': 'bann1',
-        'sa_binary_annotations': None,
+        'sa_endpoints': [],
     }]
 
 
@@ -476,8 +460,9 @@ def test_zipkin_handler_raises_exception_if_ann_and_bann_not_provided(
 @mock.patch('py_zipkin.logging_helper.thrift.encode_bytes_list', autospec=True)
 def test_batch_sender_add_span(
     mock_encode_bytes_list,
-    empty_annotations_list,
-    empty_binary_annotations_list,
+    empty_annotations_dict,
+    empty_binary_annotations_dict,
+    fake_endpoint,
 ):
     # This test verifies it's possible to add 1 span without throwing errors.
     # It also checks that exiting the ZipkinBatchSender context manager
@@ -489,10 +474,12 @@ def test_batch_sender_add_span(
             parent_span_id='0000000000000001',
             trace_id='000000000000000f',
             span_name='span',
-            annotations=empty_annotations_list,
-            binary_annotations=empty_binary_annotations_list,
+            annotations=empty_annotations_dict,
+            binary_annotations=empty_binary_annotations_dict,
             timestamp_s=None,
             duration_s=None,
+            endpoint=fake_endpoint,
+            sa_endpoints=[],
         )
     assert mock_encode_bytes_list.call_count == 1
 
@@ -507,8 +494,9 @@ def test_batch_sender_with_error_on_exit():
 @mock.patch('py_zipkin.logging_helper.thrift.encode_bytes_list', autospec=True)
 def test_batch_sender_add_span_many_times(
     mock_encode_bytes_list,
-    empty_annotations_list,
-    empty_binary_annotations_list,
+    empty_annotations_dict,
+    empty_binary_annotations_dict,
+    fake_endpoint,
 ):
     # We create MAX_PORTION_SIZE * 2 + 1 spans, so we should trigger flush 3
     # times, once every MAX_PORTION_SIZE spans.
@@ -521,10 +509,12 @@ def test_batch_sender_add_span_many_times(
                 parent_span_id='0000000000000001',
                 trace_id='000000000000000f',
                 span_name='span',
-                annotations=empty_annotations_list,
-                binary_annotations=empty_binary_annotations_list,
+                annotations=empty_annotations_dict,
+                binary_annotations=empty_binary_annotations_dict,
                 timestamp_s=None,
                 duration_s=None,
+                endpoint=fake_endpoint,
+                sa_endpoints=[],
             )
     assert mock_encode_bytes_list.call_count == 3
     assert len(mock_encode_bytes_list.call_args_list[0][0][0]) == max_portion_size
@@ -533,8 +523,9 @@ def test_batch_sender_add_span_many_times(
 
 
 def test_batch_sender_add_span_too_big(
-    empty_annotations_list,
-    empty_binary_annotations_list,
+    empty_annotations_dict,
+    empty_binary_annotations_dict,
+    fake_endpoint,
 ):
     # This time we set max_payload_bytes to 1000, so we have to send more batches.
     # Each encoded span is 65 bytes, so we can fit 15 of those in 1000 bytes.
@@ -548,10 +539,12 @@ def test_batch_sender_add_span_too_big(
                 parent_span_id='0000000000000001',
                 trace_id='000000000000000f',
                 span_name='span',
-                annotations=empty_annotations_list,
-                binary_annotations=empty_binary_annotations_list,
+                annotations=empty_annotations_dict,
+                binary_annotations=empty_binary_annotations_dict,
                 timestamp_s=None,
                 duration_s=None,
+                endpoint=fake_endpoint,
+                sa_endpoints=[],
             )
     # 15 spans per batch, means we need 201 / 15 = 14 batches to send them all.
     assert mock_transport_handler.call_count == 14
@@ -567,8 +560,9 @@ def test_batch_sender_add_span_too_big(
 @mock.patch('py_zipkin.logging_helper.thrift.encode_bytes_list', autospec=True)
 def test_batch_sender_flush_calls_transport_handler_with_correct_params(
     mock_encode_bytes_list,
-    empty_annotations_list,
-    empty_binary_annotations_list,
+    empty_annotations_dict,
+    empty_binary_annotations_dict,
+    fake_endpoint,
 ):
     # Tests that the transport handler is called with the value returned
     # by thrift.encode_bytes_list.
@@ -581,10 +575,12 @@ def test_batch_sender_flush_calls_transport_handler_with_correct_params(
             parent_span_id='0000000000000001',
             trace_id='000000000000000f',
             span_name='span',
-            annotations=empty_annotations_list,
-            binary_annotations=empty_binary_annotations_list,
+            annotations=empty_annotations_dict,
+            binary_annotations=empty_binary_annotations_dict,
             timestamp_s=None,
             duration_s=None,
+            endpoint=fake_endpoint,
+            sa_endpoints=[],
         )
     transport_handler.assert_called_once_with(mock_encode_bytes_list.return_value)
 
@@ -594,6 +590,9 @@ def test_batch_sender_flush_calls_transport_handler_with_correct_params(
 def test_batch_sender_defensive_about_transport_handler(
     mock_encode_bytes_list,
     create_sp,
+    empty_annotations_dict,
+    empty_binary_annotations_dict,
+    fake_endpoint,
 ):
     """Make sure log_span doesn't try to call the transport handler if it's
     None."""
@@ -604,10 +603,12 @@ def test_batch_sender_defensive_about_transport_handler(
             parent_span_id='0000000000000001',
             trace_id='00000000000000015',
             span_name='span',
-            annotations='ann',
-            binary_annotations='binary_ann',
+            annotations=empty_annotations_dict,
+            binary_annotations=empty_binary_annotations_dict,
             timestamp_s=None,
             duration_s=None,
+            endpoint=fake_endpoint,
+            sa_endpoints=[],
         )
     assert create_sp.call_count == 1
     assert mock_encode_bytes_list.call_count == 0
