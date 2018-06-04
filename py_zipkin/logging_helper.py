@@ -4,7 +4,7 @@ import time
 from collections import defaultdict
 from logging import NullHandler
 
-from py_zipkin import encoding
+from py_zipkin import _encoding_helpers
 from py_zipkin import thrift
 from py_zipkin.exception import ZipkinError
 from py_zipkin.transport import BaseTransportHandler
@@ -50,11 +50,12 @@ class ZipkinLoggingContext(object):
         self.response_status_code = 0
         self.report_root_timestamp = report_root_timestamp
         self.binary_annotations_dict = binary_annotations or {}
-        self.sa_endpoints = []
         self.add_logging_annotation = add_logging_annotation
         self.client_context = client_context
         self.max_span_batch_size = max_span_batch_size
         self.firehose_handler = firehose_handler
+
+        self.sa_endpoint = None
 
     def start(self):
         """Actions to be taken before request is handled.
@@ -122,7 +123,7 @@ class ZipkinLoggingContext(object):
                 )
                 # A new client span's span ID can be overridden
                 span_id = span['span_id'] or generate_random_64bit_string()
-                endpoint = encoding.copy_endpoint_with_new_service_name(
+                endpoint = _encoding_helpers.copy_endpoint_with_new_service_name(
                     self.endpoint, span['service_name']
                 )
                 # Collect annotations both logged with the new spans and
@@ -147,7 +148,7 @@ class ZipkinLoggingContext(object):
                     timestamp_s=timestamp,
                     duration_s=duration,
                     endpoint=endpoint,
-                    sa_endpoints=span.get('sa_endpoints', []),
+                    sa_endpoint=span.get('sa_endpoint'),
                 )
 
             extra_annotations = annotations_by_span_id[
@@ -183,7 +184,7 @@ class ZipkinLoggingContext(object):
                 timestamp_s=timestamp,
                 duration_s=duration,
                 endpoint=self.endpoint,
-                sa_endpoints=self.sa_endpoints,
+                sa_endpoint=self.sa_endpoint,
             )
 
 
@@ -220,7 +221,7 @@ class ZipkinLoggerHandler(logging.StreamHandler, object):
         service_name,
         annotations,
         binary_annotations,
-        sa_endpoints,
+        sa_endpoint,
         span_id=None,
     ):
         """Convenience method for storing a local child span (a zipkin_span
@@ -234,7 +235,7 @@ class ZipkinLoggerHandler(logging.StreamHandler, object):
             'span_id': span_id,
             'annotations': annotations,
             'binary_annotations': binary_annotations,
-            'sa_endpoints': sa_endpoints,
+            'sa_endpoint': sa_endpoint,
         })
 
     def emit(self, record):
@@ -289,7 +290,7 @@ class ZipkinLoggerHandler(logging.StreamHandler, object):
                 service_name=service_name,
                 annotations=annotations,
                 binary_annotations=binary_annotations,
-                sa_endpoints=[],
+                sa_endpoint=None,
             )
         else:
             self.extra_annotations.append({
@@ -338,7 +339,7 @@ class ZipkinBatchSender(object):
         timestamp_s,
         duration_s,
         endpoint,
-        sa_endpoints,
+        sa_endpoint,
     ):
         thrift_endpoint = thrift.create_endpoint(
             endpoint.port,
@@ -359,8 +360,8 @@ class ZipkinBatchSender(object):
             thrift_endpoint,
         )
 
-        # Add sa binary annotations
-        for sa_endpoint in sa_endpoints:
+        # Add sa binary annotation
+        if sa_endpoint is not None:
             thrift_sa_endpoint = thrift.create_endpoint(
                 sa_endpoint.port,
                 sa_endpoint.service_name,

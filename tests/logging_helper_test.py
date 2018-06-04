@@ -3,7 +3,7 @@ import pytest
 
 from tests.conftest import MockTransportHandler
 from py_zipkin import logging_helper
-from py_zipkin import encoding
+from py_zipkin import _encoding_helpers
 from py_zipkin.exception import ZipkinError
 from py_zipkin.zipkin import ZipkinAttrs
 
@@ -29,7 +29,7 @@ def context():
     log_handler = logging_helper.ZipkinLoggerHandler(attr)
     return logging_helper.ZipkinLoggingContext(
         zipkin_attrs=attr,
-        endpoint=encoding.create_endpoint(80, 'test_server', '127.0.0.1'),
+        endpoint=_encoding_helpers.create_endpoint(80, 'test_server', '127.0.0.1'),
         log_handler=log_handler,
         span_name='span_name',
         transport_handler=MockTransportHandler(),
@@ -49,7 +49,7 @@ def empty_annotations_dict():
 
 @pytest.fixture
 def fake_endpoint():
-    return encoding.Endpoint(
+    return _encoding_helpers.Endpoint(
         service_name='test_server',
         ipv4='127.0.0.1',
         ipv6=None,
@@ -157,7 +157,7 @@ def test_zipkin_logging_server_context_log_spans(
         'duration_s': 18,
         'timestamp_s': 24,
         'endpoint': fake_endpoint,
-        'sa_endpoints': [],
+        'sa_endpoint': None,
     }
     assert client_log_call[1] == {
         'span_id': client_span_id,
@@ -168,8 +168,8 @@ def test_zipkin_logging_server_context_log_spans(
         'binary_annotations': expected_client_bin_annotations,
         'duration_s': 4,
         'timestamp_s': 26,
-        'endpoint': encoding.create_endpoint(80, 'svc', '127.0.0.1'),
-        'sa_endpoints': [],
+        'endpoint': _encoding_helpers.create_endpoint(80, 'svc', '127.0.0.1'),
+        'sa_endpoint': None,
     }
     assert flush_mock.call_count == 1
 
@@ -261,7 +261,7 @@ def test_zipkin_logging_server_context_log_spans_with_firehose(
         'duration_s': 18,
         'timestamp_s': 24,
         'endpoint': fake_endpoint,
-        'sa_endpoints': [],
+        'sa_endpoint': None,
     }
     assert client_log_call[1] == firehose_client_log_call[1] == {
         'span_id': client_span_id,
@@ -272,8 +272,8 @@ def test_zipkin_logging_server_context_log_spans_with_firehose(
         'binary_annotations': expected_client_bin_annotations,
         'duration_s': 4,
         'timestamp_s': 26,
-        'endpoint': encoding.create_endpoint(80, 'svc', '127.0.0.1'),
-        'sa_endpoints': [],
+        'endpoint': _encoding_helpers.create_endpoint(80, 'svc', '127.0.0.1'),
+        'sa_endpoint': None,
     }
     assert flush_mock.call_count == 2
 
@@ -333,7 +333,7 @@ def test_zipkin_logging_client_context_log_spans(
         'duration_s': 18,
         'timestamp_s': 24,
         'endpoint': fake_endpoint,
-        'sa_endpoints': [],
+        'sa_endpoint': None,
     }
     assert flush_mock.call_count == 1
 
@@ -355,7 +355,7 @@ def test_batch_sender_add_span_not_called_if_not_sampled(add_span_mock,
     transport_handler = mock.Mock()
     context = logging_helper.ZipkinLoggingContext(
         zipkin_attrs=attr,
-        endpoint=encoding.create_endpoint(80, 'test_server', '127.0.0.1'),
+        endpoint=_encoding_helpers.create_endpoint(80, 'test_server', '127.0.0.1'),
         log_handler=log_handler,
         span_name='span_name',
         transport_handler=transport_handler,
@@ -386,7 +386,7 @@ def test_batch_sender_add_span_not_sampled_with_firehose(add_span_mock,
     firehose_handler = mock.Mock()
     context = logging_helper.ZipkinLoggingContext(
         zipkin_attrs=attr,
-        endpoint=encoding.create_endpoint(80, 'test_server', '127.0.0.1'),
+        endpoint=_encoding_helpers.create_endpoint(80, 'test_server', '127.0.0.1'),
         log_handler=log_handler,
         span_name='span_name',
         transport_handler=transport_handler,
@@ -430,7 +430,7 @@ def test_handler_stores_client_span_on_emit(sampled_zipkin_attr):
         'span_id': None,
         'annotations': 'ann1',
         'binary_annotations': 'bann1',
-        'sa_endpoints': [],
+        'sa_endpoint': None,
     }]
 
 
@@ -479,7 +479,7 @@ def test_batch_sender_add_span(
             timestamp_s=None,
             duration_s=None,
             endpoint=fake_endpoint,
-            sa_endpoints=[],
+            sa_endpoint=None,
         )
     assert mock_encode_bytes_list.call_count == 1
 
@@ -514,7 +514,7 @@ def test_batch_sender_add_span_many_times(
                 timestamp_s=None,
                 duration_s=None,
                 endpoint=fake_endpoint,
-                sa_endpoints=[],
+                sa_endpoint=None,
             )
     assert mock_encode_bytes_list.call_count == 3
     assert len(mock_encode_bytes_list.call_args_list[0][0][0]) == max_portion_size
@@ -544,7 +544,7 @@ def test_batch_sender_add_span_too_big(
                 timestamp_s=None,
                 duration_s=None,
                 endpoint=fake_endpoint,
-                sa_endpoints=[],
+                sa_endpoint=None,
             )
     # 15 spans per batch, means we need 201 / 15 = 14 batches to send them all.
     assert mock_transport_handler.call_count == 14
@@ -580,7 +580,7 @@ def test_batch_sender_flush_calls_transport_handler_with_correct_params(
             timestamp_s=None,
             duration_s=None,
             endpoint=fake_endpoint,
-            sa_endpoints=[],
+            sa_endpoint=None,
         )
     transport_handler.assert_called_once_with(mock_encode_bytes_list.return_value)
 
@@ -608,7 +608,7 @@ def test_batch_sender_defensive_about_transport_handler(
             timestamp_s=None,
             duration_s=None,
             endpoint=fake_endpoint,
-            sa_endpoints=[],
+            sa_endpoint=None,
         )
     assert create_sp.call_count == 1
     assert mock_encode_bytes_list.call_count == 0

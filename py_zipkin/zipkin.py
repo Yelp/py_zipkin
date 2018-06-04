@@ -4,7 +4,7 @@ import random
 import time
 from collections import namedtuple
 
-from py_zipkin.encoding import create_endpoint
+from py_zipkin._encoding_helpers import create_endpoint
 from py_zipkin.exception import ZipkinError
 from py_zipkin.logging_helper import zipkin_logger
 from py_zipkin.logging_helper import ZipkinLoggerHandler
@@ -190,10 +190,9 @@ class zipkin_span(object):
         self.logging_context = None
         self.logging_configured = False
         self.do_pop_attrs = False
-        # Spans that log a 'cs' timestamp can additionally record
-        # 'sa' binary annotations that show where the request is going.
-        # This holds a list of 'sa' binary annotations.
-        self.sa_endpoints = []
+        # Spans that log a 'cs' timestamp can additionally record a
+        # 'sa' binary annotation that show where the request is going.
+        self.sa_endpoint = None
 
         # Validation checks
         if self.zipkin_attrs or self.sample_rate is not None:
@@ -408,7 +407,7 @@ class zipkin_span(object):
             service_name=self.service_name,
             annotations=self.annotations,
             binary_annotations=self.binary_annotations,
-            sa_endpoints=self.sa_endpoints,
+            sa_endpoint=self.sa_endpoint,
             span_id=self.zipkin_attrs.span_id,
         )
 
@@ -462,9 +461,13 @@ class zipkin_span(object):
             host=host,
         )
         if not self.logging_context:
-            self.sa_endpoints.append(sa_endpoint)
+            if self.sa_endpoint is not None:
+                raise ValueError('SA annotation already set.')
+            self.sa_endpoint = sa_endpoint
         else:
-            self.logging_context.sa_endpoints.append(sa_endpoint)
+            if self.logging_context.sa_endpoint is not None:
+                raise ValueError('SA annotation already set.')
+            self.logging_context.sa_endpoint = sa_endpoint
 
 
 def _validate_args(kwargs):
