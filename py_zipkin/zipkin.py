@@ -5,6 +5,7 @@ import time
 from collections import namedtuple
 
 from py_zipkin._encoding_helpers import create_endpoint
+from py_zipkin._encoding_helpers import Encoding
 from py_zipkin.exception import ZipkinError
 from py_zipkin.logging_helper import zipkin_logger
 from py_zipkin.logging_helper import ZipkinLoggerHandler
@@ -112,7 +113,8 @@ class zipkin_span(object):
         use_128bit_trace_id=False,
         host=None,
         context_stack=None,
-        firehose_handler=None
+        firehose_handler=None,
+        encoding=Encoding.THRIFT,
     ):
         """Logs a zipkin span. If this is the root span, then a zipkin
         trace is started as well.
@@ -186,6 +188,7 @@ class zipkin_span(object):
         self.host = host
         self._context_stack = context_stack or ThreadLocalStack()
         self.firehose_handler = firehose_handler
+        self.encoding = encoding
 
         self.logging_context = None
         self.logging_configured = False
@@ -230,6 +233,7 @@ class zipkin_span(object):
                 host=self.host,
                 context_stack=self._context_stack,
                 firehose_handler=self.firehose_handler,
+                encoding=self.encoding,
             ):
                 return f(*args, **kwargs)
         return decorated
@@ -322,6 +326,7 @@ class zipkin_span(object):
                 client_context=client_context,
                 max_span_batch_size=self.max_span_batch_size,
                 firehose_handler=self.firehose_handler,
+                encoding=self.encoding,
             )
             self.logging_context.start()
             self.logging_configured = True

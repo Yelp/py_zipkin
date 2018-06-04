@@ -68,6 +68,7 @@ def test_zipkin_span_for_new_trace(
         client_context=False,
         max_span_batch_size=None,
         firehose_handler=firehose_handler,
+        encoding=_encoding_helpers.Encoding.THRIFT,
     )
     mock_context_stack.pop.assert_called_once_with()
 
@@ -120,7 +121,8 @@ def test_zipkin_span_passed_sampled_attrs(
         add_logging_annotation=False,
         client_context=False,
         max_span_batch_size=None,
-        firehose_handler=None
+        firehose_handler=None,
+        encoding=_encoding_helpers.Encoding.THRIFT,
     )
     mock_context_stack.pop.assert_called_once_with()
 
@@ -502,6 +504,7 @@ def test_zipkin_server_span_decorator(
         client_context=False,
         max_span_batch_size=None,
         firehose_handler=None,
+        encoding=_encoding_helpers.Encoding.THRIFT,
     )
     mock_context_stack.pop.assert_called_once_with()
 
@@ -558,6 +561,7 @@ def test_zipkin_client_span_decorator(
         client_context=True,
         max_span_batch_size=None,
         firehose_handler=None,
+        encoding=_encoding_helpers.Encoding.THRIFT,
     )
     mock_context_stack.pop.assert_called_once_with()
 
