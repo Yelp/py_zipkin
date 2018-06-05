@@ -98,6 +98,10 @@ destination address of the service being called (useful if the destination doesn
 support zipkin). See http://zipkin.io/pages/data_model.html for more information on the
 'sa' binary annotation.
 
+> NOTE: the V2 span format only support 1 "sa" endpoint (represented by remoteEndpoint)
+> so `add_sa_binary_annotation` now raises `ValueError` if you try to set multiple "sa"
+> annotations for the same span.
+
 ```python
 def some_function():
     with zipkin_span(

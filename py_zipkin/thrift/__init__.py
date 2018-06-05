@@ -60,9 +60,9 @@ def create_endpoint(port=0, service_name='unknown', ipv4=None, ipv6=None):
 
     :param port: int value of the port. Defaults to 0
     :param service_name: service name as a str. Defaults to 'unknown'
-    :param host: string containing ipv4 value of the host, if not provided,
-    host is determined automatically
-    :returns: zipkin Endpoint object
+    :param ipv4: ipv4 host address
+    :param ipv6: ipv6 host address
+    :returns: thrift Endpoint object
     """
     ipv4_int = 0
     ipv6_binary = None

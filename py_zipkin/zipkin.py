@@ -191,7 +191,7 @@ class zipkin_span(object):
         self.logging_configured = False
         self.do_pop_attrs = False
         # Spans that log a 'cs' timestamp can additionally record a
-        # 'sa' binary annotation that show where the request is going.
+        # 'sa' binary annotation that shows where the request is going.
         self.sa_endpoint = None
 
         # Validation checks
