@@ -3,15 +3,12 @@ import mock
 import pytest
 
 import py_zipkin.zipkin as zipkin
+from py_zipkin import _encoding_helpers
 from py_zipkin.exception import ZipkinError
 from py_zipkin.logging_helper import null_handler
 from py_zipkin.logging_helper import ZipkinLoggerHandler
 from py_zipkin.stack import ThreadLocalStack
 from py_zipkin.thread_local import get_zipkin_attrs
-from py_zipkin.thrift import create_binary_annotation
-from py_zipkin.thrift import create_endpoint
-from py_zipkin.thrift import SERVER_ADDR_VAL
-from py_zipkin.thrift import zipkin_core
 from py_zipkin.util import generate_random_64bit_string
 from py_zipkin.zipkin import ZipkinAttrs
 from tests.conftest import MockTransportHandler
@@ -446,7 +443,7 @@ def test_span_context(
         'span_id': '1',
         'annotations': {'something': 1},
         'binary_annotations': {'foo': 'bar'},
-        'sa_binary_annotations': [],
+        'sa_endpoint': None,
     }
     assert client_span == expected_client_span
 
@@ -679,24 +676,19 @@ def test_add_sa_binary_annotation():
     )
 
     with context:
-        assert context.logging_context.sa_binary_annotations == []
+        assert context.logging_context.sa_endpoint is None
         context.add_sa_binary_annotation(
             port=123,
             service_name='test_service',
             host='1.2.3.4',
         )
-        expected_sa_binary_annotation = create_binary_annotation(
-            key=zipkin_core.SERVER_ADDR,
-            value=SERVER_ADDR_VAL,
-            annotation_type=zipkin_core.AnnotationType.BOOL,
-            host=create_endpoint(
-                port=123,
-                service_name='test_service',
-                host='1.2.3.4',
-            ),
+        expected_sa_endpoint = _encoding_helpers.create_endpoint(
+            port=123,
+            service_name='test_service',
+            host='1.2.3.4',
         )
-        assert context.logging_context.sa_binary_annotations[0] == \
-            expected_sa_binary_annotation
+        assert context.logging_context.sa_endpoint == \
+            expected_sa_endpoint
 
         nested_context = zipkin.zipkin_span(
             service_name='my_service',
@@ -708,18 +700,62 @@ def test_add_sa_binary_annotation():
                 service_name='nested_service',
                 host='5.6.7.8',
             )
-            expected_nested_sa_binary_annotation = create_binary_annotation(
-                key=zipkin_core.SERVER_ADDR,
-                value=SERVER_ADDR_VAL,
-                annotation_type=zipkin_core.AnnotationType.BOOL,
-                host=create_endpoint(
+            expected_nested_sa_endpoint = _encoding_helpers.create_endpoint(
+                port=456,
+                service_name='nested_service',
+                host='5.6.7.8',
+            )
+            assert nested_context.sa_endpoint == \
+                expected_nested_sa_endpoint
+
+
+def test_add_sa_binary_annotation_twice():
+    zipkin_attrs = ZipkinAttrs(
+        trace_id='0',
+        span_id='1',
+        parent_span_id=None,
+        flags='0',
+        is_sampled=True,
+    )
+    context = zipkin.zipkin_span(
+        service_name='my_service',
+        span_name='span_name',
+        zipkin_attrs=zipkin_attrs,
+        transport_handler=MockTransportHandler(),
+        port=5,
+    )
+
+    with context:
+        assert context.logging_context.sa_endpoint is None
+        context.add_sa_binary_annotation(
+            port=123,
+            service_name='test_service',
+            host='1.2.3.4',
+        )
+
+        with pytest.raises(ValueError):
+            context.add_sa_binary_annotation(
+                port=123,
+                service_name='test_service',
+                host='1.2.3.4',
+            )
+
+        nested_context = zipkin.zipkin_span(
+            service_name='my_service',
+            span_name='nested_span',
+        )
+        with nested_context:
+            nested_context.add_sa_binary_annotation(
+                port=456,
+                service_name='nested_service',
+                host='5.6.7.8',
+            )
+            with pytest.raises(ValueError):
+                nested_context.add_sa_binary_annotation(
                     port=456,
                     service_name='nested_service',
                     host='5.6.7.8',
-                ),
-            )
-            assert nested_context.sa_binary_annotations[0] == \
-                expected_nested_sa_binary_annotation
+                )
 
 
 def test_adding_sa_binary_annotation_without_sampling():
@@ -738,18 +774,13 @@ def test_adding_sa_binary_annotation_without_sampling():
             service_name='test_service',
             host='1.2.3.4',
         )
-        expected_sa_binary_annotation = create_binary_annotation(
-            key=zipkin_core.SERVER_ADDR,
-            value=SERVER_ADDR_VAL,
-            annotation_type=zipkin_core.AnnotationType.BOOL,
-            host=create_endpoint(
-                port=123,
-                service_name='test_service',
-                host='1.2.3.4',
-            ),
+        expected_sa_endpoint = _encoding_helpers.create_endpoint(
+            port=123,
+            service_name='test_service',
+            host='1.2.3.4',
         )
 
-        assert context.sa_binary_annotations[0] == expected_sa_binary_annotation
+        assert context.sa_endpoint == expected_sa_endpoint
 
 
 def test_adding_sa_binary_annotation_missing_zipkin_attrs():
@@ -763,7 +794,7 @@ def test_adding_sa_binary_annotation_missing_zipkin_attrs():
             service_name='test_service',
             host='1.2.3.4',
         )
-        assert context.sa_binary_annotations == []
+        assert context.sa_endpoint is None
 
 
 def test_adding_sa_binary_annotation_for_non_client_spans():
@@ -780,7 +811,7 @@ def test_adding_sa_binary_annotation_for_non_client_spans():
             service_name='test_service',
             host='1.2.3.4',
         )
-        assert context.logging_context.sa_binary_annotations == []
+        assert context.logging_context.sa_endpoint is None
 
 
 @pytest.mark.parametrize(

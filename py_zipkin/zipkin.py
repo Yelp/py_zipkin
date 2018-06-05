@@ -4,15 +4,12 @@ import random
 import time
 from collections import namedtuple
 
+from py_zipkin._encoding_helpers import create_endpoint
 from py_zipkin.exception import ZipkinError
 from py_zipkin.logging_helper import zipkin_logger
 from py_zipkin.logging_helper import ZipkinLoggerHandler
 from py_zipkin.logging_helper import ZipkinLoggingContext
 from py_zipkin.stack import ThreadLocalStack
-from py_zipkin.thrift import create_binary_annotation
-from py_zipkin.thrift import create_endpoint
-from py_zipkin.thrift import SERVER_ADDR_VAL
-from py_zipkin.thrift import zipkin_core
 from py_zipkin.util import generate_random_128bit_string
 from py_zipkin.util import generate_random_64bit_string
 
@@ -37,6 +34,8 @@ STANDARD_ANNOTATIONS = {
     'server': {'ss', 'sr'},
 }
 STANDARD_ANNOTATIONS_KEYS = frozenset(STANDARD_ANNOTATIONS.keys())
+
+ERROR_KEY = 'error'
 
 
 class zipkin_span(object):
@@ -165,7 +164,7 @@ class zipkin_span(object):
         :type host: string
         :param context_stack: explicit context stack for storing
             zipkin attributes
-        :type context_stack: list
+        :type context_stack: object
         :param firehose_handler: [EXPERIMENTAL] Similar to transport_handler,
             except that it will receive 100% of the spans regardless of trace
             sampling rate
@@ -179,23 +178,21 @@ class zipkin_span(object):
         self.annotations = annotations or {}
         self.binary_annotations = binary_annotations or {}
         self.port = port
-        self.logging_context = None
         self.sample_rate = sample_rate
         self.include = include
         self.add_logging_annotation = add_logging_annotation
         self.report_root_timestamp_override = report_root_timestamp
         self.use_128bit_trace_id = use_128bit_trace_id
         self.host = host
+        self._context_stack = context_stack or ThreadLocalStack()
         self.firehose_handler = firehose_handler
-        self.logging_configured = False
-        self._context_stack = context_stack
-        if self._context_stack is None:
-            self._context_stack = ThreadLocalStack()
 
-        # Spans that log a 'cs' timestamp can additionally record
-        # 'sa' binary annotations that show where the request is going.
-        # This holds a list of 'sa' binary annotations.
-        self.sa_binary_annotations = []
+        self.logging_context = None
+        self.logging_configured = False
+        self.do_pop_attrs = False
+        # Spans that log a 'cs' timestamp can additionally record a
+        # 'sa' binary annotation that shows where the request is going.
+        self.sa_endpoint = None
 
         # Validation checks
         if self.zipkin_attrs or self.sample_rate is not None:
@@ -253,9 +250,9 @@ class zipkin_span(object):
         self.do_pop_attrs = False
         # If zipkin_attrs are passed in or this span is doing its own sampling,
         # it will need to actually log spans at __exit__.
-        self.perform_logging = bool(self.zipkin_attrs or
-                                    self.sample_rate is not None or
-                                    self.firehose_handler is not None)
+        perform_logging = bool(self.zipkin_attrs or
+                               self.sample_rate is not None or
+                               self.firehose_handler is not None)
         report_root_timestamp = False
 
         if self.sample_rate is not None:
@@ -306,7 +303,7 @@ class zipkin_span(object):
 
         self.start_timestamp = time.time()
 
-        if self.perform_logging:
+        if perform_logging:
             # Don't set up any logging if we're not sampling
             if not self.zipkin_attrs.is_sampled and not self.firehose_handler:
                 return self
@@ -345,7 +342,7 @@ class zipkin_span(object):
             if not isinstance(log_handler, ZipkinLoggerHandler):
                 return self
             # Put span ID on logging handler.
-            self.log_handler = zipkin_logger.handlers[0]
+            self.log_handler = log_handler
             # Store the old parent_span_id, probably None, in case we have
             # nested zipkin_spans
             self.old_parent_span_id = self.log_handler.parent_span_id
@@ -373,7 +370,7 @@ class zipkin_span(object):
         if any((_exc_type, _exc_value, _exc_traceback)):
             error_msg = u'{0}: {1}'.format(_exc_type.__name__, _exc_value)
             self.update_binary_annotations({
-                zipkin_core.ERROR: error_msg,
+                ERROR_KEY: error_msg,
             })
 
         # Logging context is only initialized for "root" spans of the local
@@ -410,7 +407,7 @@ class zipkin_span(object):
             service_name=self.service_name,
             annotations=self.annotations,
             binary_annotations=self.binary_annotations,
-            sa_binary_annotations=self.sa_binary_annotations,
+            sa_endpoint=self.sa_endpoint,
             span_id=self.zipkin_attrs.span_id,
         )
 
@@ -463,16 +460,14 @@ class zipkin_span(object):
             service_name=service_name,
             host=host,
         )
-        sa_binary_annotation = create_binary_annotation(
-            key=zipkin_core.SERVER_ADDR,
-            value=SERVER_ADDR_VAL,
-            annotation_type=zipkin_core.AnnotationType.BOOL,
-            host=sa_endpoint,
-        )
         if not self.logging_context:
-            self.sa_binary_annotations.append(sa_binary_annotation)
+            if self.sa_endpoint is not None:
+                raise ValueError('SA annotation already set.')
+            self.sa_endpoint = sa_endpoint
         else:
-            self.logging_context.sa_binary_annotations.append(sa_binary_annotation)
+            if self.logging_context.sa_endpoint is not None:
+                raise ValueError('SA annotation already set.')
+            self.logging_context.sa_endpoint = sa_endpoint
 
 
 def _validate_args(kwargs):
@@ -533,6 +528,8 @@ def create_attrs_for_span(
     :param span_id: Optional 16-character hex string representing a span_id.
                     If this is None, a random span_id will be generated.
     :type span_id: str
+    :param use_128bit_trace_id: If true, generate 128-bit trace_ids
+    :type use_128bit_trace_id: boolean
     """
     # Calculate if this trace is sampled based on the sample rate
     if trace_id is None:

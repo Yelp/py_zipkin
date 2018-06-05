@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import mock
 import pytest
-import socket
 
 from py_zipkin import thrift
 
@@ -84,24 +83,17 @@ def test_create_endpoint_creates_correct_endpoint(gethostbyname):
     assert endpoint.ipv4 == 0
 
 
-@mock.patch('socket.gethostbyname', autospec=True)
-def test_create_endpoint_defaults_service_name(gethostbyname):
-    gethostbyname.return_value = '0.0.0.0'
-    endpoint = thrift.create_endpoint(port=8080)
-    assert endpoint.service_name == 'unknown'
+def test_create_endpoint_ipv6():
+    endpoint = thrift.create_endpoint(
+        port=8080,
+        service_name='foo',
+        ipv6='::1'
+    )
+    assert endpoint.service_name == 'foo'
     assert endpoint.port == 8080
-    # An IP address of 0.0.0.0 unpacks to just 0
     assert endpoint.ipv4 == 0
-
-
-@mock.patch('socket.gethostbyname', autospec=True)
-def test_create_endpoint_correct_host_ip(gethostbyname):
-    gethostbyname.return_value = '1.2.3.4'
-    endpoint = thrift.create_endpoint(host='0.0.0.0')
-    assert endpoint.service_name == 'unknown'
-    assert endpoint.port == 0
-    # An IP address of 0.0.0.0 unpacks to just 0
-    assert endpoint.ipv4 == 0
+    assert endpoint.ipv6 == \
+        b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01'
 
 
 @mock.patch('socket.gethostbyname', autospec=True)
@@ -117,20 +109,6 @@ def test_copy_endpoint_with_new_service_name(gethostbyname):
     assert new_endpoint.service_name == 'blargh'
     # An IP address of 0.0.0.0 unpacks to just 0
     assert endpoint.ipv4 == 0
-
-
-@mock.patch('socket.gethostbyname', autospec=True)
-def test_create_endpoint_defaults_localhost(gethostbyname):
-    gethostbyname.side_effect = socket.gaierror
-
-    endpoint = thrift.create_endpoint(
-        port=8080,
-        service_name='foo',
-    )
-    assert endpoint.service_name == 'foo'
-    assert endpoint.port == 8080
-    # An IP address of 127.0.0.1 unpacks to 2130706433
-    assert endpoint.ipv4 == 2130706433
 
 
 def test_create_annotation():
