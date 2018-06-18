@@ -1,4 +1,4 @@
-[![Travis](https://img.shields.io/travis/Yelp/py_zipkin.svg)](https://travis-ci.org/Yelp/py_zipkin?branch=master)
+[![Build Status](https://travis-ci.org/Yelp/py_zipkin.svg?branch=master)](https://travis-ci.org/Yelp/py_zipkin)
 [![Coverage Status](https://img.shields.io/coveralls/Yelp/py_zipkin.svg)](https://coveralls.io/r/Yelp/py_zipkin)
 [![PyPi version](https://img.shields.io/pypi/v/py_zipkin.svg)](https://pypi.python.org/pypi/py_zipkin/)
 [![Supported Python versions](https://img.shields.io/pypi/pyversions/py_zipkin.svg)](https://pypi.python.org/pypi/py_zipkin/)
