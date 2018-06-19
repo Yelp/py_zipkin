@@ -1,17 +1,22 @@
 language: python
 matrix:
   include:
-    - python: 2.7
-      env: TOXENV=py27
-    - python: 3.4
-      env: TOXENV=py34
-    - python: 3.5
-      env: TOXENV=py35
-    - python: 3.6
-      env: TOXENV=py36
-    - python: 2.7
-      env: TOXENV=flake8
+  - python: 2.7
+    env: TOXENV=py27
+  - python: 3.4
+    env: TOXENV=py34
+  - python: 3.5
+    env: TOXENV=py35
+  - python: 3.6
+    env: TOXENV=py36
+  - python: 2.7
+    env: TOXENV=flake8
 install: pip install tox coveralls
 script: tox
 after_success: coveralls
 sudo: false
+deploy:
+  provider: pypi
+  user: yelplabs
+  password:
+    secure: TIYK2CtwLtY+e+DEoidecJ+JmB57FF5LHKIeHxVo81or9dh/0LsjpWtY+gWHVqqZLqUcBe/urnr+meWpS9mE9B0GinMW8H+m4CGP2fPiys1+RxSkuW3+FEx8DfbjT3ssb6vchRmogvKRtGTraDSppWHESZtO9wi2n5G1XPW/dNDfTpkt/OEEot6gWMbpKXwQfmXLosF61Lni1ITcMwCsm3XUMHSL09I5wRoGKCMHX5lUSyTDT9XmQDIFbzYFzoGRhXP+x3c84YG4/IqCWedXZIfuYZ3P0SiD4DoeCDgQCNT7KQfqVqMIpU18uvJWaZ9a6aiJxAg21xLCbQJ9es2CeJm5LmFmlnu9IrVkOwCBu71KXHUBHdtJW0Vtel9W9gZT6CXn2P8xThniljfw1eur14EovhkiFHzju5Mv2xIdBufgC7d3oQKZYmKiJS+gwebLPCFTrk0+adrTJeeQRHTDl9dCzVm9EC8bZpAyHKO4lhgj5s7ROZIHIcbrRqUup8N4vaH9xNtWIkEFtEWFGOFBm0EXrRGuibhLak/TbcCH5wfUqCFt1VHY4bWlX2QcrvEYGD3YCizI362PY9i3mo0nrx1y34qvJTvmihZJBM90qiLCU4WkeOrqwRm7rSdat0oZJnnT89m1mOJqnrysSE2cIf2uhvrmacOSXk1X5DeG0Pk=
