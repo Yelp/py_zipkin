@@ -5,7 +5,6 @@ from thriftpy.transport import TMemoryBuffer
 
 from py_zipkin import zipkin
 from py_zipkin.logging_helper import LOGGING_END_KEY
-from py_zipkin.logging_helper import zipkin_logger
 from py_zipkin.thrift import zipkin_core
 from py_zipkin.zipkin import ZipkinAttrs
 
@@ -122,6 +121,7 @@ def test_span_inside_trace():
             pass
 
     def check_spans(spans):
+        assert len(spans) == 2
         nested_span = spans[0]
         root_span = spans[1]
         assert nested_span.name == 'nested_span'
@@ -139,6 +139,7 @@ def test_span_inside_trace():
             if ann.value == 'nested_annotation':
                 assert ann.timestamp == 43 * USECS
 
+    assert len(mock_logs) == 1
     check_spans(_decode_binary_thrift_objs(mock_logs[0]))
     check_spans(_decode_binary_thrift_objs(mock_firehose_logs[0]))
 
@@ -300,93 +301,6 @@ def test_service_span_that_is_independently_sampled(
         assert span.duration is not None
         assert set([ann.value for ann in span.annotations]) == default_annotations
 
-    check_span(_decode_binary_thrift_obj(mock_logs[0]))
-    check_span(_decode_binary_thrift_obj(mock_firehose_logs[0]))
-
-
-def test_log_debug_for_new_span():
-    mock_transport_handler, mock_logs = mock_logger()
-    mock_firehose_handler, mock_firehose_logs = mock_logger()
-    with zipkin.zipkin_span(
-        service_name='test_service_name',
-        span_name='test_span_name',
-        transport_handler=mock_transport_handler,
-        sample_rate=100.0,
-        binary_annotations={'some_key': 'some_value'},
-        add_logging_annotation=True,
-        firehose_handler=mock_firehose_handler,
-    ):
-        zipkin_logger.debug({
-            'annotations': {
-                'cs': 7,
-                'cr': 8,
-            },
-            'binary_annotations': {
-                'logged_binary_annotation': 'logged_value',
-            },
-            'name': 'logged_name',
-            'service_name': 'logged_service_name',
-        })
-        pass
-
-    def check_spans(spans):
-        logged_span = spans[0]
-        root_span = spans[1]
-        assert logged_span.name == 'logged_name'
-        assert logged_span.annotations[0] \
-                          .host.service_name == 'logged_service_name'
-        assert logged_span.parent_id == root_span.id
-        assert logged_span.binary_annotations[0].key == 'logged_binary_annotation'
-        assert logged_span.binary_annotations[0].value == 'logged_value'
-        assert set(
-            [ann.value for ann in logged_span.annotations]
-        ) == set(['cs', 'cr'])
-
-    check_spans(_decode_binary_thrift_objs(mock_logs[0]))
-    check_spans(_decode_binary_thrift_objs(mock_firehose_logs[0]))
-
-
-def test_log_debug_for_existing_span(default_annotations):
-    mock_transport_handler, mock_logs = mock_logger()
-    mock_firehose_handler, mock_firehose_logs = mock_logger()
-    with zipkin.zipkin_span(
-        service_name='test_service_name',
-        span_name='test_span_name',
-        transport_handler=mock_transport_handler,
-        sample_rate=100.0,
-        binary_annotations={'some_key': 'some_value'},
-        add_logging_annotation=True,
-        firehose_handler=mock_firehose_handler,
-    ):
-        zipkin_logger.debug({
-            'annotations': {
-                'test_annotation': 42,
-            },
-            'binary_annotations': {
-                'extra_binary_annotation': 'extra_value',
-            }
-        })
-        pass
-
-    def check_span(span):
-        assert span.name == 'test_span_name'
-        assert span.annotations[0].host.service_name == 'test_service_name'
-        assert span.parent_id is None
-        assert len(span.annotations) == 4
-        annotations = sorted(span.annotations, key=lambda ann: ann.value)
-        assert annotations[3].value == 'test_annotation'
-        assert annotations[3].timestamp == 42 * USECS
-        default_annotations.add('test_annotation')
-        assert set([ann.value for ann in annotations]) == default_annotations
-        assert len(span.binary_annotations) == 2
-        binary_annotations = sorted(
-            span.binary_annotations, key=lambda bin_ann: bin_ann.key)
-        assert binary_annotations[0].key == 'extra_binary_annotation'
-        assert binary_annotations[0].value == 'extra_value'
-        assert binary_annotations[1].key == 'some_key'
-        assert binary_annotations[1].value == 'some_value'
-
-    assert len(mock_logs) == 1
     check_span(_decode_binary_thrift_obj(mock_logs[0]))
     check_span(_decode_binary_thrift_obj(mock_firehose_logs[0]))
 

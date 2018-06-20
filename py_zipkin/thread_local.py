@@ -6,7 +6,7 @@ _thread_local = threading.local()
 
 
 def get_thread_local_zipkin_attrs():
-    """A wrapper to return _thread_local.requests
+    """A wrapper to return _thread_local.zipkin_attrs
 
     :returns: list that may contain zipkin attribute tuples
     :rtype: list
@@ -14,6 +14,17 @@ def get_thread_local_zipkin_attrs():
     if not hasattr(_thread_local, 'zipkin_attrs'):
         _thread_local.zipkin_attrs = []
     return _thread_local.zipkin_attrs
+
+
+def get_thread_local_span_store():
+    """A wrapper to return _thread_local.span_store
+
+    :returns: list that may contain zipkin spans
+    :rtype: list
+    """
+    if not hasattr(_thread_local, 'span_store'):
+        _thread_local.span_store = []
+    return _thread_local.span_store
 
 
 def get_zipkin_attrs():
