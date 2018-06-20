@@ -1,12 +1,10 @@
 # -*- coding: utf-8 -*-
 import time
-from logging import NullHandler
 
 from py_zipkin import _encoding_helpers
 from py_zipkin import thrift
 from py_zipkin.exception import ZipkinError
 from py_zipkin.transport import BaseTransportHandler
-from py_zipkin.util import generate_random_64bit_string
 
 
 LOGGING_END_KEY = 'py_zipkin.logging_end'

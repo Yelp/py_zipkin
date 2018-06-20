@@ -27,7 +27,10 @@ class Stack(object):
         self.index = 0
         return self
 
-    def __next__(self):
+    def __next__(self):  # pragma: no cover
+        return self.next()
+
+    def next(self):
         if len(self._storage) <= self.index:
             raise StopIteration
         self.index += 1
