@@ -5,23 +5,18 @@ import pytest
 import py_zipkin.zipkin as zipkin
 from py_zipkin import _encoding_helpers
 from py_zipkin.exception import ZipkinError
-from py_zipkin.stack import ThreadLocalStack
-from py_zipkin.stack import Stack
+from py_zipkin.storage import SpanStorage
+from py_zipkin.storage import ThreadLocalStack
 from py_zipkin.thread_local import get_zipkin_attrs
 from py_zipkin.util import generate_random_64bit_string
 from py_zipkin.zipkin import ZipkinAttrs
 from tests.conftest import MockTransportHandler
 
 
-class SimpleStack(Stack):
-    def __init__(self):
-        super(SimpleStack, self).__init__([])
-
-
 @pytest.fixture
 def mock_context_stack():
     with mock.patch(
-        'py_zipkin.stack.Stack', autospec=True,
+        'py_zipkin.storage.Stack', autospec=True,
     ) as mock_context_stack:
         yield mock_context_stack
 
@@ -37,7 +32,7 @@ def test_zipkin_span_for_new_trace(
 ):
     transport_handler = MockTransportHandler()
     firehose_handler = mock.Mock()
-    span_store = SimpleStack()
+    span_storage = SpanStorage()
 
     with zipkin.zipkin_span(
         service_name='some_service_name',
@@ -46,7 +41,7 @@ def test_zipkin_span_for_new_trace(
         port=5,
         sample_rate=100.0,
         context_stack=mock_context_stack,
-        span_store_stack=span_store,
+        span_storage=span_storage,
         firehose_handler=firehose_handler,
     ) as zipkin_context:
         assert zipkin_context.port == 5
@@ -66,7 +61,7 @@ def test_zipkin_span_for_new_trace(
         'span_name',
         transport_handler,
         True,
-        span_store,
+        span_storage,
         binary_annotations={},
         add_logging_annotation=False,
         client_context=False,
@@ -95,7 +90,7 @@ def test_zipkin_span_passed_sampled_attrs(
         flags='0',
         is_sampled=True,
     )
-    span_store = SimpleStack()
+    span_storage = SpanStorage()
 
     with zipkin.zipkin_span(
         service_name='some_service_name',
@@ -105,7 +100,7 @@ def test_zipkin_span_passed_sampled_attrs(
         sample_rate=100.0,
         zipkin_attrs=zipkin_attrs,
         context_stack=mock_context_stack,
-        span_store_stack=span_store,
+        span_storage=span_storage,
     ) as zipkin_context:
         assert zipkin_context.port == 5
 
@@ -120,7 +115,7 @@ def test_zipkin_span_passed_sampled_attrs(
         'span_name',
         transport_handler,
         False,
-        span_store,
+        span_storage,
         binary_annotations={},
         add_logging_annotation=False,
         client_context=False,
@@ -149,7 +144,7 @@ def test_zipkin_span_trace_with_0_sample_rate(
         is_sampled=False,
     )
     transport_handler = MockTransportHandler()
-    span_store = SimpleStack()
+    span_storage = SpanStorage()
 
     with zipkin.zipkin_span(
         service_name='some_service_name',
@@ -157,7 +152,7 @@ def test_zipkin_span_trace_with_0_sample_rate(
         transport_handler=transport_handler,
         sample_rate=0.0,
         context_stack=mock_context_stack,
-        span_store_stack=span_store,
+        span_storage=span_storage,
         firehose_handler=mock.Mock() if firehose_enabled else None
     ) as zipkin_context:
         assert zipkin_context.port == 0
@@ -183,6 +178,20 @@ def test_zipkin_span_sample_rate_required_params():
             span_name='span_name',
             port=5,
             sample_rate=100.0,
+        ):
+            pass
+
+
+def test_zipkin_span_span_storage_wrong_type():
+    # Missing transport_handler
+    with pytest.raises(ZipkinError):
+        with zipkin.zipkin_span(
+            service_name='some_service_name',
+            span_name='span_name',
+            transport_handler=MockTransportHandler(),
+            port=5,
+            sample_rate=100.0,
+            span_storage=[],
         ):
             pass
 
@@ -260,7 +269,7 @@ def test_zipkin_span_trace_with_no_sampling(
         transport_handler=MockTransportHandler(),
         port=5,
         context_stack=mock_context_stack,
-        span_store_stack=SimpleStack(),
+        span_storage=SpanStorage(),
     ):
         pass
 
@@ -302,7 +311,7 @@ def test_zipkin_trace_context_attrs_is_always_popped(
             port=22,
             sample_rate=100.0,
             context_stack=mock_context_stack,
-            span_store_stack=SimpleStack()
+            span_storage=SpanStorage()
         ):
             raise Exception
     mock_context_stack.pop.assert_called_once_with()
@@ -401,7 +410,7 @@ def test_span_context(
         is_sampled=True,
     )
     thread_local_mock.zipkin_attrs = [zipkin_attrs]
-    span_store = SimpleStack()
+    span_storage = SpanStorage()
 
     generate_string_mock.return_value = '1'
 
@@ -410,7 +419,7 @@ def test_span_context(
         span_name='span',
         annotations={'something': 1},
         binary_annotations={'foo': 'bar'},
-        span_store_stack=span_store,
+        span_storage=span_storage,
     )
     with context:
         # Assert that the new ZipkinAttrs were saved
@@ -420,7 +429,7 @@ def test_span_context(
     # Outside of the context, things should be returned to normal
     assert get_zipkin_attrs() == zipkin_attrs
 
-    client_span = span_store.pop()
+    client_span = span_storage.pop()
     # These reserved annotations are based on timestamps so pop em.
     # This also acts as a check that they exist.
     for annotation in expected_annotations:
@@ -451,7 +460,7 @@ def test_zipkin_server_span_decorator(
     mock_context_stack,
 ):
     transport_handler = MockTransportHandler()
-    span_store = SimpleStack()
+    span_storage = SpanStorage()
 
     @zipkin.zipkin_span(
         service_name='some_service_name',
@@ -461,7 +470,7 @@ def test_zipkin_server_span_decorator(
         sample_rate=100.0,
         host='1.5.1.2',
         context_stack=mock_context_stack,
-        span_store_stack=span_store,
+        span_storage=span_storage,
     )
     def test_func(a, b):
         return a + b
@@ -484,7 +493,7 @@ def test_zipkin_server_span_decorator(
         'span_name',
         transport_handler,
         True,
-        span_store,
+        span_storage,
         binary_annotations={},
         add_logging_annotation=False,
         client_context=False,
@@ -504,7 +513,7 @@ def test_zipkin_client_span_decorator(
     mock_context_stack,
 ):
     transport_handler = MockTransportHandler()
-    span_store = SimpleStack()
+    span_storage = SpanStorage()
 
     @zipkin.zipkin_span(
         service_name='some_service_name',
@@ -515,7 +524,7 @@ def test_zipkin_client_span_decorator(
         include=('client',),
         host='1.5.1.2',
         context_stack=mock_context_stack,
-        span_store_stack=span_store,
+        span_storage=span_storage,
     )
     def test_func(a, b):
         return a + b
@@ -538,7 +547,7 @@ def test_zipkin_client_span_decorator(
         'span_name',
         transport_handler,
         True,
-        span_store,
+        span_storage,
         binary_annotations={},
         add_logging_annotation=False,
         client_context=True,

@@ -4,11 +4,11 @@ import random
 import time
 from collections import namedtuple
 
-from py_zipkin import thread_local
+from py_zipkin import storage
 from py_zipkin._encoding_helpers import create_endpoint
 from py_zipkin.exception import ZipkinError
 from py_zipkin.logging_helper import ZipkinLoggingContext
-from py_zipkin.stack import ThreadLocalStack
+from py_zipkin.storage import ThreadLocalStack
 from py_zipkin.util import generate_random_128bit_string
 from py_zipkin.util import generate_random_64bit_string
 
@@ -111,7 +111,7 @@ class zipkin_span(object):
         use_128bit_trace_id=False,
         host=None,
         context_stack=None,
-        span_store_stack=None,
+        span_storage=None,
         firehose_handler=None
     ):
         """Logs a zipkin span. If this is the root span, then a zipkin
@@ -165,6 +165,9 @@ class zipkin_span(object):
         :param context_stack: explicit context stack for storing
             zipkin attributes
         :type context_stack: object
+        :param span_storage: explicit Span storage for storing zipkin spans
+            before they're emitted.
+        : type span_storage: py_zipkin.storage.SpanStorage
         :param firehose_handler: [EXPERIMENTAL] Similar to transport_handler,
             except that it will receive 100% of the spans regardless of trace
             sampling rate
@@ -185,9 +188,10 @@ class zipkin_span(object):
         self.use_128bit_trace_id = use_128bit_trace_id
         self.host = host
         self._context_stack = context_stack or ThreadLocalStack()
-        self._span_store = span_store_stack or ThreadLocalStack(
-            storage_fn=thread_local.get_thread_local_span_store,
-        )
+        if span_storage is not None:
+            self._span_storage = span_storage
+        else:
+            self._span_storage = storage.default_span_storage()
         self.firehose_handler = firehose_handler
 
         self.logging_context = None
@@ -196,7 +200,6 @@ class zipkin_span(object):
         # Spans that log a 'cs' timestamp can additionally record a
         # 'sa' binary annotation that shows where the request is going.
         self.sa_endpoint = None
-        self.existing_zipkin_attrs = None
 
         # Validation checks
         if self.zipkin_attrs or self.sample_rate is not None:
@@ -206,6 +209,10 @@ class zipkin_span(object):
 
         if self.sample_rate is not None and not (0.0 <= self.sample_rate <= 100.0):
             raise ZipkinError('Sample rate must be between 0.0 and 100.0')
+
+        if not isinstance(self._span_storage, storage.SpanStorage):
+            raise ZipkinError('span_storage should be an instance '
+                              'of py_zipkin.storage.SpanStorage')
 
         if not set(include).issubset(STANDARD_ANNOTATIONS_KEYS):
             raise ZipkinError(
@@ -233,7 +240,7 @@ class zipkin_span(object):
                 include=self.include,
                 host=self.host,
                 context_stack=self._context_stack,
-                span_store_stack=self._span_store,
+                span_storage=self._span_storage,
                 firehose_handler=self.firehose_handler,
             ):
                 return f(*args, **kwargs)
@@ -320,7 +327,7 @@ class zipkin_span(object):
                 self.span_name,
                 self.transport_handler,
                 report_root_timestamp or self.report_root_timestamp_override,
-                self._span_store,
+                self._span_storage,
                 binary_annotations=self.binary_annotations,
                 add_logging_annotation=self.add_logging_annotation,
                 client_context=client_context,
@@ -382,7 +389,7 @@ class zipkin_span(object):
             if annotation in self.annotation_filter:
                 self.annotations.setdefault(annotation, timestamp)
 
-        self._span_store.push({
+        self._span_storage.append({
             'trace_id': self.zipkin_attrs.trace_id,
             'span_name': self.span_name,
             'service_name': self.service_name,

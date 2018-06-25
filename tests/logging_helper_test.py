@@ -1,17 +1,12 @@
 import mock
 import pytest
 
-from tests.conftest import MockTransportHandler
-from py_zipkin import logging_helper
 from py_zipkin import _encoding_helpers
-from py_zipkin.stack import Stack
+from py_zipkin import logging_helper
 from py_zipkin.exception import ZipkinError
+from py_zipkin.storage import SpanStorage
 from py_zipkin.zipkin import ZipkinAttrs
-
-
-class SimpleStack(Stack):
-    def __init__(self):
-        super(SimpleStack, self).__init__([])
+from tests.conftest import MockTransportHandler
 
 
 @pytest.fixture
@@ -23,7 +18,7 @@ def context():
         span_name='span_name',
         transport_handler=MockTransportHandler(),
         report_root_timestamp=False,
-        span_store=SimpleStack()
+        span_storage=SpanStorage()
     )
 
 
@@ -52,12 +47,12 @@ def test_zipkin_logging_context(time_mock, context):
     # Tests the context manager aspects of the ZipkinLoggingContext
     time_mock.return_value = 42
     # Ignore the actual logging part
-    with mock.patch.object(context, 'log_spans'):
+    with mock.patch.object(context, 'emit_spans'):
         context.start()
         assert context.start_timestamp == 42
         context.stop()
         # Make sure the handler and the zipkin attrs are gone
-        assert context.log_spans.call_count == 1
+        assert context.emit_spans.call_count == 1
 
 
 @mock.patch('py_zipkin.logging_helper.time.time', autospec=True)
@@ -65,7 +60,7 @@ def test_zipkin_logging_context(time_mock, context):
             autospec=True)
 @mock.patch('py_zipkin.logging_helper.ZipkinBatchSender.add_span',
             autospec=True)
-def test_zipkin_logging_server_context_log_spans(
+def test_zipkin_logging_server_context_emit_spans(
     add_span_mock, flush_mock, time_mock, fake_endpoint
 ):
     # This lengthy function tests that the logging context properly
@@ -83,9 +78,9 @@ def test_zipkin_logging_server_context_log_spans(
         flags=None,
         is_sampled=True,
     )
-    span_store = SimpleStack()
+    span_storage = SpanStorage()
 
-    span_store.push({
+    span_storage.append({
         'trace_id': trace_id,
         'span_id': client_span_id,
         'parent_span_id': server_span_id,
@@ -104,7 +99,7 @@ def test_zipkin_logging_server_context_log_spans(
         span_name='GET /foo',
         transport_handler=transport_handler,
         report_root_timestamp=True,
-        span_store=span_store,
+        span_storage=span_storage,
     )
 
     context.start_timestamp = 24
@@ -119,7 +114,7 @@ def test_zipkin_logging_server_context_log_spans(
     expected_client_annotations = {'ann2': 2, 'cs': 26, 'cr': 30}
     expected_client_bin_annotations = {'bann2': 'yiss'}
 
-    context.log_spans()
+    context.emit_spans()
     client_log_call, server_log_call = add_span_mock.call_args_list
     assert server_log_call[1] == {
         'span_id': server_span_id,
@@ -153,7 +148,7 @@ def test_zipkin_logging_server_context_log_spans(
             autospec=True)
 @mock.patch('py_zipkin.logging_helper.ZipkinBatchSender.add_span',
             autospec=True)
-def test_zipkin_logging_server_context_log_spans_with_firehose(
+def test_zipkin_logging_server_context_emit_spans_with_firehose(
     add_span_mock, flush_mock, time_mock, fake_endpoint
 ):
     # This lengthy function tests that the logging context properly
@@ -172,9 +167,9 @@ def test_zipkin_logging_server_context_log_spans_with_firehose(
         is_sampled=True,
     )
 
-    span_store = SimpleStack()
+    span_storage = SpanStorage()
 
-    span_store.push({
+    span_storage.append({
         'trace_id': trace_id,
         'span_id': client_span_id,
         'parent_span_id': server_span_id,
@@ -194,7 +189,7 @@ def test_zipkin_logging_server_context_log_spans_with_firehose(
         span_name='GET /foo',
         transport_handler=transport_handler,
         report_root_timestamp=True,
-        span_store=span_store,
+        span_storage=span_storage,
         firehose_handler=firehose_handler,
     )
 
@@ -210,7 +205,7 @@ def test_zipkin_logging_server_context_log_spans_with_firehose(
     expected_client_annotations = {'ann2': 2, 'cs': 26, 'cr': 30}
     expected_client_bin_annotations = {'bann2': 'yiss'}
 
-    context.log_spans()
+    context.emit_spans()
     call_args = add_span_mock.call_args_list
     firehose_client_log_call, client_log_call = call_args[0], call_args[2]
     firehose_server_log_call, server_log_call = call_args[1], call_args[3]
@@ -246,7 +241,7 @@ def test_zipkin_logging_server_context_log_spans_with_firehose(
             autospec=True)
 @mock.patch('py_zipkin.logging_helper.ZipkinBatchSender.add_span',
             autospec=True)
-def test_zipkin_logging_client_context_log_spans(
+def test_zipkin_logging_client_context_emit_spans(
     add_span_mock, flush_mock, time_mock, fake_endpoint
 ):
     # This lengthy function tests that the logging context properly
@@ -261,7 +256,7 @@ def test_zipkin_logging_client_context_log_spans(
         is_sampled=True,
     )
 
-    span_store = SimpleStack()
+    span_storage = SpanStorage()
     transport_handler = mock.Mock()
 
     context = logging_helper.ZipkinLoggingContext(
@@ -270,7 +265,7 @@ def test_zipkin_logging_client_context_log_spans(
         span_name='GET /foo',
         transport_handler=transport_handler,
         report_root_timestamp=True,
-        span_store=span_store,
+        span_storage=span_storage,
         client_context=True,
     )
 
@@ -283,7 +278,7 @@ def test_zipkin_logging_client_context_log_spans(
     expected_server_annotations = {'cs': 24, 'cr': 42}
     expected_server_bin_annotations = {'k': 'v'}
 
-    context.log_spans()
+    context.emit_spans()
     log_call = add_span_mock.call_args_list[0]
     assert log_call[1] == {
         'span_id': client_span_id,
@@ -313,7 +308,7 @@ def test_batch_sender_add_span_not_called_if_not_sampled(add_span_mock,
         flags=None,
         is_sampled=False,
     )
-    span_store = SimpleStack()
+    span_storage = SpanStorage()
     transport_handler = mock.Mock()
 
     context = logging_helper.ZipkinLoggingContext(
@@ -322,9 +317,9 @@ def test_batch_sender_add_span_not_called_if_not_sampled(add_span_mock,
         span_name='span_name',
         transport_handler=transport_handler,
         report_root_timestamp=False,
-        span_store=span_store,
+        span_storage=span_storage,
     )
-    context.log_spans()
+    context.emit_spans()
     assert add_span_mock.call_count == 0
     assert flush_mock.call_count == 0
 
@@ -344,7 +339,7 @@ def test_batch_sender_add_span_not_sampled_with_firehose(add_span_mock,
         flags=None,
         is_sampled=False,
     )
-    span_store = SimpleStack()
+    span_storage = SpanStorage()
     transport_handler = mock.Mock()
     firehose_handler = mock.Mock()
 
@@ -354,7 +349,7 @@ def test_batch_sender_add_span_not_sampled_with_firehose(add_span_mock,
         span_name='span_name',
         transport_handler=transport_handler,
         report_root_timestamp=False,
-        span_store=span_store,
+        span_storage=span_storage,
         firehose_handler=firehose_handler,
     )
     context.start_timestamp = 24
@@ -363,7 +358,7 @@ def test_batch_sender_add_span_not_sampled_with_firehose(add_span_mock,
     context.binary_annotations_dict = {'k': 'v'}
     time_mock.return_value = 42
 
-    context.log_spans()
+    context.emit_spans()
     assert add_span_mock.call_count == 1
     assert flush_mock.call_count == 1
 

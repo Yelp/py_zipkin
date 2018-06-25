@@ -26,7 +26,7 @@ class ZipkinLoggingContext(object):
         span_name,
         transport_handler,
         report_root_timestamp,
-        span_store,
+        span_storage,
         binary_annotations=None,
         add_logging_annotation=False,
         client_context=False,
@@ -38,7 +38,7 @@ class ZipkinLoggingContext(object):
         self.span_name = span_name
         self.transport_handler = transport_handler
         self.response_status_code = 0
-        self.span_store = span_store
+        self.span_storage = span_storage
         self.report_root_timestamp = report_root_timestamp
         self.binary_annotations_dict = binary_annotations or {}
         self.add_logging_annotation = add_logging_annotation
@@ -59,10 +59,9 @@ class ZipkinLoggingContext(object):
         """Actions to be taken post request handling.
         """
 
-        # Log the service annotations to scribe.
-        self.log_spans()
+        self.emit_spans()
 
-    def log_spans(self):
+    def emit_spans(self):
         """Main function to log all the annotations stored during the entire
         request. This is done if the request is sampled and the response was
         a success. It also logs the service (`ss` and `sr`) or the client
@@ -72,28 +71,27 @@ class ZipkinLoggingContext(object):
         # FIXME: Should have a single aggregate handler
         if self.firehose_handler:
             # FIXME: We need to allow different batching settings per handler
-            self._log_spans_with_span_sender(
+            self._emit_spans_with_span_sender(
                 ZipkinBatchSender(self.firehose_handler,
                                   self.max_span_batch_size)
             )
 
         if not self.zipkin_attrs.is_sampled:
-            self.span_store.clear()
+            self.span_storage.clear()
             return
 
         span_sender = ZipkinBatchSender(self.transport_handler,
                                         self.max_span_batch_size)
 
-        self._log_spans_with_span_sender(span_sender)
+        self._emit_spans_with_span_sender(span_sender)
+        self.span_storage.clear()
 
-        self.span_store.clear()
-
-    def _log_spans_with_span_sender(self, span_sender):
+    def _emit_spans_with_span_sender(self, span_sender):
         with span_sender:
             end_timestamp = time.time()
 
             # Collect, annotate, and log client spans from the logging handler
-            for span in self.span_store:
+            for span in self.span_storage:
 
                 endpoint = _encoding_helpers.copy_endpoint_with_new_service_name(
                     self.endpoint, span['service_name']
