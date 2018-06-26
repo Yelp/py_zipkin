@@ -1,3 +1,9 @@
+0.13.0 (2018-06-25)
+-------------------
+- Removed deprecated `zipkin_logger.debug()` interface.
+- `py_zipkin.stack` was renamed as `py_zipkin.storage`. If you were
+  importing this module, you'll need to update your code.
+
 0.12.0 (2018-05-29)
 -------------------
 - Support max payload size for transport handlers.
