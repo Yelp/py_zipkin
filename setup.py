@@ -2,8 +2,12 @@
 # -*- coding: utf-8 -*-
 from setuptools import find_packages
 from setuptools import setup
+import os
 
 __version__ = '0.12.0'
+
+def read(f):
+    return open(os.path.join(os.path.dirname(__file__), f)).read().strip()
 
 setup(
     name='py_zipkin',
@@ -14,6 +18,8 @@ setup(
     license='Copyright Yelp 2018',
     url="https://github.com/Yelp/py_zipkin",
     description='Library for using Zipkin in Python.',
+    long_description='\n\n'.join((read('README.md'), read('CHANGELOG.rst'))),
+    long_description_content_type="text/markdown",
     packages=find_packages(exclude=('tests*', 'testing*', 'tools*')),
     package_data={'': ['*.thrift']},
     install_requires=[
