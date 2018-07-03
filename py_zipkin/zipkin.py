@@ -167,7 +167,7 @@ class zipkin_span(object):
         :type context_stack: object
         :param span_storage: explicit Span storage for storing zipkin spans
             before they're emitted.
-        : type span_storage: py_zipkin.storage.SpanStorage
+        :type span_storage: py_zipkin.storage.SpanStorage
         :param firehose_handler: [EXPERIMENTAL] Similar to transport_handler,
             except that it will receive 100% of the spans regardless of trace
             sampling rate
