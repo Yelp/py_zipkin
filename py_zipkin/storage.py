@@ -1,3 +1,5 @@
+from collections import deque
+
 from py_zipkin import thread_local
 
 
@@ -40,3 +42,11 @@ class ThreadLocalStack(Stack):
     @property
     def _storage(self):
         return thread_local.get_thread_local_zipkin_attrs()
+
+
+class SpanStorage(deque):
+    pass
+
+
+def default_span_storage():
+    return thread_local.get_thread_local_span_storage()

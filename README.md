@@ -199,10 +199,37 @@ Using in multithreading evironments
 -----------------------------------
 
 If you want to use py_zipkin in a cooperative multithreading environment,
-e.g. asyncio, you need to explicitly pass an instance of `py_zipkin.stack.Stack`
+e.g. asyncio, you need to explicitly pass an instance of `py_zipkin.storage.Stack`
 as parameter `context_stack` for `zipkin_span` and `create_http_headers_for_new_span`.
 By default, py_zipkin uses a thread local storage for the attributes, which is
-defined in `py_zipkin.stack.ThreadLocalStack`.
+defined in `py_zipkin.storage.ThreadLocalStack`.
+
+Additionally, you'll also need to explicitly pass an instance of
+`py_zipkin.storage.SpanStorage` as parameter `span_storage` to `zipkin_span`.
+
+```python
+from py_zipkin.zipkin import zipkin_span
+from py_zipkin.storage import Stack
+from py_zipkin.storage import SpanStorage
+
+
+def my_function():
+    context_stack = Stack()
+    span_storage = SpanStorage()
+    await my_function(context_stack, span_storage)
+
+async def my_function(context_stack, span_storage):
+    with zipkin_span(
+        service_name='my_service',
+        span_name='some_function',
+        transport_handler=some_handler,
+        port=42,
+        sample_rate=0.05,
+        context_stack=context_stack,
+        span_storage=span_storage,
+    ):
+        result = do_stuff(a, b)
+```
 
 
 Firehose mode [EXPERIMENTAL]
