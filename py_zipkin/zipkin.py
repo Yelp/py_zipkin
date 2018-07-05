@@ -2,10 +2,13 @@
 import functools
 import random
 import time
+import warnings
 from collections import namedtuple
 
+from py_zipkin import Kind
 from py_zipkin import storage
 from py_zipkin._encoding_helpers import create_endpoint
+from py_zipkin._encoding_helpers import SpanBuilder
 from py_zipkin.exception import ZipkinError
 from py_zipkin.logging_helper import ZipkinLoggingContext
 from py_zipkin.storage import ThreadLocalStack
@@ -26,13 +29,6 @@ ZipkinAttrs = namedtuple(
     'ZipkinAttrs',
     ['trace_id', 'span_id', 'parent_span_id', 'flags', 'is_sampled'],
 )
-
-
-STANDARD_ANNOTATIONS = {
-    'client': {'cs', 'cr'},
-    'server': {'ss', 'sr'},
-}
-STANDARD_ANNOTATIONS_KEYS = frozenset(STANDARD_ANNOTATIONS.keys())
 
 ERROR_KEY = 'error'
 
@@ -105,14 +101,17 @@ class zipkin_span(object):
         binary_annotations=None,
         port=0,
         sample_rate=None,
-        include=('client', 'server'),
+        include=None,
         add_logging_annotation=False,
         report_root_timestamp=False,
         use_128bit_trace_id=False,
         host=None,
         context_stack=None,
         span_storage=None,
-        firehose_handler=None
+        firehose_handler=None,
+        kind=None,
+        timestamp=None,
+        duration=None,
     ):
         """Logs a zipkin span. If this is the root span, then a zipkin
         trace is started as well.
@@ -125,7 +124,7 @@ class zipkin_span(object):
         :type zipkin_attrs: ZipkinAttrs
         :param transport_handler: Callback function that takes a message parameter
             and handles logging it
-        :type transport_handler: function
+        :type transport_handler: BaseTransportHandler
         :param max_span_batch_size: Spans in a trace are sent in batches,
         max_span_batch_size defines max size of one batch
         :type max_span_batch_size: int
@@ -144,7 +143,8 @@ class zipkin_span(object):
         :type sample_rate: float
         :param include: which annotations to include
             can be one of {'client', 'server'}
-            corresponding to ('cs', 'cr') and ('ss', 'sr') respectively
+            corresponding to ('cs', 'cr') and ('ss', 'sr') respectively.
+            DEPRECATED: use kind instead. `include` will be removed in 1.0.
         :type include: iterable
         :param add_logging_annotation: Whether to add a 'logging_end'
             annotation when py_zipkin finishes logging spans
@@ -170,8 +170,16 @@ class zipkin_span(object):
         :type span_storage: py_zipkin.storage.SpanStorage
         :param firehose_handler: [EXPERIMENTAL] Similar to transport_handler,
             except that it will receive 100% of the spans regardless of trace
-            sampling rate
-        :type firehose_handler: function
+            sampling rate.
+        :type firehose_handler: BaseTransportHandler
+        :param kind: Span type (client, server, local, etc...).
+        :type kind: Kind
+        :param timestamp: Timestamp in seconds, defaults to `time.time()`.
+            Set this if you want to use a custom timestamp.
+        :type timestamp: float
+        :param duration: Duration in seconds, defaults to the time spent in the
+            context. Set this if you want to use a custom duration.
+        :type duration: float
         """
         self.service_name = service_name
         self.span_name = span_name
@@ -182,7 +190,6 @@ class zipkin_span(object):
         self.binary_annotations = binary_annotations or {}
         self.port = port
         self.sample_rate = sample_rate
-        self.include = include
         self.add_logging_annotation = add_logging_annotation
         self.report_root_timestamp_override = report_root_timestamp
         self.use_128bit_trace_id = use_128bit_trace_id
@@ -193,6 +200,9 @@ class zipkin_span(object):
         else:
             self._span_storage = storage.default_span_storage()
         self.firehose_handler = firehose_handler
+        self.kind = self._generate_kind(kind, include)
+        self.timestamp = timestamp
+        self.duration = duration
 
         self.logging_context = None
         self.logging_configured = False
@@ -200,6 +210,29 @@ class zipkin_span(object):
         # Spans that log a 'cs' timestamp can additionally record a
         # 'sa' binary annotation that shows where the request is going.
         self.sa_endpoint = None
+
+        # It used to  be possible to override timestamp and duration by passing
+        # in the cs/cr or sr/ss annotations. We want to keep backward compatibilty
+        # for now, so this logic overrides self.timestamp and self.duration in the
+        # same way.
+        # This doesn't fit well with v2 spans since those annotations are gone, so
+        # we also log a deprecation warning.
+        if 'sr' in self.annotations and 'ss' in self.annotations:
+            self.duration = self.annotations['ss'] - self.annotations['sr']
+            self.timestamp = self.annotations['sr']
+            warnings.warn(
+                "Manually setting 'sr'/'ss' annotations is deprecated. Please "
+                "use the timestamp and duration parameters.",
+                DeprecationWarning,
+            )
+        if 'cr' in self.annotations and 'cs' in self.annotations:
+            self.duration = self.annotations['cr'] - self.annotations['cs']
+            self.timestamp = self.annotations['cs']
+            warnings.warn(
+                "Manually setting 'cr'/'cs' annotations is deprecated. Please "
+                "use the timestamp and duration parameters.",
+                DeprecationWarning,
+            )
 
         # Validation checks
         if self.zipkin_attrs or self.sample_rate is not None:
@@ -214,17 +247,6 @@ class zipkin_span(object):
             raise ZipkinError('span_storage should be an instance '
                               'of py_zipkin.storage.SpanStorage')
 
-        if not set(include).issubset(STANDARD_ANNOTATIONS_KEYS):
-            raise ZipkinError(
-                'Only %s are supported as annotations' %
-                STANDARD_ANNOTATIONS_KEYS
-            )
-        else:
-            # get a list of all of the mapped annotations
-            self.annotation_filter = set()
-            for include_name in include:
-                self.annotation_filter.update(STANDARD_ANNOTATIONS[include_name])
-
     def __call__(self, f):
         @functools.wraps(f)
         def decorated(*args, **kwargs):
@@ -237,17 +259,45 @@ class zipkin_span(object):
                 binary_annotations=self.binary_annotations,
                 port=self.port,
                 sample_rate=self.sample_rate,
-                include=self.include,
                 host=self.host,
                 context_stack=self._context_stack,
                 span_storage=self._span_storage,
                 firehose_handler=self.firehose_handler,
+                kind=self.kind,
+                timestamp=self.timestamp,
+                duration=self.duration,
             ):
                 return f(*args, **kwargs)
         return decorated
 
     def __enter__(self):
         return self.start()
+
+    def _generate_kind(self, kind, include):
+        # If `kind` is not set, then we generate it from `include`.
+        # This code maintains backward compatibility with old versions of py_zipkin
+        # which used include rather than kind to identify client / server spans.
+        if kind:
+            return kind
+        else:
+            if include:
+                # If `include` contains only one of `client` or `server`
+                # than it's a client or server span respectively.
+                # If neither or both are present, then it's a local span
+                # which is represented by kind = None.
+                warnings.warn(
+                    'The include argument is deprecated. Please use kind.',
+                    DeprecationWarning,
+                )
+                if 'client' in include and 'server' not in include:
+                    return Kind.CLIENT
+                elif 'client' not in include and 'server' in include:
+                    return Kind.SERVER
+                else:
+                    return Kind.LOCAL
+
+        # If both kind and include are unset, then it's a local span.
+        return Kind.LOCAL
 
     def start(self):
         """Enter the new span context. All annotations logged inside this
@@ -320,7 +370,6 @@ class zipkin_span(object):
             if not self.zipkin_attrs.is_sampled and not self.firehose_handler:
                 return self
             endpoint = create_endpoint(self.port, self.service_name, self.host)
-            client_context = set(self.include) == {'client'}
             self.logging_context = ZipkinLoggingContext(
                 self.zipkin_attrs,
                 endpoint,
@@ -328,9 +377,10 @@ class zipkin_span(object):
                 self.transport_handler,
                 report_root_timestamp or self.report_root_timestamp_override,
                 self._span_storage,
+                self.service_name,
                 binary_annotations=self.binary_annotations,
                 add_logging_annotation=self.add_logging_annotation,
-                client_context=client_context,
+                client_context=self.kind == Kind.CLIENT,
                 max_span_batch_size=self.max_span_batch_size,
                 firehose_handler=self.firehose_handler,
             )
@@ -374,31 +424,25 @@ class zipkin_span(object):
         # this context's root span (i.e. it's a zipkin_span inside another
         # zipkin_span).
         end_timestamp = time.time()
+        # If self.duration is set, it means the user wants to override it
+        if self.duration:
+            duration = self.duration
+        else:
+            duration = end_timestamp - self.start_timestamp
 
-        # We are simulating a full two-part span locally, so set cs=sr and ss=cr
-        full_annotations = {
-            'cs': self.start_timestamp,
-            'sr': self.start_timestamp,
-            'ss': end_timestamp,
-            'cr': end_timestamp,
-        }
-
-        # Update the the annotations if they aren't already set
-        # This prevents overwriting user-defined annotations
-        for annotation, timestamp in full_annotations.items():
-            if annotation in self.annotation_filter:
-                self.annotations.setdefault(annotation, timestamp)
-
-        self._span_storage.append({
-            'trace_id': self.zipkin_attrs.trace_id,
-            'span_name': self.span_name,
-            'service_name': self.service_name,
-            'parent_span_id': self.zipkin_attrs.parent_span_id,
-            'span_id': self.zipkin_attrs.span_id,
-            'annotations': self.annotations,
-            'binary_annotations': self.binary_annotations,
-            'sa_endpoint': self.sa_endpoint,
-        })
+        self._span_storage.append(SpanBuilder(
+            trace_id=self.zipkin_attrs.trace_id,
+            name=self.span_name,
+            parent_id=self.zipkin_attrs.parent_span_id,
+            span_id=self.zipkin_attrs.span_id,
+            timestamp=self.timestamp if self.timestamp else self.start_timestamp,
+            duration=duration,
+            annotations=self.annotations,
+            tags=self.binary_annotations,
+            kind=self.kind,
+            service_name=self.service_name,
+            sa_endpoint=self.sa_endpoint,
+        ))
 
     def update_binary_annotations(self, extra_annotations):
         """Updates the binary annotations for the current span.
@@ -439,7 +483,7 @@ class zipkin_span(object):
         if not self.zipkin_attrs:
             return
 
-        if 'client' not in self.include:
+        if self.kind != Kind.CLIENT:
             # TODO: trying to set a sa binary annotation for a non-client span
             # should result in a logged error
             return
@@ -460,9 +504,9 @@ class zipkin_span(object):
 
 
 def _validate_args(kwargs):
-    if 'include' in kwargs:
+    if 'kind' in kwargs:
         raise ValueError(
-            '"include" is not valid in this context. '
+            '"kind" is not valid in this context. '
             'You probably want to use zipkin_span()'
         )
 
@@ -480,7 +524,7 @@ class zipkin_client_span(zipkin_span):
         """
         _validate_args(kwargs)
 
-        kwargs['include'] = ('client',)
+        kwargs['kind'] = Kind.CLIENT
         super(zipkin_client_span, self).__init__(*args, **kwargs)
 
 
@@ -497,7 +541,7 @@ class zipkin_server_span(zipkin_span):
         """
         _validate_args(kwargs)
 
-        kwargs['include'] = ('server',)
+        kwargs['kind'] = Kind.SERVER
         super(zipkin_server_span, self).__init__(*args, **kwargs)
 
 
