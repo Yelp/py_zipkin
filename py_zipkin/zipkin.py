@@ -5,6 +5,7 @@ import time
 import warnings
 from collections import namedtuple
 
+from py_zipkin import Encoding
 from py_zipkin import Kind
 from py_zipkin import storage
 from py_zipkin._encoding_helpers import create_endpoint
@@ -112,6 +113,7 @@ class zipkin_span(object):
         kind=None,
         timestamp=None,
         duration=None,
+        encoding=Encoding.V1_THRIFT,
     ):
         """Logs a zipkin span. If this is the root span, then a zipkin
         trace is started as well.
@@ -126,7 +128,7 @@ class zipkin_span(object):
             and handles logging it
         :type transport_handler: BaseTransportHandler
         :param max_span_batch_size: Spans in a trace are sent in batches,
-        max_span_batch_size defines max size of one batch
+            max_span_batch_size defines max size of one batch
         :type max_span_batch_size: int
         :param annotations: Optional dict of str -> timestamp annotations
         :type annotations: dict of str -> int
@@ -157,10 +159,10 @@ class zipkin_span(object):
             sampling decisions (i.e. are the root spans of entire traces) will
             always report timestamp/duration.
         :type report_root_timestamp: boolean
-        :param use_128bit_trace_id: If true, generate 128-bit trace_ids
+        :param use_128bit_trace_id: If true, generate 128-bit trace_ids.
         :type use_128bit_trace_id: boolean
-        :param host: Contains the ipv4 value of the host. The ipv4 value isn't
-            automatically determined in a docker environment
+        :param host: Contains the ipv4 or ipv6 value of the host. The ip value
+            isn't automatically determined in a docker environment.
         :type host: string
         :param context_stack: explicit context stack for storing
             zipkin attributes
@@ -180,6 +182,8 @@ class zipkin_span(object):
         :param duration: Duration in seconds, defaults to the time spent in the
             context. Set this if you want to use a custom duration.
         :type duration: float
+        :param encoding: Output encoding format, defaults to V1 thrift spans.
+        :type encoding: Encoding
         """
         self.service_name = service_name
         self.span_name = span_name
@@ -203,6 +207,7 @@ class zipkin_span(object):
         self.kind = self._generate_kind(kind, include)
         self.timestamp = timestamp
         self.duration = duration
+        self.encoding = encoding
 
         self.logging_context = None
         self.logging_configured = False
@@ -212,7 +217,7 @@ class zipkin_span(object):
         self.sa_endpoint = None
 
         # It used to  be possible to override timestamp and duration by passing
-        # in the cs/cr or sr/ss annotations. We want to keep backward compatibilty
+        # in the cs/cr or sr/ss annotations. We want to keep backward compatibility
         # for now, so this logic overrides self.timestamp and self.duration in the
         # same way.
         # This doesn't fit well with v2 spans since those annotations are gone, so
@@ -266,6 +271,7 @@ class zipkin_span(object):
                 kind=self.kind,
                 timestamp=self.timestamp,
                 duration=self.duration,
+                encoding=self.encoding,
             ):
                 return f(*args, **kwargs)
         return decorated
@@ -383,6 +389,7 @@ class zipkin_span(object):
                 client_context=self.kind == Kind.CLIENT,
                 max_span_batch_size=self.max_span_batch_size,
                 firehose_handler=self.firehose_handler,
+                encoding=self.encoding,
             )
             self.logging_context.start()
 

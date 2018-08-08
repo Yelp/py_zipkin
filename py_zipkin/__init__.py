@@ -5,4 +5,5 @@ import warnings
 warnings.simplefilter('default', DeprecationWarning)
 
 # Export useful functions and types from private modules.
+from py_zipkin._encoding_helpers import Encoding  # noqa
 from py_zipkin._encoding_helpers import Kind  # noqa

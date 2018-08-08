@@ -1,13 +1,15 @@
 import mock
 import pytest
 
+from py_zipkin import Encoding
+from py_zipkin import Kind
 from py_zipkin import _encoding_helpers
 from py_zipkin import logging_helper
-from py_zipkin import Kind
 from py_zipkin._encoding_helpers import SpanBuilder
 from py_zipkin.exception import ZipkinError
 from py_zipkin.storage import SpanStorage
 from py_zipkin.zipkin import ZipkinAttrs
+from tests.conftest import MockEncoder
 from tests.conftest import MockTransportHandler
 
 
@@ -22,6 +24,7 @@ def context():
         report_root_timestamp=False,
         span_storage=SpanStorage(),
         service_name='test_server',
+        encoding=Encoding.V1_JSON,
     )
 
 
@@ -107,6 +110,7 @@ def test_zipkin_logging_server_context_emit_spans(
         report_root_timestamp=True,
         span_storage=span_storage,
         service_name='test_server',
+        encoding=Encoding.V1_JSON,
     )
 
     context.start_timestamp = 24
@@ -186,6 +190,7 @@ def test_zipkin_logging_server_context_emit_spans_with_firehose(
         span_storage=span_storage,
         firehose_handler=firehose_handler,
         service_name='test_server',
+        encoding=Encoding.V1_JSON,
     )
 
     context.start_timestamp = 24
@@ -249,6 +254,7 @@ def test_zipkin_logging_client_context_emit_spans(
         span_storage=span_storage,
         client_context=True,
         service_name='test_server',
+        encoding=Encoding.V1_JSON,
     )
 
     context.start_timestamp = 24
@@ -299,6 +305,7 @@ def test_batch_sender_add_span_not_called_if_not_sampled(add_span_mock,
         report_root_timestamp=False,
         span_storage=span_storage,
         service_name='test_server',
+        encoding=Encoding.V1_JSON,
     )
     context.emit_spans()
     assert add_span_mock.call_count == 0
@@ -333,6 +340,7 @@ def test_batch_sender_add_span_not_sampled_with_firehose(add_span_mock,
         span_storage=span_storage,
         firehose_handler=firehose_handler,
         service_name='test_server',
+        encoding=Encoding.V1_JSON,
     )
     context.start_timestamp = 24
     context.response_status_code = 200
@@ -345,9 +353,7 @@ def test_batch_sender_add_span_not_sampled_with_firehose(add_span_mock,
     assert flush_mock.call_count == 1
 
 
-@mock.patch('py_zipkin.logging_helper.thrift.encode_bytes_list', autospec=True)
 def test_batch_sender_add_span(
-    mock_encode_bytes_list,
     empty_annotations_dict,
     empty_binary_annotations_dict,
     fake_endpoint,
@@ -355,7 +361,12 @@ def test_batch_sender_add_span(
     # This test verifies it's possible to add 1 span without throwing errors.
     # It also checks that exiting the ZipkinBatchSender context manager
     # triggers a flush of all the already added spans.
-    sender = logging_helper.ZipkinBatchSender(MockTransportHandler())
+    encoder = MockEncoder(encoded_queue='foobar')
+    sender = logging_helper.ZipkinBatchSender(
+        transport_handler=MockTransportHandler(),
+        max_portion_size=None,
+        encoder=encoder,
+    )
     with sender:
         sender.add_span(SpanBuilder(
             trace_id='000000000000000f',
@@ -370,26 +381,33 @@ def test_batch_sender_add_span(
             local_endpoint=fake_endpoint,
             service_name='test_service',
         ))
-    assert mock_encode_bytes_list.call_count == 1
+    assert encoder.encode_queue.call_count == 1
 
 
 def test_batch_sender_with_error_on_exit():
-    sender = logging_helper.ZipkinBatchSender(MockTransportHandler())
+    sender = logging_helper.ZipkinBatchSender(
+        MockTransportHandler(),
+        None,
+        MockEncoder(),
+    )
     with pytest.raises(ZipkinError):
         with sender:
             raise Exception('Error!')
 
 
-@mock.patch('py_zipkin.logging_helper.thrift.encode_bytes_list', autospec=True)
 def test_batch_sender_add_span_many_times(
-    mock_encode_bytes_list,
     empty_annotations_dict,
     empty_binary_annotations_dict,
     fake_endpoint,
 ):
     # We create MAX_PORTION_SIZE * 2 + 1 spans, so we should trigger flush 3
     # times, once every MAX_PORTION_SIZE spans.
-    sender = logging_helper.ZipkinBatchSender(MockTransportHandler())
+    encoder = MockEncoder()
+    sender = logging_helper.ZipkinBatchSender(
+        transport_handler=MockTransportHandler(),
+        max_portion_size=None,
+        encoder=encoder,
+    )
     max_portion_size = logging_helper.ZipkinBatchSender.MAX_PORTION_SIZE
     with sender:
         for _ in range(max_portion_size * 2 + 1):
@@ -408,10 +426,10 @@ def test_batch_sender_add_span_many_times(
                 report_timestamp=False,
             ))
 
-    assert mock_encode_bytes_list.call_count == 3
-    assert len(mock_encode_bytes_list.call_args_list[0][0][0]) == max_portion_size
-    assert len(mock_encode_bytes_list.call_args_list[1][0][0]) == max_portion_size
-    assert len(mock_encode_bytes_list.call_args_list[2][0][0]) == 1
+    assert encoder.encode_queue.call_count == 3
+    assert len(encoder.encode_queue.call_args_list[0][0][0]) == max_portion_size
+    assert len(encoder.encode_queue.call_args_list[1][0][0]) == max_portion_size
+    assert len(encoder.encode_queue.call_args_list[2][0][0]) == 1
 
 
 def test_batch_sender_add_span_too_big(
@@ -423,7 +441,11 @@ def test_batch_sender_add_span_too_big(
     # Each encoded span is 175 bytes, so we can fit 5 of those in 1000 bytes.
     mock_transport_handler = mock.Mock(spec=MockTransportHandler)
     mock_transport_handler.get_max_payload_bytes = lambda: 1000
-    sender = logging_helper.ZipkinBatchSender(mock_transport_handler, 100)
+    sender = logging_helper.ZipkinBatchSender(
+        mock_transport_handler,
+        100,
+        _encoding_helpers.get_encoder(Encoding.V1_THRIFT),
+    )
     with sender:
         for _ in range(201):
             sender.add_span(SpanBuilder(
@@ -452,18 +474,21 @@ def test_batch_sender_add_span_too_big(
     assert len(mock_transport_handler.call_args_list[40][0][0]) == 180
 
 
-@mock.patch('py_zipkin.logging_helper.thrift.encode_bytes_list', autospec=True)
 def test_batch_sender_flush_calls_transport_handler_with_correct_params(
-    mock_encode_bytes_list,
     empty_annotations_dict,
     empty_binary_annotations_dict,
     fake_endpoint,
 ):
     # Tests that the transport handler is called with the value returned
-    # by thrift.encode_bytes_list.
+    # by encoder.encode_queue.
     transport_handler = mock.Mock()
     transport_handler.get_max_payload_bytes = lambda: None
-    sender = logging_helper.ZipkinBatchSender(transport_handler)
+    encoder = MockEncoder(encoded_queue='foobar')
+    sender = logging_helper.ZipkinBatchSender(
+        transport_handler=transport_handler,
+        max_portion_size=None,
+        encoder=encoder,
+    )
     with sender:
         sender.add_span(SpanBuilder(
             trace_id='000000000000000f',
@@ -479,21 +504,22 @@ def test_batch_sender_flush_calls_transport_handler_with_correct_params(
             service_name='test_service',
             report_timestamp=False,
         ))
-    transport_handler.assert_called_once_with(mock_encode_bytes_list.return_value)
+    transport_handler.assert_called_once_with('foobar')
 
 
-@mock.patch('py_zipkin.logging_helper.thrift.create_span', autospec=True)
-@mock.patch('py_zipkin.logging_helper.thrift.encode_bytes_list', autospec=True)
 def test_batch_sender_defensive_about_transport_handler(
-    mock_encode_bytes_list,
-    create_sp,
     empty_annotations_dict,
     empty_binary_annotations_dict,
     fake_endpoint,
 ):
     """Make sure log_span doesn't try to call the transport handler if it's
     None."""
-    sender = logging_helper.ZipkinBatchSender(transport_handler=None)
+    encoder = MockEncoder()
+    sender = logging_helper.ZipkinBatchSender(
+        transport_handler=None,
+        max_portion_size=None,
+        encoder=encoder,
+    )
     with sender:
         sender.add_span(SpanBuilder(
             trace_id='000000000000000f',
@@ -509,5 +535,5 @@ def test_batch_sender_defensive_about_transport_handler(
             service_name='test_service',
             report_timestamp=False,
         ))
-    assert create_sp.call_count == 1
-    assert mock_encode_bytes_list.call_count == 0
+    assert encoder.encode_span.call_count == 1
+    assert encoder.encode_queue.call_count == 0

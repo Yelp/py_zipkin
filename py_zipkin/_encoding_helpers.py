@@ -1,8 +1,11 @@
+# -*- coding: utf-8 -*-
+import json
 import socket
 from collections import namedtuple
 
 from enum import Enum
 
+from py_zipkin import thrift
 from py_zipkin.exception import ZipkinError
 
 
@@ -15,14 +18,21 @@ Endpoint = namedtuple(
 _V1Span = namedtuple(
     'V1Span',
     ['trace_id', 'name', 'parent_id', 'id', 'timestamp', 'duration', 'endpoint',
-     'debug', 'annotations', 'binary_annotations', 'sa_endpoint'],
+     'annotations', 'binary_annotations', 'sa_endpoint'],
 )
 
 
 class Kind(Enum):
+    """Type of Span."""
     CLIENT = 'CLIENT'
     SERVER = 'SERVER'
     LOCAL = None
+
+
+class Encoding(Enum):
+    """Supported output encodings."""
+    V1_THRIFT = 1
+    V1_JSON = 2
 
 
 _DROP_ANNOTATIONS_BY_KIND = {
@@ -32,6 +42,12 @@ _DROP_ANNOTATIONS_BY_KIND = {
 
 
 class SpanBuilder(object):
+    """Internal Span representation. It can generate both v1 and v2 spans.
+
+    It doesn't exactly map to either V1 or V2, since an intermediate format
+    makes it easier to convert to either format.
+    """
+
     def __init__(
         self,
         trace_id,
@@ -48,10 +64,7 @@ class SpanBuilder(object):
         sa_endpoint=None,
         report_timestamp=True,
     ):
-        """Internal Span representation. It can generate both v1 and v2 spans.
-
-        It doesn't exactly map to either V1 or V2, since an intermediate format
-        makes it easier to convert to either format.
+        """Creates a new SpanBuilder.
 
         :param trace_id: Trace id.
         :type trace_id: str
@@ -95,14 +108,15 @@ class SpanBuilder(object):
         self.sa_endpoint = sa_endpoint
         self.report_timestamp = report_timestamp
 
-        if kind is not None and not isinstance(kind, Kind):
+        if not isinstance(kind, Kind):
             raise ZipkinError(
                 'Invalid kind value {}. Must be of type Kind.'.format(kind))
 
     def build_v1_span(self):
-        """Converts the current span to a V1 Span.
+        """Builds and returns a V1 Span.
 
-        :returns: newly generated _V1Span
+        :return: newly generated _V1Span
+        :rtype: _V1Span
         """
         # We are simulating a full two-part span locally, so set cs=sr and ss=cr
         full_annotations = {
@@ -131,7 +145,6 @@ class SpanBuilder(object):
             timestamp=self.timestamp if self.report_timestamp else None,
             duration=self.duration if self.report_timestamp else None,
             endpoint=self.local_endpoint,
-            debug=False,
             annotations=full_annotations,
             binary_annotations=self.tags,
             sa_endpoint=self.sa_endpoint,
@@ -195,3 +208,207 @@ def copy_endpoint_with_new_service_name(endpoint, new_service_name):
         ipv6=endpoint.ipv6,
         port=endpoint.port,
     )
+
+
+def get_encoder(encoding):
+    """Creates encoder object for the given encoding.
+
+    :param encoding: desired output encoding protocol.
+    :type encoding: Encoding
+    :return: corresponding IEncoder object
+    :rtype: IEncoder
+    """
+    if encoding == Encoding.V1_THRIFT:
+        return _V1ThriftEncoder()
+    if encoding == Encoding.V1_JSON:
+        return _V1JSONEncoder()
+    raise ZipkinError('Unknown encoding: {}'.format(encoding))
+
+
+class IEncoder(object):
+    """Encoder interface."""
+
+    def fits(self, current_count, current_size, max_size, new_span):
+        """Returns whether the new span will fit in the list.
+
+        :param current_count: number of spans already in the list.
+        :type current_count: int
+        :param current_size: sum of the sizes of all the spans already in the list.
+        :type current_size: int
+        :param max_size: max supported transport payload size.
+        :type max_size: int
+        :param new_span: encoded span object that we want to add the the list.
+        :type new_span: str or bytes
+        :return: True if the new span can be added to the list, False otherwise.
+        :rtype: bool
+        """
+        raise NotImplementedError()
+
+    def encode_span(self, span_builder):
+        """Encodes a single span.
+
+        :param span_builder: span_builder object representing the span.
+        :type span_builder: SpanBuilder
+        :return: encoded span.
+        :rtype: str or bytes
+        """
+        raise NotImplementedError()
+
+    def encode_queue(self, queue):
+        """Encodes a list of pre-encoded spans.
+
+        :param queue: list of encoded spans.
+        :type queue: list
+        :return: encoded list, type depends on the encoding.
+        :rtype: str or bytes
+        """
+        raise NotImplementedError()
+
+
+class _V1ThriftEncoder(IEncoder):
+    """Thrift encoder for V1 spans."""
+
+    def fits(self, current_count, current_size, max_size, new_span):
+        """Checks if the new span fits in the max payload size.
+
+        Thrift lists have a fixed-size header and no delimiters between elements
+        so it's easy to compute the list size.
+        """
+        return thrift.LIST_HEADER_SIZE + current_size + len(new_span) <= max_size
+
+    def encode_span(self, span_builder):
+        """Encodes the current span to thrift."""
+        span = span_builder.build_v1_span()
+
+        thrift_endpoint = thrift.create_endpoint(
+            span.endpoint.port,
+            span.endpoint.service_name,
+            span.endpoint.ipv4,
+            span.endpoint.ipv6,
+        )
+
+        thrift_annotations = thrift.annotation_list_builder(
+            span.annotations,
+            thrift_endpoint,
+        )
+
+        thrift_binary_annotations = thrift.binary_annotation_list_builder(
+            span.binary_annotations,
+            thrift_endpoint,
+        )
+
+        # Add sa binary annotation
+        if span.sa_endpoint is not None:
+            thrift_sa_endpoint = thrift.create_endpoint(
+                span.sa_endpoint.port,
+                span.sa_endpoint.service_name,
+                span.sa_endpoint.ipv4,
+                span.sa_endpoint.ipv6,
+            )
+            thrift_binary_annotations.append(thrift.create_binary_annotation(
+                key=thrift.zipkin_core.SERVER_ADDR,
+                value=thrift.SERVER_ADDR_VAL,
+                annotation_type=thrift.zipkin_core.AnnotationType.BOOL,
+                host=thrift_sa_endpoint,
+            ))
+
+        thrift_span = thrift.create_span(
+            span.id,
+            span.parent_id,
+            span.trace_id,
+            span.name,
+            thrift_annotations,
+            thrift_binary_annotations,
+            span.timestamp,
+            span.duration,
+        )
+
+        encoded_span = thrift.span_to_bytes(thrift_span)
+        return encoded_span
+
+    def encode_queue(self, queue):
+        """Converts the queue to a thrift list"""
+        return thrift.encode_bytes_list(queue)
+
+
+class _V1JSONEncoder(IEncoder):
+    """JSON encoder for V1 spans."""
+
+    def fits(self, current_count, current_size, max_size, new_span):
+        """Checks if the new span fits in the max payload size.
+
+        Json lists only have a 2 bytes overhead from '[]' plus 1 byte from
+        ',' between elements
+        """
+        return 2 + current_count + current_size + len(new_span) <= max_size
+
+    def _create_v1_endpoint(self, endpoint):
+        """Converts an Endpoint to a v1 endpoint dict.
+
+        :param endpoint: endpoint object to convert.
+        :type endpoint: Endpoint
+        :return: dict representing a V1 endpoint.
+        :rtype: dict
+        """
+        v1_endpoint = {
+            'serviceName': endpoint.service_name,
+            'port': endpoint.port,
+        }
+        if endpoint.ipv4 is not None:
+            v1_endpoint['ipv4'] = endpoint.ipv4
+        if endpoint.ipv6 is not None:
+            v1_endpoint['ipv6'] = endpoint.ipv6
+
+        return v1_endpoint
+
+    def encode_span(self, span_builder):
+        """Encodes a single span to JSON."""
+        span = span_builder.build_v1_span()
+
+        json_span = {
+            'traceId': span.trace_id,
+            'name': span.name,
+            'id': span.id,
+            'annotations': [],
+            'binaryAnnotations': [],
+        }
+
+        if span.parent_id:
+            json_span['parentId'] = span.parent_id
+        if span.timestamp:
+            json_span['timestamp'] = int(span.timestamp * 1000000)
+        if span.duration:
+            json_span['duration'] = int(span.duration * 1000000)
+
+        v1_endpoint = self._create_v1_endpoint(span.endpoint)
+
+        for key, timestamp in span.annotations.items():
+            json_span['annotations'].append({
+                'endpoint': v1_endpoint,
+                'timestamp': int(timestamp * 1000000),
+                'value': key,
+            })
+
+        for key, value in span.binary_annotations.items():
+            json_span['binaryAnnotations'].append({
+                'key': key,
+                'value': value,
+                'endpoint': v1_endpoint,
+            })
+
+        # Add sa binary annotations
+        if span.sa_endpoint is not None:
+            json_sa_endpoint = self._create_v1_endpoint(span.sa_endpoint)
+            json_span['binaryAnnotations'].append({
+                'key': 'sa',
+                'value': '1',
+                'endpoint': json_sa_endpoint,
+            })
+
+        encoded_span = json.dumps(json_span)
+
+        return encoded_span
+
+    def encode_queue(self, queue):
+        """Concatenates the list to a JSON list"""
+        return '[' + ','.join(queue) + ']'

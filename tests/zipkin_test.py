@@ -6,6 +6,7 @@ import pytest
 
 import py_zipkin.zipkin as zipkin
 from py_zipkin import _encoding_helpers
+from py_zipkin import Encoding
 from py_zipkin import Kind
 from py_zipkin._encoding_helpers import _V1Span
 from py_zipkin.exception import ZipkinError
@@ -72,6 +73,7 @@ def test_zipkin_span_for_new_trace(
         client_context=False,
         max_span_batch_size=None,
         firehose_handler=firehose_handler,
+        encoding=Encoding.V1_THRIFT,
     )
     mock_context_stack.pop.assert_called_once_with()
 
@@ -126,7 +128,8 @@ def test_zipkin_span_passed_sampled_attrs(
         add_logging_annotation=False,
         client_context=False,
         max_span_batch_size=None,
-        firehose_handler=None
+        firehose_handler=None,
+        encoding=Encoding.V1_THRIFT,
     )
     mock_context_stack.pop.assert_called_once_with()
 
@@ -459,7 +462,6 @@ def test_span_context(
         timestamp=ts,
         duration=0.0,
         endpoint=None,
-        debug=False,
         annotations={},
         binary_annotations={'foo': 'bar'},
         sa_endpoint=None,
@@ -519,6 +521,7 @@ def test_zipkin_server_span_decorator(
         client_context=False,
         max_span_batch_size=None,
         firehose_handler=None,
+        encoding=Encoding.V1_THRIFT,
     )
     mock_context_stack.pop.assert_called_once_with()
 
@@ -574,6 +577,7 @@ def test_zipkin_client_span_decorator(
         client_context=True,
         max_span_batch_size=None,
         firehose_handler=None,
+        encoding=Encoding.V1_THRIFT,
     )
     mock_context_stack.pop.assert_called_once_with()
 
