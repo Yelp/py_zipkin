@@ -23,6 +23,7 @@ setup(
     packages=find_packages(exclude=('tests*', 'testing*', 'tools*')),
     package_data={'': ['*.thrift']},
     install_requires=[
+        'enum34;python_version<"3.4"',
         'six',
         'thriftpy',
     ],

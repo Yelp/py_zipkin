@@ -11,6 +11,7 @@ matrix:
     env: TOXENV=py36
   - python: 2.7
     env: TOXENV=flake8
+before_install: pip install -U pip==18.0
 install: pip install tox coveralls
 script: tox
 after_success: coveralls

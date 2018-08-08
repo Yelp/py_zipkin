@@ -1,9 +1,13 @@
 # -*- coding: utf-8 -*-
+import time
+
 import mock
 import pytest
 
 import py_zipkin.zipkin as zipkin
 from py_zipkin import _encoding_helpers
+from py_zipkin import Kind
+from py_zipkin._encoding_helpers import _V1Span
 from py_zipkin.exception import ZipkinError
 from py_zipkin.storage import SpanStorage
 from py_zipkin.storage import ThreadLocalStack
@@ -62,6 +66,7 @@ def test_zipkin_span_for_new_trace(
         transport_handler,
         True,
         span_storage,
+        'some_service_name',
         binary_annotations={},
         add_logging_annotation=False,
         client_context=False,
@@ -116,6 +121,7 @@ def test_zipkin_span_passed_sampled_attrs(
         transport_handler,
         False,
         span_storage,
+        'some_service_name',
         binary_annotations={},
         add_logging_annotation=False,
         client_context=False,
@@ -216,15 +222,21 @@ def test_zipkin_invalid_sample_rate():
             pass
 
 
-def test_zipkin_invalid_include():
+def test_zipkin_invalid_kind():
     with pytest.raises(ZipkinError):
         with zipkin.zipkin_span(
             service_name='some_service_name',
             span_name='span_name',
             transport_handler=MockTransportHandler(),
             sample_rate=100.0,
-            include=('clawyant',)
         ):
+            with zipkin.zipkin_span(
+                service_name='nested_service',
+                span_name='nested_span',
+                kind='client',
+            ):
+                pass
+
             pass
 
 
@@ -233,16 +245,16 @@ def test_zipkin_invalid_include():
     zipkin.zipkin_server_span,
 ])
 @mock.patch('py_zipkin.zipkin.zipkin_span', autospec=True)
-def test_zipkin_extraneous_include_raises(mock_zipkin_span, span_func):
+def test_zipkin_extraneous_kind_raises(mock_zipkin_span, span_func):
     with pytest.raises(ValueError):
         with span_func(
             service_name='some_service_name',
             span_name='span_name',
             transport_handler=MockTransportHandler(),
             sample_rate=100.0,
-            include=('foobar',)
+            kind=Kind.LOCAL,
         ):
-            assert mock_zipkin_span.__init__.call_count == 0
+            pass
 
 
 @mock.patch('py_zipkin.zipkin.create_attrs_for_span', autospec=True)
@@ -417,34 +429,41 @@ def test_span_context(
     context = span_func(
         service_name='svc',
         span_name='span',
-        annotations={'something': 1},
+        transport_handler=MockTransportHandler(),
         binary_annotations={'foo': 'bar'},
         span_storage=span_storage,
+        report_root_timestamp=False,
     )
-    with context:
-        # Assert that the new ZipkinAttrs were saved
-        new_zipkin_attrs = get_zipkin_attrs()
-        assert new_zipkin_attrs.span_id == '1'
+
+    ts = time.time()
+    with mock.patch('time.time', return_value=ts):
+        with context:
+            # Assert that the new ZipkinAttrs were saved
+            new_zipkin_attrs = get_zipkin_attrs()
+            assert new_zipkin_attrs.span_id == '1'
 
     # Outside of the context, things should be returned to normal
     assert get_zipkin_attrs() == zipkin_attrs
 
-    client_span = span_storage.pop()
+    client_span = span_storage.pop().build_v1_span()
     # These reserved annotations are based on timestamps so pop em.
     # This also acts as a check that they exist.
     for annotation in expected_annotations:
-        client_span['annotations'].pop(annotation)
+        client_span.annotations.pop(annotation)
 
-    expected_client_span = {
-        'trace_id': '1111111111111111',
-        'span_name': 'span',
-        'service_name': 'svc',
-        'parent_span_id': '2222222222222222',
-        'span_id': '1',
-        'annotations': {'something': 1},
-        'binary_annotations': {'foo': 'bar'},
-        'sa_endpoint': None,
-    }
+    expected_client_span = _V1Span(
+        trace_id='1111111111111111',
+        name='span',
+        parent_id='2222222222222222',
+        id='1',
+        timestamp=ts,
+        duration=0.0,
+        endpoint=None,
+        debug=False,
+        annotations={},
+        binary_annotations={'foo': 'bar'},
+        sa_endpoint=None,
+    )
     assert client_span == expected_client_span
 
     assert generate_string_128bit_mock.call_count == 0
@@ -494,6 +513,7 @@ def test_zipkin_server_span_decorator(
         transport_handler,
         True,
         span_storage,
+        'some_service_name',
         binary_annotations={},
         add_logging_annotation=False,
         client_context=False,
@@ -548,6 +568,7 @@ def test_zipkin_client_span_decorator(
         transport_handler,
         True,
         span_storage,
+        'some_service_name',
         binary_annotations={},
         add_logging_annotation=False,
         client_context=True,
@@ -668,6 +689,7 @@ def test_add_sa_binary_annotation():
         zipkin_attrs=zipkin_attrs,
         transport_handler=MockTransportHandler(),
         port=5,
+        kind=Kind.CLIENT,
     )
 
     with context:
@@ -688,6 +710,7 @@ def test_add_sa_binary_annotation():
         nested_context = zipkin.zipkin_span(
             service_name='my_service',
             span_name='nested_span',
+            kind=Kind.CLIENT,
         )
         with nested_context:
             nested_context.add_sa_binary_annotation(
@@ -718,6 +741,7 @@ def test_add_sa_binary_annotation_twice():
         zipkin_attrs=zipkin_attrs,
         transport_handler=MockTransportHandler(),
         port=5,
+        kind=Kind.CLIENT,
     )
 
     with context:
@@ -738,6 +762,7 @@ def test_add_sa_binary_annotation_twice():
         nested_context = zipkin.zipkin_span(
             service_name='my_service',
             span_name='nested_span',
+            kind=Kind.CLIENT,
         )
         with nested_context:
             nested_context.add_sa_binary_annotation(
@@ -762,6 +787,7 @@ def test_adding_sa_binary_annotation_without_sampling():
         span_name='span_name',
         transport_handler=MockTransportHandler(),
         sample_rate=0.0,
+        kind=Kind.CLIENT,
     )
     with context:
         context.add_sa_binary_annotation(

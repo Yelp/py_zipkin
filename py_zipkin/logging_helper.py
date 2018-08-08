@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
+import os
 import time
 
-from py_zipkin import _encoding_helpers
 from py_zipkin import thrift
+from py_zipkin import Kind
+from py_zipkin._encoding_helpers import SpanBuilder
+from py_zipkin._encoding_helpers import copy_endpoint_with_new_service_name
 from py_zipkin.exception import ZipkinError
 from py_zipkin.transport import BaseTransportHandler
 
@@ -27,6 +30,7 @@ class ZipkinLoggingContext(object):
         transport_handler,
         report_root_timestamp,
         span_storage,
+        service_name,
         binary_annotations=None,
         add_logging_annotation=False,
         client_context=False,
@@ -39,6 +43,7 @@ class ZipkinLoggingContext(object):
         self.transport_handler = transport_handler
         self.response_status_code = 0
         self.span_storage = span_storage
+        self.service_name = service_name
         self.report_root_timestamp = report_root_timestamp
         self.binary_annotations_dict = binary_annotations or {}
         self.add_logging_annotation = add_logging_annotation
@@ -92,62 +97,33 @@ class ZipkinLoggingContext(object):
 
             # Collect, annotate, and log client spans from the logging handler
             for span in self.span_storage:
-
-                endpoint = _encoding_helpers.copy_endpoint_with_new_service_name(
-                    self.endpoint, span['service_name']
+                span.local_endpoint = copy_endpoint_with_new_service_name(
+                    self.endpoint,
+                    span.service_name,
                 )
 
-                timestamp, duration = get_local_span_timestamp_and_duration(
-                    span['annotations']
-                )
+                span_sender.add_span(span)
 
-                span_sender.add_span(
-                    span_id=span['span_id'],
-                    parent_span_id=span['parent_span_id'],
-                    trace_id=span['trace_id'],
-                    span_name=span['span_name'],
-                    annotations=span['annotations'],
-                    binary_annotations=span['binary_annotations'],
-                    timestamp_s=timestamp,
-                    duration_s=duration,
-                    endpoint=endpoint,
-                    sa_endpoint=span['sa_endpoint'],
-                )
-
-            k1, k2 = ('sr', 'ss')
-            if self.client_context:
-                k1, k2 = ('cs', 'cr')
-            annotations = {k1: self.start_timestamp, k2: end_timestamp}
+            annotations = {}
 
             if self.add_logging_annotation:
                 annotations[LOGGING_END_KEY] = time.time()
 
-            if self.report_root_timestamp:
-                timestamp = self.start_timestamp
-                duration = end_timestamp - self.start_timestamp
-            else:
-                timestamp = duration = None
-
-            span_sender.add_span(
-                span_id=self.zipkin_attrs.span_id,
-                parent_span_id=self.zipkin_attrs.parent_span_id,
+            span_sender.add_span(SpanBuilder(
                 trace_id=self.zipkin_attrs.trace_id,
-                span_name=self.span_name,
+                name=self.span_name,
+                parent_id=self.zipkin_attrs.parent_span_id,
+                span_id=self.zipkin_attrs.span_id,
+                timestamp=self.start_timestamp,
+                duration=end_timestamp - self.start_timestamp,
                 annotations=annotations,
-                binary_annotations=self.binary_annotations_dict,
-                timestamp_s=timestamp,
-                duration_s=duration,
-                endpoint=self.endpoint,
+                tags=self.binary_annotations_dict,
+                kind=Kind.CLIENT if self.client_context else Kind.SERVER,
+                local_endpoint=self.endpoint,
+                service_name=self.service_name,
                 sa_endpoint=self.sa_endpoint,
-            )
-
-
-def get_local_span_timestamp_and_duration(annotations):
-    if 'cs' in annotations and 'cr' in annotations:
-        return annotations['cs'], annotations['cr'] - annotations['cs']
-    elif 'sr' in annotations and 'ss' in annotations:
-        return annotations['sr'], annotations['ss'] - annotations['sr']
-    return None, None
+                report_timestamp=self.report_root_timestamp,
+            ))
 
 
 class ZipkinBatchSender(object):
@@ -169,7 +145,13 @@ class ZipkinBatchSender(object):
 
     def __exit__(self, _exc_type, _exc_value, _exc_traceback):
         if any((_exc_type, _exc_value, _exc_traceback)):
-            error = '{0}: {1}'.format(_exc_type.__name__, _exc_value)
+            filename = os.path.split(_exc_traceback.tb_frame.f_code.co_filename)[1]
+            error = '({0}:{1}) {2}: {3}'.format(
+                filename,
+                _exc_traceback.tb_lineno,
+                _exc_type.__name__,
+                _exc_value,
+            )
             raise ZipkinError(error)
         else:
             self.flush()
@@ -178,45 +160,34 @@ class ZipkinBatchSender(object):
         self.queue = []
         self.current_size = thrift.LIST_HEADER_SIZE
 
-    def add_span(
-        self,
-        span_id,
-        parent_span_id,
-        trace_id,
-        span_name,
-        annotations,
-        binary_annotations,
-        timestamp_s,
-        duration_s,
-        endpoint,
-        sa_endpoint,
-    ):
+    def add_span(self, internal_span):
+        span = internal_span.build_v1_span()
         thrift_endpoint = thrift.create_endpoint(
-            endpoint.port,
-            endpoint.service_name,
-            endpoint.ipv4,
-            endpoint.ipv6,
+            span.endpoint.port,
+            span.endpoint.service_name,
+            span.endpoint.ipv4,
+            span.endpoint.ipv6,
         )
 
         thrift_annotations = thrift.annotation_list_builder(
-            annotations,
+            span.annotations,
             thrift_endpoint,
         )
 
         # Binary annotations can be set through debug messages or the
         # set_extra_binary_annotations registry setting.
         thrift_binary_annotations = thrift.binary_annotation_list_builder(
-            binary_annotations,
+            span.binary_annotations,
             thrift_endpoint,
         )
 
         # Add sa binary annotation
-        if sa_endpoint is not None:
+        if span.sa_endpoint is not None:
             thrift_sa_endpoint = thrift.create_endpoint(
-                sa_endpoint.port,
-                sa_endpoint.service_name,
-                sa_endpoint.ipv4,
-                sa_endpoint.ipv6,
+                span.sa_endpoint.port,
+                span.sa_endpoint.service_name,
+                span.sa_endpoint.ipv4,
+                span.sa_endpoint.ipv6,
             )
             thrift_binary_annotations.append(thrift.create_binary_annotation(
                 key=thrift.zipkin_core.SERVER_ADDR,
@@ -226,14 +197,14 @@ class ZipkinBatchSender(object):
             ))
 
         thrift_span = thrift.create_span(
-            span_id,
-            parent_span_id,
-            trace_id,
-            span_name,
+            span.id,
+            span.parent_id,
+            span.trace_id,
+            span.name,
             thrift_annotations,
             thrift_binary_annotations,
-            timestamp_s,
-            duration_s,
+            span.timestamp,
+            span.duration,
         )
 
         encoded_span = thrift.span_to_bytes(thrift_span)
