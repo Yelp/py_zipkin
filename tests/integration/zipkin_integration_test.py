@@ -1,10 +1,16 @@
+# -*- coding: utf-8 -*-
+import json
+from collections import namedtuple
+
 import pytest
 from thriftpy.protocol.binary import read_list_begin
 from thriftpy.protocol.binary import TBinaryProtocol
 from thriftpy.transport import TMemoryBuffer
 
+from py_zipkin import Encoding
 from py_zipkin import Kind
 from py_zipkin import zipkin
+from py_zipkin._encoding_helpers import Endpoint
 from py_zipkin.logging_helper import LOGGING_END_KEY
 from py_zipkin.thrift import zipkin_core
 from py_zipkin.zipkin import ZipkinAttrs
@@ -13,11 +19,31 @@ from py_zipkin.zipkin import ZipkinAttrs
 USECS = 1000000
 
 
+Annotation = namedtuple('Annotation', ['host', 'timestamp', 'value'])
+BinaryAnnotation = namedtuple('BinaryAnnotation', ['key', 'value', 'host'])
+V1Span = namedtuple('V1Span', [
+    'trace_id',
+    'name',
+    'parent_id',
+    'id',
+    'timestamp',
+    'duration',
+    'debug',
+    'annotations',
+    'binary_annotations',
+    'trace_id_high',
+])
+
+
+SUPPORTED_ENCODINGS = [
+    Encoding.V1_THRIFT,
+    Encoding.V1_JSON,
+]
+
+
 @pytest.fixture
 def default_annotations():
-    return set([
-        'ss', 'sr', LOGGING_END_KEY,
-    ])
+    return {'ss', 'sr', LOGGING_END_KEY}
 
 
 def mock_logger():
@@ -29,9 +55,13 @@ def mock_logger():
     return mock_transport_handler, mock_logs
 
 
-def _decode_binary_thrift_obj(obj):
-    spans = _decode_binary_thrift_objs(obj)
-    return spans[0]
+def decode(obj, encoding):
+    if encoding == Encoding.V1_THRIFT:
+        return _decode_binary_thrift_objs(obj)
+    elif encoding == Encoding.V1_JSON:
+        return _decode_json_v1_span(obj)
+    else:
+        raise ValueError("unknown encoding")
 
 
 def _decode_binary_thrift_objs(obj):
@@ -45,7 +75,58 @@ def _decode_binary_thrift_objs(obj):
     return spans
 
 
+def _decode_json_v1_span(obj):
+    json_spans = json.loads(obj)
+    spans = []
+
+    for json_span in json_spans:
+        ann = json_span['annotations']
+        new_ann = []
+        for a in ann:
+            new_ann.append(Annotation(
+                Endpoint(
+                    a['endpoint'].get('serviceName'),
+                    a['endpoint'].get('ipv4'),
+                    a['endpoint'].get('ipv6'),
+                    a['endpoint'].get('port'),
+                ),
+                a['timestamp'],
+                a['value'],
+            ))
+
+        old_bin = json_span['binaryAnnotations']
+        new_bin = []
+        for b in old_bin:
+            new_bin.append(BinaryAnnotation(
+                b['key'],
+                b['value'],
+                Endpoint(
+                    b['endpoint'].get('serviceName'),
+                    b['endpoint'].get('ipv4'),
+                    b['endpoint'].get('ipv6'),
+                    b['endpoint'].get('port'),
+                ),
+            ))
+
+        spans.append(V1Span(
+            json_span.get('traceId'),
+            json_span.get('name'),
+            json_span.get('parentId'),
+            json_span.get('id'),
+            json_span.get('timestamp'),
+            json_span.get('duration'),
+            json_span.get('debug'),
+            new_ann,
+            new_bin,
+            None,
+        ))
+
+    return spans
+
+
+@pytest.mark.parametrize('encoding', SUPPORTED_ENCODINGS)
 def test_starting_zipkin_trace_with_sampling_rate(
+    encoding,
     default_annotations,
 ):
     mock_transport_handler, mock_logs = mock_logger()
@@ -58,6 +139,7 @@ def test_starting_zipkin_trace_with_sampling_rate(
         binary_annotations={'some_key': 'some_value'},
         add_logging_annotation=True,
         firehose_handler=mock_firehose_handler,
+        encoding=encoding,
     ):
         pass
 
@@ -73,13 +155,12 @@ def test_starting_zipkin_trace_with_sampling_rate(
         assert span.binary_annotations[0].value == 'some_value'
         assert set([ann.value for ann in span.annotations]) == default_annotations
 
-    check_span(_decode_binary_thrift_obj(mock_logs[0]))
-    check_span(_decode_binary_thrift_obj(mock_firehose_logs[0]))
+    check_span(decode(mock_logs[0], encoding)[0])
+    check_span(decode(mock_firehose_logs[0], encoding)[0])
 
 
-def test_starting_zipkin_trace_with_128bit_trace_id(
-    default_annotations,
-):
+@pytest.mark.parametrize('encoding', SUPPORTED_ENCODINGS)
+def test_starting_zipkin_trace_with_128bit_trace_id(encoding):
     mock_transport_handler, mock_logs = mock_logger()
     mock_firehose_handler, mock_firehose_logs = mock_logger()
     with zipkin.zipkin_span(
@@ -90,19 +171,24 @@ def test_starting_zipkin_trace_with_128bit_trace_id(
         binary_annotations={'some_key': 'some_value'},
         add_logging_annotation=True,
         use_128bit_trace_id=True,
-        firehose_handler=mock_firehose_handler
+        firehose_handler=mock_firehose_handler,
+        encoding=encoding,
     ):
         pass
 
     def check_span(span):
         assert span.trace_id is not None
-        assert span.trace_id_high is not None
+        if encoding == Encoding.V1_THRIFT:
+            assert span.trace_id_high is not None
+        elif encoding == Encoding.V1_JSON:
+            assert len(span.trace_id) == 32
 
-    check_span(_decode_binary_thrift_obj(mock_logs[0]))
-    check_span(_decode_binary_thrift_obj(mock_firehose_logs[0]))
+    check_span(decode(mock_logs[0], encoding)[0])
+    check_span(decode(mock_firehose_logs[0], encoding)[0])
 
 
-def test_span_inside_trace():
+@pytest.mark.parametrize('encoding', SUPPORTED_ENCODINGS)
+def test_span_inside_trace(encoding):
     mock_transport_handler, mock_logs = mock_logger()
     mock_firehose_handler, mock_firehose_logs = mock_logger()
     with zipkin.zipkin_span(
@@ -112,6 +198,7 @@ def test_span_inside_trace():
         sample_rate=100.0,
         binary_annotations={'some_key': 'some_value'},
         firehose_handler=mock_firehose_handler,
+        encoding=encoding,
     ):
         with zipkin.zipkin_span(
             service_name='nested_service',
@@ -140,12 +227,12 @@ def test_span_inside_trace():
             if ann.value == 'nested_annotation':
                 assert ann.timestamp == 43 * USECS
 
-    assert len(mock_logs) == 1
-    check_spans(_decode_binary_thrift_objs(mock_logs[0]))
-    check_spans(_decode_binary_thrift_objs(mock_firehose_logs[0]))
+    check_spans(decode(mock_logs[0], encoding))
+    check_spans(decode(mock_firehose_logs[0], encoding))
 
 
-def test_annotation_override():
+@pytest.mark.parametrize('encoding', SUPPORTED_ENCODINGS)
+def test_annotation_override(encoding):
     """This is the same as above, but we override an annotation
     in the inner span
     """
@@ -158,6 +245,7 @@ def test_annotation_override():
         sample_rate=100.0,
         binary_annotations={'some_key': 'some_value'},
         firehose_handler=mock_firehose_handler,
+        encoding=encoding,
     ):
         with zipkin.zipkin_span(
             service_name='nested_service',
@@ -189,8 +277,8 @@ def test_annotation_override():
             elif ann.value == 'cr':
                 assert ann.timestamp == 300 * USECS
 
-    check_spans(_decode_binary_thrift_objs(mock_logs[0]))
-    check_spans(_decode_binary_thrift_objs(mock_firehose_logs[0]))
+    check_spans(decode(mock_logs[0], encoding))
+    check_spans(decode(mock_firehose_logs[0], encoding))
 
 
 def test_sr_ss_annotation_override():
@@ -246,17 +334,18 @@ def test_sr_ss_annotation_override():
 
 def _verify_service_span(span, annotations):
     assert span.name == 'service_span'
-    assert span.trace_id == 0
-    assert span.id == 1
+    assert int(span.trace_id) == 0
+    assert int(span.id) == 1
     assert span.annotations[0].host.service_name == 'test_service_name'
     assert span.annotations[0].host.port == 0
-    assert span.parent_id == 2
+    assert int(span.parent_id) == 2
     assert span.binary_annotations[0].key == 'some_key'
     assert span.binary_annotations[0].value == 'some_value'
     assert set([ann.value for ann in span.annotations]) == annotations
 
 
-def test_service_span(default_annotations):
+@pytest.mark.parametrize('encoding', SUPPORTED_ENCODINGS)
+def test_service_span(encoding, default_annotations):
     mock_transport_handler, mock_logs = mock_logger()
     mock_firehose_handler, mock_firehose_logs = mock_logger()
     zipkin_attrs = ZipkinAttrs(
@@ -274,11 +363,12 @@ def test_service_span(default_annotations):
         binary_annotations={'some_key': 'some_value'},
         add_logging_annotation=True,
         firehose_handler=mock_firehose_handler,
+        encoding=encoding,
     ):
         pass
 
-    span = _decode_binary_thrift_obj(mock_logs[0])
-    firehose_span = _decode_binary_thrift_obj(mock_firehose_logs[0])
+    span = decode(mock_logs[0], encoding)[0]
+    firehose_span = decode(mock_firehose_logs[0], encoding)[0]
     _verify_service_span(span, default_annotations)
     _verify_service_span(firehose_span, default_annotations)
 
@@ -288,7 +378,9 @@ def test_service_span(default_annotations):
     assert span.duration is None
 
 
+@pytest.mark.parametrize('encoding', SUPPORTED_ENCODINGS)
 def test_service_span_report_timestamp_override(
+    encoding,
     default_annotations,
 ):
     mock_transport_handler, mock_logs = mock_logger()
@@ -307,16 +399,19 @@ def test_service_span_report_timestamp_override(
         binary_annotations={'some_key': 'some_value'},
         add_logging_annotation=True,
         report_root_timestamp=True,
+        encoding=encoding,
     ):
         pass
 
-    span = _decode_binary_thrift_obj(mock_logs[0])
+    span = decode(mock_logs[0], encoding)[0]
     _verify_service_span(span, default_annotations)
     assert span.timestamp is not None
     assert span.duration is not None
 
 
+@pytest.mark.parametrize('encoding', SUPPORTED_ENCODINGS)
 def test_service_span_that_is_independently_sampled(
+    encoding,
     default_annotations,
 ):
     mock_transport_handler, mock_logs = mock_logger()
@@ -338,6 +433,7 @@ def test_service_span_that_is_independently_sampled(
         binary_annotations={'some_key': 'some_value'},
         add_logging_annotation=True,
         firehose_handler=mock_firehose_handler,
+        encoding=encoding,
     ):
         pass
 
@@ -353,13 +449,12 @@ def test_service_span_that_is_independently_sampled(
         assert span.duration is not None
         assert set([ann.value for ann in span.annotations]) == default_annotations
 
-    check_span(_decode_binary_thrift_obj(mock_logs[0]))
-    check_span(_decode_binary_thrift_obj(mock_firehose_logs[0]))
+    check_span(decode(mock_logs[0], encoding)[0])
+    check_span(decode(mock_firehose_logs[0], encoding)[0])
 
 
-def test_zipkin_trace_with_no_sampling_no_firehose(
-    default_annotations
-):
+@pytest.mark.parametrize('encoding', SUPPORTED_ENCODINGS)
+def test_zipkin_trace_with_no_sampling_no_firehose(encoding):
     mock_transport_handler, mock_logs = mock_logger()
     with zipkin.zipkin_span(
         service_name='test_service_name',
@@ -368,13 +463,16 @@ def test_zipkin_trace_with_no_sampling_no_firehose(
         sample_rate=None,
         binary_annotations={'some_key': 'some_value'},
         add_logging_annotation=True,
+        encoding=encoding,
     ):
         pass
 
     assert len(mock_logs) == 0
 
 
+@pytest.mark.parametrize('encoding', SUPPORTED_ENCODINGS)
 def test_zipkin_trace_with_no_sampling_with_firehose(
+    encoding,
     default_annotations
 ):
     mock_transport_handler, mock_logs = mock_logger()
@@ -387,6 +485,7 @@ def test_zipkin_trace_with_no_sampling_with_firehose(
         binary_annotations={'some_key': 'some_value'},
         add_logging_annotation=True,
         firehose_handler=mock_firehose_handler,
+        encoding=encoding,
     ):
         pass
 
@@ -403,10 +502,11 @@ def test_zipkin_trace_with_no_sampling_with_firehose(
         assert set([ann.value for ann in span.annotations]) == default_annotations
 
     assert len(mock_logs) == 0
-    check_span(_decode_binary_thrift_obj(mock_firehose_logs[0]))
+    check_span(decode(mock_firehose_logs[0], encoding)[0])
 
 
-def test_no_sampling_with_inner_span():
+@pytest.mark.parametrize('encoding', SUPPORTED_ENCODINGS)
+def test_no_sampling_with_inner_span(encoding):
     mock_transport_handler, mock_logs = mock_logger()
     mock_firehose_handler, mock_firehose_logs = mock_logger()
     with zipkin.zipkin_span(
@@ -417,6 +517,7 @@ def test_no_sampling_with_inner_span():
         binary_annotations={'some_key': 'some_value'},
         add_logging_annotation=True,
         firehose_handler=mock_firehose_handler,
+        encoding=encoding,
     ):
         with zipkin.zipkin_span(
             service_name='nested_service',
@@ -447,10 +548,11 @@ def test_no_sampling_with_inner_span():
                 assert ann.timestamp == 43 * USECS
 
     assert len(mock_logs) == 0
-    check_spans(_decode_binary_thrift_objs(mock_firehose_logs[0]))
+    check_spans(decode(mock_firehose_logs[0], encoding))
 
 
-def test_client_span():
+@pytest.mark.parametrize('encoding', SUPPORTED_ENCODINGS)
+def test_client_span(encoding):
     mock_transport_handler, mock_logs = mock_logger()
     with zipkin.zipkin_client_span(
         service_name='test_service_name',
@@ -459,6 +561,7 @@ def test_client_span():
         sample_rate=100.0,
         binary_annotations={'some_key': 'some_value'},
         add_logging_annotation=True,
+        encoding=encoding,
     ):
         pass
 
@@ -475,10 +578,11 @@ def test_client_span():
             'cs', 'cr', 'py_zipkin.logging_end'}
 
     assert len(mock_logs) == 1
-    check_spans(_decode_binary_thrift_objs(mock_logs[0]))
+    check_spans(decode(mock_logs[0], encoding))
 
 
-def test_server_span():
+@pytest.mark.parametrize('encoding', SUPPORTED_ENCODINGS)
+def test_server_span(encoding):
     mock_transport_handler, mock_logs = mock_logger()
     with zipkin.zipkin_server_span(
         service_name='test_service_name',
@@ -487,6 +591,7 @@ def test_server_span():
         sample_rate=100.0,
         binary_annotations={'some_key': 'some_value'},
         add_logging_annotation=True,
+        encoding=encoding,
     ):
         with zipkin.zipkin_client_span(
             service_name='nested_service',
@@ -524,10 +629,11 @@ def test_server_span():
             'cs', 'cr', 'nested_annotation'}
 
     assert len(mock_logs) == 1
-    check_spans(_decode_binary_thrift_objs(mock_logs[0]))
+    check_spans(decode(mock_logs[0], encoding))
 
 
-def test_include_still_works():
+@pytest.mark.parametrize('encoding', SUPPORTED_ENCODINGS)
+def test_include_still_works(encoding):
     mock_transport_handler, mock_logs = mock_logger()
     with zipkin.zipkin_span(
         service_name='test_service_name',
@@ -536,6 +642,7 @@ def test_include_still_works():
         sample_rate=100.0,
         binary_annotations={'some_key': 'some_value'},
         add_logging_annotation=True,
+        encoding=encoding,
     ):
         with zipkin.zipkin_span(
             service_name='nested_service',
@@ -578,4 +685,41 @@ def test_include_still_works():
             'cs', 'cr', 'ss', 'sr', 'nested_annotation'}
 
     assert len(mock_logs) == 1
-    check_spans(_decode_binary_thrift_objs(mock_logs[0]))
+    check_spans(decode(mock_logs[0], encoding))
+
+
+@pytest.mark.parametrize('encoding', SUPPORTED_ENCODINGS)
+def test_can_set_sa_annotation(encoding):
+    mock_transport_handler, mock_logs = mock_logger()
+    with zipkin.zipkin_client_span(
+        service_name='test_service_name',
+        span_name='test_span_name',
+        transport_handler=mock_transport_handler,
+        sample_rate=100.0,
+        binary_annotations={'some_key': 'some_value'},
+        add_logging_annotation=True,
+        encoding=encoding,
+    ) as span:
+        span.add_sa_binary_annotation(
+            port=8888,
+            service_name='sa_service',
+            host='10.0.0.0',
+        )
+
+    assert len(mock_logs) == 1
+    client_span = decode(mock_logs[0], encoding)[0]
+
+    expected_sa_value = '1' if encoding == Encoding.V1_JSON else u'\x01'
+    expected_ip = u'10.0.0.0' if encoding == Encoding.V1_JSON else 167772160
+
+    assert set([ann.value for ann in client_span.annotations]) == {
+        'cs', 'cr', 'py_zipkin.logging_end'}
+    assert client_span.binary_annotations[0].key == 'some_key'
+    assert client_span.binary_annotations[0].value == 'some_value'
+    assert client_span.binary_annotations[1].key == 'sa'
+    assert client_span.binary_annotations[1].value == expected_sa_value
+    host = client_span.binary_annotations[1].host
+    assert host.service_name == u'sa_service'
+    assert host.ipv4 == expected_ip
+    assert host.ipv6 is None
+    assert host.port == 8888
