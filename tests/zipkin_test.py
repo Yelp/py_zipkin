@@ -16,7 +16,7 @@ from py_zipkin.storage import ThreadLocalStack
 from py_zipkin.thread_local import get_zipkin_attrs
 from py_zipkin.util import generate_random_64bit_string
 from py_zipkin.zipkin import ZipkinAttrs
-from tests.conftest import MockTransportHandler
+from tests.test_helpers import MockTransportHandler
 
 
 @pytest.fixture

@@ -1,6 +1,6 @@
 import mock
 
-from tests.conftest import MockTransportHandler
+from tests.test_helpers import MockTransportHandler
 
 
 class TestBaseTransportHandler(object):
