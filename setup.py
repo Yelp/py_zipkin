@@ -1,13 +1,16 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+import os
+
 from setuptools import find_packages
 from setuptools import setup
-import os
 
 __version__ = '0.13.0'
 
+
 def read(f):
     return open(os.path.join(os.path.dirname(__file__), f)).read().strip()
+
 
 setup(
     name='py_zipkin',
@@ -23,10 +26,10 @@ setup(
     packages=find_packages(exclude=('tests*', 'testing*', 'tools*')),
     package_data={'': ['*.thrift']},
     install_requires=[
-        'enum34;python_version<"3.4"',
         'six',
         'thriftpy',
     ],
+    extras_require={':python_version=="2.7"': ['enum34']},
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",

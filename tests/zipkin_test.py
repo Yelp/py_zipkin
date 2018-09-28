@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import json
 import time
 
 import mock
@@ -837,6 +838,30 @@ def test_adding_sa_binary_annotation_for_non_client_spans():
             host='1.2.3.4',
         )
         assert context.logging_context.sa_endpoint is None
+
+
+def test_override_span_name():
+    transport = MockTransportHandler()
+    with zipkin.zipkin_span(
+        service_name='my_service',
+        span_name='span_name',
+        transport_handler=transport,
+        kind=Kind.CLIENT,
+        sample_rate=100.0,
+        encoding=Encoding.V1_JSON,
+    ) as context:
+        context.override_span_name('new_span_name')
+
+        with zipkin.zipkin_span(
+            service_name='my_service',
+            span_name='nested_span',
+        ) as nested_context:
+            nested_context.override_span_name('new_nested_span')
+
+    spans = json.loads(transport.get_payloads()[0])
+    assert len(spans) == 2
+    assert spans[0]['name'] == 'new_nested_span'
+    assert spans[1]['name'] == 'new_span_name'
 
 
 @pytest.mark.parametrize(
