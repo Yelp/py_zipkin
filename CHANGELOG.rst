@@ -1,3 +1,8 @@
+0.14.0 (2018-10-01)
+-------------------
+- Support JSON encoding for V1 spans.
+- Allow overriding the span_name after creation.
+
 0.13.0 (2018-06-25)
 -------------------
 - Removed deprecated `zipkin_logger.debug()` interface.
