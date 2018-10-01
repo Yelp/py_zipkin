@@ -509,6 +509,21 @@ class zipkin_span(object):
                 raise ValueError('SA annotation already set.')
             self.logging_context.sa_endpoint = sa_endpoint
 
+    def override_span_name(self, name):
+        """Overrides the current span name.
+
+        This is useful if you don't know the span name yet when you create the
+        zipkin_span object. i.e. pyramid_zipkin doesn't know which route the
+        request matched until the function wrapped by the context manager
+        completes.
+
+        :param name: New span name
+        :type name: str
+        """
+        self.span_name = name
+        if self.logging_context:
+            self.logging_context.span_name = name
+
 
 def _validate_args(kwargs):
     if 'kind' in kwargs:

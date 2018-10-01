@@ -1,9 +1,9 @@
 import mock
 import pytest
 
-from py_zipkin.zipkin import ZipkinAttrs
-from py_zipkin.transport import BaseTransportHandler
 from py_zipkin._encoding_helpers import IEncoder
+from py_zipkin.transport import BaseTransportHandler
+from py_zipkin.zipkin import ZipkinAttrs
 
 
 @pytest.fixture
@@ -30,12 +30,17 @@ class MockTransportHandler(BaseTransportHandler):
 
     def __init__(self, max_payload_bytes=None):
         self.max_payload_bytes = max_payload_bytes
+        self.payloads = []
 
     def send(self, payload):
+        self.payloads.append(payload)
         return payload
 
     def get_max_payload_bytes(self):
         return self.max_payload_bytes
+
+    def get_payloads(self):
+        return self.payloads
 
 
 class MockEncoder(IEncoder):
