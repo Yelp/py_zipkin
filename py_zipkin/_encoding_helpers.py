@@ -2,6 +2,7 @@
 import json
 import socket
 from collections import namedtuple
+from collections import OrderedDict
 
 from enum import Enum
 
@@ -22,6 +23,14 @@ _V1Span = namedtuple(
 )
 
 
+_V2Span = namedtuple(
+    'V2Span',
+    ['trace_id', 'name', 'parent_id', 'id', 'kind', 'timestamp',
+     'duration', 'debug', 'shared', 'local_endpoint', 'remote_endpoint',
+     'annotations', 'tags'],
+)
+
+
 class Kind(Enum):
     """Type of Span."""
     CLIENT = 'CLIENT'
@@ -33,6 +42,7 @@ class Encoding(Enum):
     """Supported output encodings."""
     V1_THRIFT = 1
     V1_JSON = 2
+    V2_JSON = 3
 
 
 _DROP_ANNOTATIONS_BY_KIND = {
@@ -119,12 +129,12 @@ class SpanBuilder(object):
         :rtype: _V1Span
         """
         # We are simulating a full two-part span locally, so set cs=sr and ss=cr
-        full_annotations = {
-            'cs': self.timestamp,
-            'sr': self.timestamp,
-            'ss': self.timestamp + self.duration,
-            'cr': self.timestamp + self.duration,
-        }
+        full_annotations = OrderedDict([
+            ('cs', self.timestamp),
+            ('sr', self.timestamp),
+            ('ss', self.timestamp + self.duration),
+            ('cr', self.timestamp + self.duration),
+        ])
 
         if self.kind != Kind.LOCAL:
             # If kind is not LOCAL, then we only want client or
@@ -148,6 +158,32 @@ class SpanBuilder(object):
             annotations=full_annotations,
             binary_annotations=self.tags,
             sa_endpoint=self.sa_endpoint,
+        )
+
+    def build_v2_span(self):
+        """Builds and returns a V2 Span.
+
+        :return: newly generated _V2Span
+        :rtype: _V2Span
+        """
+        remote_endpoint = None
+        if self.sa_endpoint:
+            remote_endpoint = self.sa_endpoint
+
+        return _V2Span(
+            trace_id=self.trace_id,
+            name=self.name,
+            parent_id=self.parent_id,
+            id=self.span_id,
+            kind=self.kind,
+            timestamp=self.timestamp if self.report_timestamp else None,
+            duration=self.duration if self.report_timestamp else None,
+            debug=False,
+            shared=False,
+            local_endpoint=self.local_endpoint,
+            remote_endpoint=remote_endpoint,
+            annotations=self.annotations,
+            tags=self.tags,
         )
 
 
@@ -222,6 +258,8 @@ def get_encoder(encoding):
         return _V1ThriftEncoder()
     if encoding == Encoding.V1_JSON:
         return _V1JSONEncoder()
+    if encoding == Encoding.V2_JSON:
+        return _V2JSONEncoder()
     raise ZipkinError('Unknown encoding: {}'.format(encoding))
 
 
@@ -331,8 +369,8 @@ class _V1ThriftEncoder(IEncoder):
         return thrift.encode_bytes_list(queue)
 
 
-class _V1JSONEncoder(IEncoder):
-    """JSON encoder for V1 spans."""
+class _BaseJSONEncoder(IEncoder):
+    """ V1 and V2 JSON encoders need many common helper functions """
 
     def fits(self, current_count, current_size, max_size, new_span):
         """Checks if the new span fits in the max payload size.
@@ -342,24 +380,32 @@ class _V1JSONEncoder(IEncoder):
         """
         return 2 + current_count + current_size + len(new_span) <= max_size
 
-    def _create_v1_endpoint(self, endpoint):
-        """Converts an Endpoint to a v1 endpoint dict.
+    def _create_json_endpoint(self, endpoint):
+        """Converts an Endpoint to a JSON endpoint dict.
 
         :param endpoint: endpoint object to convert.
         :type endpoint: Endpoint
-        :return: dict representing a V1 endpoint.
+        :return: dict representing a JSON endpoint.
         :rtype: dict
         """
-        v1_endpoint = {
+        json_endpoint = {
             'serviceName': endpoint.service_name,
             'port': endpoint.port,
         }
         if endpoint.ipv4 is not None:
-            v1_endpoint['ipv4'] = endpoint.ipv4
+            json_endpoint['ipv4'] = endpoint.ipv4
         if endpoint.ipv6 is not None:
-            v1_endpoint['ipv6'] = endpoint.ipv6
+            json_endpoint['ipv6'] = endpoint.ipv6
 
-        return v1_endpoint
+        return json_endpoint
+
+    def encode_queue(self, queue):
+        """Concatenates the list to a JSON list"""
+        return '[' + ','.join(queue) + ']'
+
+
+class _V1JSONEncoder(_BaseJSONEncoder):
+    """JSON encoder for V1 spans."""
 
     def encode_span(self, span_builder):
         """Encodes a single span to JSON."""
@@ -380,7 +426,7 @@ class _V1JSONEncoder(IEncoder):
         if span.duration:
             json_span['duration'] = int(span.duration * 1000000)
 
-        v1_endpoint = self._create_v1_endpoint(span.endpoint)
+        v1_endpoint = self._create_json_endpoint(span.endpoint)
 
         for key, timestamp in span.annotations.items():
             json_span['annotations'].append({
@@ -398,7 +444,7 @@ class _V1JSONEncoder(IEncoder):
 
         # Add sa binary annotations
         if span.sa_endpoint is not None:
-            json_sa_endpoint = self._create_v1_endpoint(span.sa_endpoint)
+            json_sa_endpoint = self._create_json_endpoint(span.sa_endpoint)
             json_span['binaryAnnotations'].append({
                 'key': 'sa',
                 'value': '1',
@@ -409,6 +455,47 @@ class _V1JSONEncoder(IEncoder):
 
         return encoded_span
 
-    def encode_queue(self, queue):
-        """Concatenates the list to a JSON list"""
-        return '[' + ','.join(queue) + ']'
+
+class _V2JSONEncoder(_BaseJSONEncoder):
+    """JSON encoder for V2 spans."""
+
+    def encode_span(self, span_builder):
+        """Encodes a single span to JSON."""
+        span = span_builder.build_v2_span()
+
+        json_span = {
+            'traceId': span.trace_id,
+            'name': span.name,
+            'id': span.id,
+            'annotations': [],
+            'tags': {},
+        }
+
+        if span.parent_id:
+            json_span['parentId'] = span.parent_id
+        if span.timestamp:
+            json_span['timestamp'] = int(span.timestamp * 1000000)
+        if span.duration:
+            json_span['duration'] = int(span.duration * 1000000)
+        if span.kind and span.kind.value is not None:
+            json_span['kind'] = span.kind.value
+        if span.local_endpoint:
+            json_span['localEndpoint'] = self._create_json_endpoint(
+                span.local_endpoint,
+            )
+        if span.remote_endpoint:
+            json_span['remoteEndpoint'] = self._create_json_endpoint(
+                span.remote_endpoint,
+            )
+
+        for key, timestamp in span.annotations.items():
+            json_span['annotations'].append({
+                'timestamp': int(timestamp * 1000000),
+                'value': key,
+            })
+
+        json_span['tags'].update(span.tags)
+
+        encoded_span = json.dumps(json_span)
+
+        return encoded_span

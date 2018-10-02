@@ -91,7 +91,7 @@ def test_iencoder_throws_not_implemented_errors():
         encoder.encode_queue([])
 
 
-class TestV1JSONEncoder(object):
+class TestBaseJSONEncoder(object):
     @pytest.fixture
     def encoder(self):
         """Test encoder"""
@@ -105,13 +105,13 @@ class TestV1JSONEncoder(object):
         # with max_size = 56 it fits perfectly since there's space for the 2 ', '
         assert encoder.fits(2, 30, 56, '{"trace_id": "1234"}') is True
 
-    def test_create_v1_endpoint(self, encoder):
+    def test_create_json_endpoint(self, encoder):
         ipv4_endpoint = _encoding_helpers.create_endpoint(
             port=8888,
             service_name='test_service',
             host='127.0.0.1',
         )
-        assert encoder._create_v1_endpoint(ipv4_endpoint) == {
+        assert encoder._create_json_endpoint(ipv4_endpoint) == {
             'serviceName': 'test_service',
             'port': 8888,
             'ipv4': '127.0.0.1',
@@ -122,7 +122,7 @@ class TestV1JSONEncoder(object):
             service_name='test_service',
             host='2001:0db8:85a3:0000:0000:8a2e:0370:7334',
         )
-        assert encoder._create_v1_endpoint(ipv6_endpoint) == {
+        assert encoder._create_json_endpoint(ipv6_endpoint) == {
             'serviceName': 'test_service',
             'port': 8888,
             'ipv6': '2001:0db8:85a3:0000:0000:8a2e:0370:7334',
