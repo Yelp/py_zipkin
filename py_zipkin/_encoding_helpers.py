@@ -467,8 +467,6 @@ class _V2JSONEncoder(_BaseJSONEncoder):
             'traceId': span.trace_id,
             'name': span.name,
             'id': span.id,
-            'annotations': [],
-            'tags': {},
         }
 
         if span.parent_id:
@@ -487,14 +485,17 @@ class _V2JSONEncoder(_BaseJSONEncoder):
             json_span['remoteEndpoint'] = self._create_json_endpoint(
                 span.remote_endpoint,
             )
+        if span.tags and len(span.tags) > 0:
+            json_span['tags'] = span.tags
 
-        for key, timestamp in span.annotations.items():
-            json_span['annotations'].append({
-                'timestamp': int(timestamp * 1000000),
-                'value': key,
-            })
-
-        json_span['tags'].update(span.tags)
+        if span.annotations:
+            json_span['annotations'] = [
+                {
+                    'timestamp': int(timestamp * 1000000),
+                    'value': key,
+                }
+                for key, timestamp in span.annotations.items()
+            ]
 
         encoded_span = json.dumps(json_span)
 

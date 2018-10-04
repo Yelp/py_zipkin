@@ -208,7 +208,6 @@ def check_v2_json(obj, zipkin_attrs, inner_span_id, ts):
             'port': 8888,
             'serviceName': 'sa_service',
         },
-        'annotations': [],
         'tags': {'some_key': 'some_value'},
     }
 
@@ -224,7 +223,6 @@ def check_v2_json(obj, zipkin_attrs, inner_span_id, ts):
             'port': 8080,
             'serviceName': 'test_service_name',
         },
-        'tags': {},
         'annotations': [{'timestamp': us(ts), 'value': 'ws'}],
     }
 
@@ -244,7 +242,12 @@ def test_encoding(encoding, validate_fn):
     )
     inner_span_id = generate_random_64bit_string()
     mock_transport_handler, mock_logs = mock_logger()
-    ts = time.time()
+    # Let's hardcode the timestamp rather than call time.time() every time.
+    # The issue with time.time() is that the convertion to int of the
+    # returned float value * 1000000 is not precise and in the same test
+    # sometimes returns N and sometimes N+1. This ts value doesn't have that
+    # issue afaict, probably since it ends in zeros.
+    ts = 1538544126.115900
     with mock.patch('time.time', autospec=True) as mock_time:
         # zipkin.py start, logging_helper.start, 3 x logging_helper.stop
         # I don't understand why logging_helper.stop would run 3 times, but
