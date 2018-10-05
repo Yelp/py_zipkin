@@ -9,6 +9,7 @@ from thriftpy.transport import TMemoryBuffer
 
 from py_zipkin import Encoding
 from py_zipkin import Kind
+from py_zipkin import storage
 from py_zipkin import zipkin
 from py_zipkin._encoding_helpers import Endpoint
 from py_zipkin.logging_helper import LOGGING_END_KEY
@@ -723,3 +724,25 @@ def test_can_set_sa_annotation(encoding):
     assert host.ipv4 == expected_ip
     assert host.ipv6 is None
     assert host.port == 8888
+
+
+def test_memory_leak():
+    mock_transport_handler, mock_logs = mock_logger()
+    for _ in range(10):
+        with zipkin.zipkin_client_span(
+            service_name='test_service_name',
+            span_name='test_span_name',
+            transport_handler=mock_transport_handler,
+            sample_rate=0.0,
+            binary_annotations={'some_key': 'some_value'},
+            add_logging_annotation=True,
+            encoding=Encoding.V1_JSON,
+        ) as span:
+            with zipkin.zipkin_span(
+                service_name='inner_service_name',
+                span_name='inner_span_name',
+            ):
+                pass
+
+    assert len(mock_logs) == 0
+    assert len(storage.default_span_storage()) == 0

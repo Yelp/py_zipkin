@@ -338,9 +338,11 @@ class zipkin_span(object):
                     use_128bit_trace_id=self.use_128bit_trace_id,
                 )
 
+        print('self.zipkin_attrs: {}'.format(self.zipkin_attrs))
         if not self.zipkin_attrs:
             # Check if this span is inside the context of an existing trace
             existing_zipkin_attrs = self._context_stack.get()
+            print('existing_zipkin_attrs: {}'.format(existing_zipkin_attrs))
             if existing_zipkin_attrs:
                 self.zipkin_attrs = ZipkinAttrs(
                     trace_id=existing_zipkin_attrs.trace_id,
