@@ -727,7 +727,10 @@ def test_can_set_sa_annotation(encoding):
 
 
 def test_memory_leak():
+    # In py_zipkin >= 0.13.0 and <= 0.14.0 this test fails since the
+    # span_storage contains 10 spans once you exit the for loop.
     mock_transport_handler, mock_logs = mock_logger()
+    assert len(storage.default_span_storage()) == 0
     for _ in range(10):
         with zipkin.zipkin_client_span(
             service_name='test_service_name',
@@ -737,7 +740,7 @@ def test_memory_leak():
             binary_annotations={'some_key': 'some_value'},
             add_logging_annotation=True,
             encoding=Encoding.V1_JSON,
-        ) as span:
+        ):
             with zipkin.zipkin_span(
                 service_name='inner_service_name',
                 span_name='inner_span_name',

@@ -418,58 +418,61 @@ def test_span_context(
     span_func,
     expected_annotations,
 ):
-    zipkin_attrs = ZipkinAttrs(
-        trace_id='1111111111111111',
-        span_id='2222222222222222',
-        parent_span_id='3333333333333333',
-        flags='flags',
-        is_sampled=True,
-    )
-    thread_local_mock.zipkin_attrs = [zipkin_attrs]
     span_storage = SpanStorage()
 
     generate_string_mock.return_value = '1'
 
-    context = span_func(
-        service_name='svc',
-        span_name='span',
+    with zipkin.zipkin_span(
+        service_name='root_span',
+        span_name='root_span',
+        sample_rate=100.0,
         transport_handler=MockTransportHandler(),
-        binary_annotations={'foo': 'bar'},
         span_storage=span_storage,
-        report_root_timestamp=False,
-    )
+    ):
+        zipkin_attrs = ZipkinAttrs(
+            trace_id='1111111111111111',
+            span_id='2222222222222222',
+            parent_span_id='3333333333333333',
+            flags='flags',
+            is_sampled=True,
+        )
+        thread_local_mock.zipkin_attrs = [zipkin_attrs]
+        ts = time.time()
+        with mock.patch('time.time', return_value=ts):
+            with span_func(
+                service_name='svc',
+                span_name='span',
+                binary_annotations={'foo': 'bar'},
+                span_storage=span_storage,
+            ):
+                # Assert that the new ZipkinAttrs were saved
+                new_zipkin_attrs = get_zipkin_attrs()
+                assert new_zipkin_attrs.span_id == '1'
 
-    ts = time.time()
-    with mock.patch('time.time', return_value=ts):
-        with context:
-            # Assert that the new ZipkinAttrs were saved
-            new_zipkin_attrs = get_zipkin_attrs()
-            assert new_zipkin_attrs.span_id == '1'
+        # Outside of the context, things should be returned to normal
+        assert get_zipkin_attrs() == zipkin_attrs
 
-    # Outside of the context, things should be returned to normal
-    assert get_zipkin_attrs() == zipkin_attrs
+        client_span = span_storage.pop().build_v1_span()
+        # These reserved annotations are based on timestamps so pop em.
+        # This also acts as a check that they exist.
+        for annotation in expected_annotations:
+            client_span.annotations.pop(annotation)
 
-    client_span = span_storage.pop().build_v1_span()
-    # These reserved annotations are based on timestamps so pop em.
-    # This also acts as a check that they exist.
-    for annotation in expected_annotations:
-        client_span.annotations.pop(annotation)
+        expected_client_span = _V1Span(
+            trace_id='1111111111111111',
+            name='span',
+            parent_id='2222222222222222',
+            id='1',
+            timestamp=ts,
+            duration=0.0,
+            endpoint=None,
+            annotations={},
+            binary_annotations={'foo': 'bar'},
+            sa_endpoint=None,
+        )
+        assert client_span == expected_client_span
 
-    expected_client_span = _V1Span(
-        trace_id='1111111111111111',
-        name='span',
-        parent_id='2222222222222222',
-        id='1',
-        timestamp=ts,
-        duration=0.0,
-        endpoint=None,
-        annotations={},
-        binary_annotations={'foo': 'bar'},
-        sa_endpoint=None,
-    )
-    assert client_span == expected_client_span
-
-    assert generate_string_128bit_mock.call_count == 0
+        assert generate_string_128bit_mock.call_count == 0
 
 
 @mock.patch('py_zipkin.zipkin.create_attrs_for_span', autospec=True)
