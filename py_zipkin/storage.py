@@ -45,7 +45,29 @@ class ThreadLocalStack(Stack):
 
 
 class SpanStorage(deque):
-    pass
+    def __init__(self):
+        super(SpanStorage, self).__init__()
+        self._is_transport_configured = False
+
+    def is_transport_configured(self):
+        """Helper function to check whether a transport is configured.
+
+        We need to propagate this info to the child zipkin_spans since
+        if no transport is set-up they should not generate any Span to
+        avoid memory leaks.
+
+        :returns: whether transport is configured or not
+        :rtype: bool
+        """
+        return self._is_transport_configured
+
+    def set_transport_configured(self, configured):
+        """Set whether the transport is configured or not.
+
+        :param configured: whether transport is configured or not
+        :type configured: bool
+        """
+        self._is_transport_configured = configured
 
 
 def default_span_storage():

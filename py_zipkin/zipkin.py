@@ -209,8 +209,8 @@ class zipkin_span(object):
         self.duration = duration
         self.encoding = encoding
 
+        self._is_local_root_span = False
         self.logging_context = None
-        self.logging_configured = False
         self.do_pop_attrs = False
         # Spans that log a 'cs' timestamp can additionally record a
         # 'sa' binary annotation that shows where the request is going.
@@ -239,11 +239,19 @@ class zipkin_span(object):
                 DeprecationWarning,
             )
 
-        # Validation checks
+        # Root spans have transport_handler and at least one of zipkin_attrs
+        # or sample_rate.
         if self.zipkin_attrs or self.sample_rate is not None:
+            # transport_handler is mandatory for root spans
             if self.transport_handler is None:
                 raise ZipkinError(
                     'Root spans require a transport handler to be given')
+
+            self._is_local_root_span = True
+
+        # If firehose_handler than this is a local root span.
+        if self.firehose_handler:
+            self._is_local_root_span = True
 
         if self.sample_rate is not None and not (0.0 <= self.sample_rate <= 100.0):
             raise ZipkinError('Sample rate must be between 0.0 and 100.0')
@@ -316,40 +324,48 @@ class zipkin_span(object):
         never attached in the unsampled case, so the spans are never logged.
         """
         self.do_pop_attrs = False
-        # If zipkin_attrs are passed in or this span is doing its own sampling,
-        # it will need to actually log spans at __exit__.
-        perform_logging = bool(self.zipkin_attrs or
-                               self.sample_rate is not None or
-                               self.firehose_handler is not None)
         report_root_timestamp = False
 
-        if self.sample_rate is not None:
-            if self.zipkin_attrs and not self.zipkin_attrs.is_sampled:
-                report_root_timestamp = True
-                self.zipkin_attrs = create_attrs_for_span(
-                    sample_rate=self.sample_rate,
-                    trace_id=self.zipkin_attrs.trace_id,
-                    use_128bit_trace_id=self.use_128bit_trace_id,
-                )
-            elif not self.zipkin_attrs:
-                report_root_timestamp = True
-                self.zipkin_attrs = create_attrs_for_span(
-                    sample_rate=self.sample_rate,
-                    use_128bit_trace_id=self.use_128bit_trace_id,
-                )
+        # This check is technically not necessary since only root spans will have
+        # sample_rate, zipkin_attrs or a transport set. But it helps making the
+        # code clearer by separating the logic for a root span from the one for a
+        # child span.
+        if self._is_local_root_span:
 
-        if not self.zipkin_attrs:
-            # Check if this span is inside the context of an existing trace
-            existing_zipkin_attrs = self._context_stack.get()
-            if existing_zipkin_attrs:
-                self.zipkin_attrs = ZipkinAttrs(
-                    trace_id=existing_zipkin_attrs.trace_id,
-                    span_id=generate_random_64bit_string(),
-                    parent_span_id=existing_zipkin_attrs.span_id,
-                    flags=existing_zipkin_attrs.flags,
-                    is_sampled=existing_zipkin_attrs.is_sampled,
-                )
-            elif self.firehose_handler is not None:
+            # If sample_rate is set, we need to (re)generate a trace context.
+            # If zipkin_attrs (trace context) were passed in as argument there are
+            # 2 possibilities:
+            # is_sampled = False --> we keep the same trace_id but re-roll the dice
+            #                        for is_sampled.
+            # is_sampled = True  --> we don't want to stop sampling halfway through
+            #                        a sampled trace, so we do nothing.
+            # If no zipkin_attrs were passed in, we generate new ones and start a
+            # new trace.
+            if self.sample_rate is not None:
+
+                # If this trace is not sampled, we re-roll the dice.
+                if self.zipkin_attrs and not self.zipkin_attrs.is_sampled:
+                    # This will be the root span of the trace, so we should
+                    # set timestamp and duration.
+                    report_root_timestamp = True
+                    self.zipkin_attrs = create_attrs_for_span(
+                        sample_rate=self.sample_rate,
+                        trace_id=self.zipkin_attrs.trace_id,
+                        use_128bit_trace_id=self.use_128bit_trace_id,
+                    )
+
+                # If zipkin_attrs was not passed in, we simply generate new
+                # zipkin_attrs to start a new trace.
+                elif not self.zipkin_attrs:
+                    # This will be the root span of the trace, so we should
+                    # set timestamp and duration.
+                    report_root_timestamp = True
+                    self.zipkin_attrs = create_attrs_for_span(
+                        sample_rate=self.sample_rate,
+                        use_128bit_trace_id=self.use_128bit_trace_id,
+                    )
+
+            if self.firehose_handler and not self.zipkin_attrs:
                 # If it has gotten here, the only thing that is
                 # causing a trace is the firehose. So we force a trace
                 # with sample rate of 0
@@ -358,6 +374,21 @@ class zipkin_span(object):
                     sample_rate=0.0,
                     use_128bit_trace_id=self.use_128bit_trace_id,
                 )
+        else:
+            # If zipkin_attrs was not passed in, we check if there's already a
+            # trace context in _context_stack.
+            if not self.zipkin_attrs:
+                existing_zipkin_attrs = self._context_stack.get()
+                # If there's an existing context, let's create new zipkin_attrs
+                # with that context as parent.
+                if existing_zipkin_attrs:
+                    self.zipkin_attrs = ZipkinAttrs(
+                        trace_id=existing_zipkin_attrs.trace_id,
+                        span_id=generate_random_64bit_string(),
+                        parent_span_id=existing_zipkin_attrs.span_id,
+                        flags=existing_zipkin_attrs.flags,
+                        is_sampled=existing_zipkin_attrs.is_sampled,
+                    )
 
         # If zipkin_attrs are not set up by now, that means this span is not
         # configured to perform logging itself, and it's not in an existing
@@ -371,7 +402,7 @@ class zipkin_span(object):
 
         self.start_timestamp = time.time()
 
-        if perform_logging:
+        if self._is_local_root_span:
             # Don't set up any logging if we're not sampling
             if not self.zipkin_attrs.is_sampled and not self.firehose_handler:
                 return self
@@ -392,8 +423,8 @@ class zipkin_span(object):
                 encoding=self.encoding,
             )
             self.logging_context.start()
+            self._span_storage.set_transport_configured(configured=True)
 
-        self.logging_configured = True
         return self
 
     def __exit__(self, _exc_type, _exc_value, _exc_traceback):
@@ -409,7 +440,10 @@ class zipkin_span(object):
         if self.do_pop_attrs:
             self._context_stack.pop()
 
-        if not self.logging_configured:
+        # If no transport is configured, there's no reason to create a new Span.
+        # This also helps avoiding memory leaks since without a transport nothing
+        # would pull spans out of _span_storage.
+        if not self._span_storage.is_transport_configured():
             return
 
         # Add the error annotation if an exception occurred
@@ -425,6 +459,7 @@ class zipkin_span(object):
         if self.logging_context:
             self.logging_context.stop()
             self.logging_context = None
+            self._span_storage.set_transport_configured(configured=False)
             return
 
         # If we've gotten here, that means that this span is a child span of
