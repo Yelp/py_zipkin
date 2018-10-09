@@ -1,3 +1,7 @@
+0.14.1 (2018-10-09)
+-------------------
+- Fixed memory leak introduced in 0.13.0
+
 0.14.0 (2018-10-01)
 -------------------
 - Support JSON encoding for V1 spans.
