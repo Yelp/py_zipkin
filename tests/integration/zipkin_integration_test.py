@@ -345,8 +345,7 @@ def _verify_service_span(span, annotations):
     assert set([ann.value for ann in span.annotations]) == annotations
 
 
-@pytest.mark.parametrize('encoding', SUPPORTED_ENCODINGS)
-def test_service_span(encoding, default_annotations):
+def test_service_span(default_annotations):
     mock_transport_handler, mock_logs = mock_logger()
     mock_firehose_handler, mock_firehose_logs = mock_logger()
     zipkin_attrs = ZipkinAttrs(
@@ -364,12 +363,12 @@ def test_service_span(encoding, default_annotations):
         binary_annotations={'some_key': 'some_value'},
         add_logging_annotation=True,
         firehose_handler=mock_firehose_handler,
-        encoding=encoding,
+        encoding=Encoding.V1_THRIFT,
     ):
         pass
 
-    span = decode(mock_logs[0], encoding)[0]
-    firehose_span = decode(mock_firehose_logs[0], encoding)[0]
+    span = decode(mock_logs[0], Encoding.V1_THRIFT)[0]
+    firehose_span = decode(mock_firehose_logs[0], Encoding.V1_THRIFT)[0]
     _verify_service_span(span, default_annotations)
     _verify_service_span(firehose_span, default_annotations)
 
@@ -379,11 +378,7 @@ def test_service_span(encoding, default_annotations):
     assert span.duration is None
 
 
-@pytest.mark.parametrize('encoding', SUPPORTED_ENCODINGS)
-def test_service_span_report_timestamp_override(
-    encoding,
-    default_annotations,
-):
+def test_service_span_report_timestamp_override(default_annotations):
     mock_transport_handler, mock_logs = mock_logger()
     zipkin_attrs = ZipkinAttrs(
         trace_id='0',
@@ -400,11 +395,11 @@ def test_service_span_report_timestamp_override(
         binary_annotations={'some_key': 'some_value'},
         add_logging_annotation=True,
         report_root_timestamp=True,
-        encoding=encoding,
+        encoding=Encoding.V1_THRIFT,
     ):
         pass
 
-    span = decode(mock_logs[0], encoding)[0]
+    span = decode(mock_logs[0], Encoding.V1_THRIFT)[0]
     _verify_service_span(span, default_annotations)
     assert span.timestamp is not None
     assert span.duration is not None

@@ -380,18 +380,27 @@ class _BaseJSONEncoder(IEncoder):
         """
         return 2 + current_count + current_size + len(new_span) <= max_size
 
-    def _create_json_endpoint(self, endpoint):
+    def _create_json_endpoint(self, endpoint, is_v1):
         """Converts an Endpoint to a JSON endpoint dict.
 
         :param endpoint: endpoint object to convert.
         :type endpoint: Endpoint
+        :param is_v1: whether we're serializing a v1 span. This is needed since
+            in v1 some fields default to an empty string rather than being
+            dropped if they're not set.
+        :type is_v1: bool
         :return: dict representing a JSON endpoint.
         :rtype: dict
         """
-        json_endpoint = {
-            'serviceName': endpoint.service_name,
-            'port': endpoint.port,
-        }
+        json_endpoint = {}
+
+        if endpoint.service_name:
+            json_endpoint['serviceName'] = endpoint.service_name
+        elif is_v1:
+            # serviceName is mandatory in v1
+            json_endpoint['serviceName'] = ""
+        if endpoint.port and endpoint.port != 0:
+            json_endpoint['port'] = endpoint.port
         if endpoint.ipv4 is not None:
             json_endpoint['ipv4'] = endpoint.ipv4
         if endpoint.ipv6 is not None:
@@ -426,7 +435,7 @@ class _V1JSONEncoder(_BaseJSONEncoder):
         if span.duration:
             json_span['duration'] = int(span.duration * 1000000)
 
-        v1_endpoint = self._create_json_endpoint(span.endpoint)
+        v1_endpoint = self._create_json_endpoint(span.endpoint, True)
 
         for key, timestamp in span.annotations.items():
             json_span['annotations'].append({
@@ -444,7 +453,7 @@ class _V1JSONEncoder(_BaseJSONEncoder):
 
         # Add sa binary annotations
         if span.sa_endpoint is not None:
-            json_sa_endpoint = self._create_json_endpoint(span.sa_endpoint)
+            json_sa_endpoint = self._create_json_endpoint(span.sa_endpoint, True)
             json_span['binaryAnnotations'].append({
                 'key': 'sa',
                 'value': '1',
@@ -465,10 +474,11 @@ class _V2JSONEncoder(_BaseJSONEncoder):
 
         json_span = {
             'traceId': span.trace_id,
-            'name': span.name,
             'id': span.id,
         }
 
+        if span.name:
+            json_span['name'] = span.name
         if span.parent_id:
             json_span['parentId'] = span.parent_id
         if span.timestamp:
@@ -480,10 +490,12 @@ class _V2JSONEncoder(_BaseJSONEncoder):
         if span.local_endpoint:
             json_span['localEndpoint'] = self._create_json_endpoint(
                 span.local_endpoint,
+                False,
             )
         if span.remote_endpoint:
             json_span['remoteEndpoint'] = self._create_json_endpoint(
                 span.remote_endpoint,
+                False,
             )
         if span.tags and len(span.tags) > 0:
             json_span['tags'] = span.tags

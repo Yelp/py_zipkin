@@ -111,7 +111,7 @@ class TestBaseJSONEncoder(object):
             service_name='test_service',
             host='127.0.0.1',
         )
-        assert encoder._create_json_endpoint(ipv4_endpoint) == {
+        assert encoder._create_json_endpoint(ipv4_endpoint, False) == {
             'serviceName': 'test_service',
             'port': 8888,
             'ipv4': '127.0.0.1',
@@ -122,8 +122,29 @@ class TestBaseJSONEncoder(object):
             service_name='test_service',
             host='2001:0db8:85a3:0000:0000:8a2e:0370:7334',
         )
-        assert encoder._create_json_endpoint(ipv6_endpoint) == {
+        assert encoder._create_json_endpoint(ipv6_endpoint, False) == {
             'serviceName': 'test_service',
+            'port': 8888,
+            'ipv6': '2001:0db8:85a3:0000:0000:8a2e:0370:7334',
+        }
+
+        v1_endpoint = _encoding_helpers.create_endpoint(
+            port=8888,
+            service_name=None,
+            host='2001:0db8:85a3:0000:0000:8a2e:0370:7334',
+        )
+        assert encoder._create_json_endpoint(v1_endpoint, True) == {
+            'serviceName': '',
+            'port': 8888,
+            'ipv6': '2001:0db8:85a3:0000:0000:8a2e:0370:7334',
+        }
+
+        v2_endpoint = _encoding_helpers.create_endpoint(
+            port=8888,
+            service_name=None,
+            host='2001:0db8:85a3:0000:0000:8a2e:0370:7334',
+        )
+        assert encoder._create_json_endpoint(v2_endpoint, False) == {
             'port': 8888,
             'ipv6': '2001:0db8:85a3:0000:0000:8a2e:0370:7334',
         }
