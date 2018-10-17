@@ -176,10 +176,10 @@ class SpanBuilder(object):
             parent_id=self.parent_id,
             id=self.span_id,
             kind=self.kind,
-            timestamp=self.timestamp if self.report_timestamp else None,
-            duration=self.duration if self.report_timestamp else None,
+            timestamp=self.timestamp,
+            duration=self.duration,
             debug=False,
-            shared=False,
+            shared=self.report_timestamp is False,
             local_endpoint=self.local_endpoint,
             remote_endpoint=remote_endpoint,
             annotations=self.annotations,
@@ -485,6 +485,8 @@ class _V2JSONEncoder(_BaseJSONEncoder):
             json_span['timestamp'] = int(span.timestamp * 1000000)
         if span.duration:
             json_span['duration'] = int(span.duration * 1000000)
+        if span.shared is True:
+            json_span['shared'] = True
         if span.kind and span.kind.value is not None:
             json_span['kind'] = span.kind.value
         if span.local_endpoint:

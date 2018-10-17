@@ -197,6 +197,9 @@ def check_v2_json(obj, zipkin_attrs, inner_span_id, ts):
         'parentId': zipkin_attrs.parent_span_id,
         'id': zipkin_attrs.span_id,
         'kind': 'CLIENT',
+        'timestamp': us(ts),
+        'duration': us(10),
+        'shared': True,
         'localEndpoint': {
             'ipv4': '10.0.0.0',
             'port': 8080,
