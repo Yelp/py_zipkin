@@ -8,8 +8,8 @@ from collections import namedtuple
 from py_zipkin import Encoding
 from py_zipkin import Kind
 from py_zipkin import storage
-from py_zipkin._encoding_helpers import create_endpoint
-from py_zipkin._encoding_helpers import SpanBuilder
+from py_zipkin.encoding._helpers import create_endpoint
+from py_zipkin.encoding._helpers import SpanBuilder
 from py_zipkin.exception import ZipkinError
 from py_zipkin.logging_helper import ZipkinLoggingContext
 from py_zipkin.storage import ThreadLocalStack
