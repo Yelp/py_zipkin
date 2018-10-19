@@ -1,7 +1,7 @@
 import mock
 import pytest
 
-from py_zipkin._encoding_helpers import IEncoder
+from py_zipkin.encoding._encoders import IEncoder
 from py_zipkin.transport import BaseTransportHandler
 from py_zipkin.zipkin import ZipkinAttrs
 

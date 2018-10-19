@@ -3,9 +3,11 @@ import pytest
 
 from py_zipkin import Encoding
 from py_zipkin import Kind
-from py_zipkin import _encoding_helpers
 from py_zipkin import logging_helper
-from py_zipkin._encoding_helpers import SpanBuilder
+from py_zipkin.encoding._helpers import Endpoint
+from py_zipkin.encoding._helpers import SpanBuilder
+from py_zipkin.encoding._helpers import create_endpoint
+from py_zipkin.encoding._encoders import get_encoder
 from py_zipkin.exception import ZipkinError
 from py_zipkin.storage import SpanStorage
 from py_zipkin.zipkin import ZipkinAttrs
@@ -18,7 +20,7 @@ def context():
     attr = ZipkinAttrs(None, None, None, None, False)
     return logging_helper.ZipkinLoggingContext(
         zipkin_attrs=attr,
-        endpoint=_encoding_helpers.create_endpoint(80, 'test_server', '127.0.0.1'),
+        endpoint=create_endpoint(80, 'test_server', '127.0.0.1'),
         span_name='span_name',
         transport_handler=MockTransportHandler(),
         report_root_timestamp=False,
@@ -40,7 +42,7 @@ def empty_annotations_dict():
 
 @pytest.fixture
 def fake_endpoint():
-    return _encoding_helpers.Endpoint(
+    return Endpoint(
         service_name='test_server',
         ipv4='127.0.0.1',
         ipv6=None,
@@ -299,7 +301,7 @@ def test_batch_sender_add_span_not_called_if_not_sampled(add_span_mock,
 
     context = logging_helper.ZipkinLoggingContext(
         zipkin_attrs=attr,
-        endpoint=_encoding_helpers.create_endpoint(80, 'test_server', '127.0.0.1'),
+        endpoint=create_endpoint(80, 'test_server', '127.0.0.1'),
         span_name='span_name',
         transport_handler=transport_handler,
         report_root_timestamp=False,
@@ -333,7 +335,7 @@ def test_batch_sender_add_span_not_sampled_with_firehose(add_span_mock,
 
     context = logging_helper.ZipkinLoggingContext(
         zipkin_attrs=attr,
-        endpoint=_encoding_helpers.create_endpoint(80, 'test_server', '127.0.0.1'),
+        endpoint=create_endpoint(80, 'test_server', '127.0.0.1'),
         span_name='span_name',
         transport_handler=transport_handler,
         report_root_timestamp=False,
@@ -444,7 +446,7 @@ def test_batch_sender_add_span_too_big(
     sender = logging_helper.ZipkinBatchSender(
         mock_transport_handler,
         100,
-        _encoding_helpers.get_encoder(Encoding.V1_THRIFT),
+        get_encoder(Encoding.V1_THRIFT),
     )
     with sender:
         for _ in range(201):

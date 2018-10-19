@@ -6,10 +6,10 @@ import mock
 import pytest
 
 import py_zipkin.zipkin as zipkin
-from py_zipkin import _encoding_helpers
 from py_zipkin import Encoding
 from py_zipkin import Kind
-from py_zipkin._encoding_helpers import _V1Span
+from py_zipkin.encoding._helpers import _V1Span
+from py_zipkin.encoding._helpers import create_endpoint
 from py_zipkin.exception import ZipkinError
 from py_zipkin.storage import SpanStorage
 from py_zipkin.storage import ThreadLocalStack
@@ -707,7 +707,7 @@ def test_add_sa_binary_annotation():
             service_name='test_service',
             host='1.2.3.4',
         )
-        expected_sa_endpoint = _encoding_helpers.create_endpoint(
+        expected_sa_endpoint = create_endpoint(
             port=123,
             service_name='test_service',
             host='1.2.3.4',
@@ -726,7 +726,7 @@ def test_add_sa_binary_annotation():
                 service_name='nested_service',
                 host='5.6.7.8',
             )
-            expected_nested_sa_endpoint = _encoding_helpers.create_endpoint(
+            expected_nested_sa_endpoint = create_endpoint(
                 port=456,
                 service_name='nested_service',
                 host='5.6.7.8',
@@ -803,7 +803,7 @@ def test_adding_sa_binary_annotation_without_sampling():
             service_name='test_service',
             host='1.2.3.4',
         )
-        expected_sa_endpoint = _encoding_helpers.create_endpoint(
+        expected_sa_endpoint = create_endpoint(
             port=123,
             service_name='test_service',
             host='1.2.3.4',
