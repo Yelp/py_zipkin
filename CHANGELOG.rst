@@ -1,6 +1,11 @@
+0.15.0 (2018-10-22)
+-------------------
+- Added support for V2 JSON encoding.
+- Fixed TransportHandler bug that was affecting also V1 JSON.
+
 0.14.1 (2018-10-09)
 -------------------
-- Fixed memory leak introduced in 0.13.0
+- Fixed memory leak introduced in 0.13.0.
 
 0.14.0 (2018-10-01)
 -------------------
