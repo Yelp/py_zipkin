@@ -174,10 +174,10 @@ class ZipkinBatchSender(object):
         is_over_size_limit = (
             self.max_payload_bytes is not None and
             not self.encoder.fits(
-                self.queue,
-                self.current_size,
-                self.max_payload_bytes,
-                encoded_span,
+                current_count=len(self.queue),
+                current_size=self.current_size,
+                max_size=self.max_payload_bytes,
+                new_span=encoded_span,
             )
         )
         is_over_portion_limit = len(self.queue) >= self.max_portion_size

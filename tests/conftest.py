@@ -1,5 +1,6 @@
 import mock
 import pytest
+import six
 
 from py_zipkin.encoding._encoders import IEncoder
 from py_zipkin.transport import BaseTransportHandler
@@ -46,8 +47,15 @@ class MockTransportHandler(BaseTransportHandler):
 class MockEncoder(IEncoder):
 
     def __init__(self, fits=True, encoded_span='', encoded_queue=''):
-        self.fits = mock.Mock(return_value=fits)
+        self.fits_bool = fits
         self.encode_span = mock.Mock(
             return_value=(encoded_span, len(encoded_span)),
         )
         self.encode_queue = mock.Mock(return_value=encoded_queue)
+
+    def fits(self, current_count, current_size, max_size, new_span):
+        assert isinstance(current_count, int)
+        assert isinstance(current_size, int)
+        assert isinstance(max_size, int)
+        assert isinstance(new_span, six.string_types)
+        return self.fits_bool
