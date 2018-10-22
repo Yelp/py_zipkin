@@ -16,15 +16,7 @@ from py_zipkin.thrift import zipkin_core
 from py_zipkin import thrift
 from py_zipkin.util import generate_random_64bit_string
 from py_zipkin.zipkin import ZipkinAttrs
-
-
-def mock_logger():
-    mock_logs = []
-
-    def mock_transport_handler(message):
-        mock_logs.append(message)
-
-    return mock_transport_handler, mock_logs
+from tests.conftest import MockTransportHandler
 
 
 def _decode_binary_thrift_objs(obj):
@@ -243,7 +235,7 @@ def test_encoding(encoding, validate_fn):
         flags=None,
     )
     inner_span_id = generate_random_64bit_string()
-    mock_transport_handler, mock_logs = mock_logger()
+    mock_transport_handler = MockTransportHandler(10000)
     # Let's hardcode the timestamp rather than call time.time() every time.
     # The issue with time.time() is that the convertion to int of the
     # returned float value * 1000000 is not precise and in the same test
@@ -284,4 +276,5 @@ def test_encoding(encoding, validate_fn):
                         '2001:0db8:85a3:0000:0000:8a2e:0370:7334',
                     )
 
-    validate_fn(mock_logs[0], zipkin_attrs, inner_span_id, ts)
+    output = mock_transport_handler.get_payloads()[0]
+    validate_fn(output, zipkin_attrs, inner_span_id, ts)
