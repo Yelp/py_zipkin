@@ -4,6 +4,8 @@ import pytest
 from py_zipkin import Encoding
 from py_zipkin import Kind
 from py_zipkin import logging_helper
+from py_zipkin.encoding._encoders import get_encoder
+from py_zipkin.encoding._helpers import create_endpoint
 from py_zipkin.encoding._helpers import Endpoint
 from py_zipkin.encoding._helpers import Span
 from py_zipkin.encoding._helpers import create_endpoint

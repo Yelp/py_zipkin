@@ -6,6 +6,8 @@ from py_zipkin import Kind
 from py_zipkin.encoding._helpers import Span
 from py_zipkin.encoding._helpers import copy_endpoint_with_new_service_name
 from py_zipkin.encoding._encoders import get_encoder
+from py_zipkin.encoding._helpers import copy_endpoint_with_new_service_name
+from py_zipkin.encoding._helpers import SpanBuilder
 from py_zipkin.exception import ZipkinError
 from py_zipkin.transport import BaseTransportHandler
 

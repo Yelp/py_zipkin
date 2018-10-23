@@ -204,7 +204,7 @@ class zipkin_span(object):
         if span_storage is not None:
             self._span_storage = span_storage
         else:
-            self._span_storage = storage.default_span_storage()
+            self._span_storage = storage.ThreadLocalSpanStorage()
         self.firehose_handler = firehose_handler
         self.kind = self._generate_kind(kind, include)
         self.timestamp = timestamp
@@ -256,7 +256,8 @@ class zipkin_span(object):
         if self.sample_rate is not None and not (0.0 <= self.sample_rate <= 100.0):
             raise ZipkinError('Sample rate must be between 0.0 and 100.0')
 
-        if not isinstance(self._span_storage, storage.SpanStorage):
+        if not (isinstance(self._span_storage, storage.SpanStorage) or
+                isinstance(self._span_storage, storage.ThreadLocalSpanStorage)):
             raise ZipkinError('span_storage should be an instance '
                               'of py_zipkin.storage.SpanStorage')
 

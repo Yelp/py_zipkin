@@ -18,7 +18,14 @@ def test_get_zipkin_attrs_returns_none_if_no_zipkin_attrs():
 
 
 def test_get_zipkin_attrs_with_context_returns_none_if_no_zipkin_attrs():
-    assert not py_zipkin.storage.Stack([]).get()
+    with mock.patch.object(py_zipkin.storage.log, 'warning', autospec=True) as log:
+        assert not py_zipkin.storage.Stack([]).get()
+        assert log.call_count == 1
+
+
+def test_storage_stack_still_works_if_you_dont_pass_in_storage():
+    # Let's make sure this still works if we don't pass in a custom storage.
+    assert not py_zipkin.storage.Stack().get()
 
 
 @mock.patch('py_zipkin.storage.thread_local._thread_local.zipkin_attrs', ['foo'])

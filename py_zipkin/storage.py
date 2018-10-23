@@ -1,6 +1,10 @@
+import logging
 from collections import deque
 
 from py_zipkin import thread_local
+
+
+log = logging.getLogger('py_zipkin.storage')
 
 
 class Stack(object):
@@ -11,8 +15,12 @@ class Stack(object):
     The latter two return None if the stack is empty.
     """
 
-    def __init__(self, storage):
-        self._storage = storage
+    def __init__(self, storage=None):
+        if storage is not None:
+            log.warning('Passing a storage object to Stack is deprecated.')
+            self._storage = storage
+        else:
+            self._storage = []
 
     def push(self, item):
         self._storage.append(item)
@@ -70,5 +78,42 @@ class SpanStorage(deque):
         self._is_transport_configured = configured
 
 
-def default_span_storage():
-    return thread_local.get_thread_local_span_storage()
+class ThreadLocalSpanStorage(object):
+    """
+    ThreadLocalSpanStorage is wrapper around SpanStorage that stores the
+    SpanStorage object in thread local.
+
+    The thread local storage is accessed lazily in every method call,
+    so the thread that calls the method matters, not the thread that
+    instantiated the class. This is important since for example decorators
+    are created at import time and in a different thread than where the
+    rest of the code runs.
+    Every instance shares the same thread local data.
+
+    To make this work I infortunately need to override every method of
+    SpanStorage and call the real span_storage instance.
+    """
+
+    @property
+    def _storage(self):
+        return thread_local.get_thread_local_span_storage()
+
+    def __iter__(self):
+        # No need to override __next__ as __iter__ returns a pointer to
+        # itself. So python will call __next__ directly on the right object.
+        return self._storage.__iter__()
+
+    def __len__(self):
+        return len(self._storage)
+
+    def append(self, el):
+        return self._storage.append(el)
+
+    def clear(self):
+        return self._storage.clear()
+
+    def is_transport_configured(self):
+        return self._storage.is_transport_configured()
+
+    def set_transport_configured(self, configured):
+        self._storage.set_transport_configured(configured)
