@@ -1,6 +1,8 @@
 language: python
 matrix:
   include:
+  - python: 3.6
+    env: TOXENV=pre-commit
   - python: 2.7
     env: TOXENV=py27
   - python: 3.4
@@ -9,7 +11,7 @@ matrix:
     env: TOXENV=py35
   - python: 3.6
     env: TOXENV=py36
-  - python: 2.7
+  - python: 3.6
     env: TOXENV=flake8
 before_install: pip install -U pip==18.0
 install: pip install tox coveralls
