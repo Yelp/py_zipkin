@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 import functools
+import logging
 import random
 import time
-import warnings
 from collections import namedtuple
 
 from py_zipkin import Encoding
@@ -32,6 +32,8 @@ ZipkinAttrs = namedtuple(
 )
 
 ERROR_KEY = 'error'
+
+log = logging.getLogger('py_zipkin.zipkin')
 
 
 class zipkin_span(object):
@@ -225,18 +227,16 @@ class zipkin_span(object):
         if 'sr' in self.annotations and 'ss' in self.annotations:
             self.duration = self.annotations['ss'] - self.annotations['sr']
             self.timestamp = self.annotations['sr']
-            warnings.warn(
+            log.warning(
                 "Manually setting 'sr'/'ss' annotations is deprecated. Please "
-                "use the timestamp and duration parameters.",
-                DeprecationWarning,
+                "use the timestamp and duration parameters."
             )
         if 'cr' in self.annotations and 'cs' in self.annotations:
             self.duration = self.annotations['cr'] - self.annotations['cs']
             self.timestamp = self.annotations['cs']
-            warnings.warn(
+            log.warning(
                 "Manually setting 'cr'/'cs' annotations is deprecated. Please "
-                "use the timestamp and duration parameters.",
-                DeprecationWarning,
+                "use the timestamp and duration parameters."
             )
 
         # Root spans have transport_handler and at least one of zipkin_attrs
@@ -299,9 +299,8 @@ class zipkin_span(object):
                 # than it's a client or server span respectively.
                 # If neither or both are present, then it's a local span
                 # which is represented by kind = None.
-                warnings.warn(
-                    'The include argument is deprecated. Please use kind.',
-                    DeprecationWarning,
+                log.warning(
+                    'The include argument is deprecated. Please use kind.'
                 )
                 if 'client' in include and 'server' not in include:
                     return Kind.CLIENT
