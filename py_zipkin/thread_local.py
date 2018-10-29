@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
+import logging
 import threading
-import warnings
 
 _thread_local = threading.local()
+
+log = logging.getLogger('py_zipkin.thread_local')
 
 
 def get_thread_local_zipkin_attrs():
@@ -42,10 +44,8 @@ def get_zipkin_attrs():
     :rtype: :class:`zipkin.ZipkinAttrs`
     """
     from py_zipkin.storage import ThreadLocalStack
-    warnings.warn(
-        'Use py_zipkin.stack.ThreadLocalStack().get',
-        DeprecationWarning,
-    )
+    log.warning('get_zipkin_attrs is deprecated. '
+                'Use py_zipkin.storage.ThreadLocalStack().get')
     return ThreadLocalStack().get()
 
 
@@ -56,10 +56,8 @@ def pop_zipkin_attrs():
     :rtype: :class:`zipkin.ZipkinAttrs`
     """
     from py_zipkin.storage import ThreadLocalStack
-    warnings.warn(
-        'Use py_zipkin.stack.ThreadLocalStack().pop',
-        DeprecationWarning,
-    )
+    log.warning('pop_zipkin_attrs is deprecated. '
+                'Use py_zipkin.storage.ThreadLocalStack().pop')
     return ThreadLocalStack().pop()
 
 
@@ -70,8 +68,6 @@ def push_zipkin_attrs(zipkin_attr):
     :type zipkin_attr: :class:`zipkin.ZipkinAttrs`
     """
     from py_zipkin.storage import ThreadLocalStack
-    warnings.warn(
-        'Use py_zipkin.stack.ThreadLocalStack().push',
-        DeprecationWarning,
-    )
+    log.warning('push_zipkin_attrs is deprecated. '
+                'Use py_zipkin.storage.ThreadLocalStack().push')
     return ThreadLocalStack().push(zipkin_attr)
