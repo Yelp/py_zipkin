@@ -1,3 +1,7 @@
+0.15.1 (2018-10-31)
+-------------------
+- Changed DeprecationWarnings to logging.warning
+
 0.15.0 (2018-10-22)
 -------------------
 - Added support for V2 JSON encoding.
