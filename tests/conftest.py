@@ -1,9 +1,5 @@
-import mock
 import pytest
-import six
 
-from py_zipkin.encoding._encoders import IEncoder
-from py_zipkin.transport import BaseTransportHandler
 from py_zipkin.zipkin import ZipkinAttrs
 
 
@@ -25,37 +21,3 @@ def sampled_zipkin_attr(zipkin_attributes):
 @pytest.fixture
 def unsampled_zipkin_attr(zipkin_attributes):
     return ZipkinAttrs(is_sampled=False, **zipkin_attributes)
-
-
-class MockTransportHandler(BaseTransportHandler):
-
-    def __init__(self, max_payload_bytes=None):
-        self.max_payload_bytes = max_payload_bytes
-        self.payloads = []
-
-    def send(self, payload):
-        self.payloads.append(payload)
-        return payload
-
-    def get_max_payload_bytes(self):
-        return self.max_payload_bytes
-
-    def get_payloads(self):
-        return self.payloads
-
-
-class MockEncoder(IEncoder):
-
-    def __init__(self, fits=True, encoded_span='', encoded_queue=''):
-        self.fits_bool = fits
-        self.encode_span = mock.Mock(
-            return_value=(encoded_span, len(encoded_span)),
-        )
-        self.encode_queue = mock.Mock(return_value=encoded_queue)
-
-    def fits(self, current_count, current_size, max_size, new_span):
-        assert isinstance(current_count, int)
-        assert isinstance(current_size, int)
-        assert isinstance(max_size, int)
-        assert isinstance(new_span, six.string_types)
-        return self.fits_bool

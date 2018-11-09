@@ -16,7 +16,7 @@ from py_zipkin.thrift import zipkin_core
 from py_zipkin import thrift
 from py_zipkin.util import generate_random_64bit_string
 from py_zipkin.zipkin import ZipkinAttrs
-from tests.conftest import MockTransportHandler
+from tests.test_helpers import MockTransportHandler
 
 
 def _decode_binary_thrift_objs(obj):

@@ -11,8 +11,8 @@ from py_zipkin.encoding._encoders import get_encoder
 from py_zipkin.exception import ZipkinError
 from py_zipkin.storage import SpanStorage
 from py_zipkin.zipkin import ZipkinAttrs
-from tests.conftest import MockEncoder
-from tests.conftest import MockTransportHandler
+from tests.test_helpers import MockEncoder
+from tests.test_helpers import MockTransportHandler
 
 
 @pytest.fixture

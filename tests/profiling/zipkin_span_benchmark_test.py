@@ -1,7 +1,7 @@
 import pytest
 
 import py_zipkin.zipkin as zipkin
-from tests.conftest import MockTransportHandler
+from tests.test_helpers import MockTransportHandler
 
 
 def _create_root_span(is_sampled, firehose_enabled):
