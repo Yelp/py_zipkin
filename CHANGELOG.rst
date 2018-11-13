@@ -1,3 +1,7 @@
+0.16.0 (2018-11-13)
+-------------------
+- py_zipkin is now able to convert V1 thrift spans to V2 JSON
+
 0.15.1 (2018-10-31)
 -------------------
 - Changed DeprecationWarnings to logging.warning
