@@ -169,6 +169,11 @@ class TestV1ThriftDecoder(object):
         assert local_endpoint == Endpoint('test_service', '10.0.0.1', None, 8888)
         assert remote_endpoint == Endpoint('rem_service', '10.0.0.2', None, 9999)
 
+    def test_seconds_doesnt_crash_with_none(self):
+        decoder = _V1ThriftDecoder()
+        assert decoder.seconds(6000000) == 6.0
+        assert decoder.seconds(None) is None
+
     @pytest.mark.parametrize('trace_id_generator', [
         (generate_random_64bit_string),
         (generate_random_128bit_string),
