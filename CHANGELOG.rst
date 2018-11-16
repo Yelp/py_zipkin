@@ -1,3 +1,7 @@
+0.16.1 (2018-11-16)
+-------------------
+- Handle null timestamps when decoding thrift traces
+
 0.16.0 (2018-11-13)
 -------------------
 - py_zipkin is now able to convert V1 thrift spans to V2 JSON
