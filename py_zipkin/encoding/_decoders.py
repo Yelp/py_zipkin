@@ -178,6 +178,8 @@ class _V1ThriftDecoder(IDecoder):
         return tags, local_endpoint, remote_endpoint
 
     def seconds(self, us):
+        if us is None:
+            return None
         return round(float(us) / 1000 / 1000, 6)
 
     def _decode_thrift_span(self, thrift_span):
