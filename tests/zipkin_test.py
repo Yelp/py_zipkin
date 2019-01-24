@@ -465,10 +465,10 @@ def test_span_context(
             id='1',
             timestamp=ts,
             duration=0.0,
-            endpoint=None,
+            endpoint=create_endpoint(service_name='svc'),
             annotations={},
             binary_annotations={'foo': 'bar'},
-            sa_endpoint=None,
+            remote_endpoint=None,
         )
         assert client_span == expected_client_span
 
@@ -600,9 +600,9 @@ def test_zipkin_span_decorator_many(create_endpoint_mock):
         sample_rate=100.0,
     ):
         assert test_func(1, 2) == 3
-    assert create_endpoint_mock.call_count == 1
+    assert create_endpoint_mock.call_count == 2
     assert test_func(1, 2) == 3
-    assert create_endpoint_mock.call_count == 1
+    assert create_endpoint_mock.call_count == 2
 
 
 @mock.patch('py_zipkin.zipkin.ZipkinLoggingContext', autospec=True)
@@ -635,9 +635,9 @@ def test_update_binary_annotations():
     )
 
     with context:
-        assert 'test' not in context.logging_context.binary_annotations_dict
+        assert 'test' not in context.logging_context.tags
         context.update_binary_annotations({'test': 'hi'})
-        assert context.logging_context.binary_annotations_dict['test'] == 'hi'
+        assert context.logging_context.tags['test'] == 'hi'
 
         nested_context = zipkin.zipkin_span(
             service_name='my_service',
@@ -645,10 +645,10 @@ def test_update_binary_annotations():
             binary_annotations={'one': 'one'},
         )
         with nested_context:
-            assert 'one' not in context.logging_context.binary_annotations_dict
+            assert 'one' not in context.logging_context.tags
             nested_context.update_binary_annotations({'two': 'two'})
             assert 'two' in nested_context.binary_annotations
-            assert 'two' not in context.logging_context.binary_annotations_dict
+            assert 'two' not in context.logging_context.tags
 
 
 def test_update_binary_annotations_should_not_error_if_not_tracing():
@@ -701,19 +701,19 @@ def test_add_sa_binary_annotation():
     )
 
     with context:
-        assert context.logging_context.sa_endpoint is None
+        assert context.logging_context.remote_endpoint is None
         context.add_sa_binary_annotation(
             port=123,
             service_name='test_service',
             host='1.2.3.4',
         )
-        expected_sa_endpoint = create_endpoint(
+        expected_remote_endpoint = create_endpoint(
             port=123,
             service_name='test_service',
             host='1.2.3.4',
         )
-        assert context.logging_context.sa_endpoint == \
-            expected_sa_endpoint
+        assert context.logging_context.remote_endpoint == \
+            expected_remote_endpoint
 
         nested_context = zipkin.zipkin_span(
             service_name='my_service',
@@ -726,13 +726,13 @@ def test_add_sa_binary_annotation():
                 service_name='nested_service',
                 host='5.6.7.8',
             )
-            expected_nested_sa_endpoint = create_endpoint(
+            expected_nested_remote_endpoint = create_endpoint(
                 port=456,
                 service_name='nested_service',
                 host='5.6.7.8',
             )
-            assert nested_context.sa_endpoint == \
-                expected_nested_sa_endpoint
+            assert nested_context.remote_endpoint == \
+                expected_nested_remote_endpoint
 
 
 def test_add_sa_binary_annotation_twice():
@@ -753,7 +753,7 @@ def test_add_sa_binary_annotation_twice():
     )
 
     with context:
-        assert context.logging_context.sa_endpoint is None
+        assert context.logging_context.remote_endpoint is None
         context.add_sa_binary_annotation(
             port=123,
             service_name='test_service',
@@ -803,13 +803,13 @@ def test_adding_sa_binary_annotation_without_sampling():
             service_name='test_service',
             host='1.2.3.4',
         )
-        expected_sa_endpoint = create_endpoint(
+        expected_remote_endpoint = create_endpoint(
             port=123,
             service_name='test_service',
             host='1.2.3.4',
         )
 
-        assert context.sa_endpoint == expected_sa_endpoint
+        assert context.remote_endpoint == expected_remote_endpoint
 
 
 def test_adding_sa_binary_annotation_missing_zipkin_attrs():
@@ -823,7 +823,7 @@ def test_adding_sa_binary_annotation_missing_zipkin_attrs():
             service_name='test_service',
             host='1.2.3.4',
         )
-        assert context.sa_endpoint is None
+        assert context.remote_endpoint is None
 
 
 def test_adding_sa_binary_annotation_for_non_client_spans():
@@ -840,7 +840,7 @@ def test_adding_sa_binary_annotation_for_non_client_spans():
             service_name='test_service',
             host='1.2.3.4',
         )
-        assert context.logging_context.sa_endpoint is None
+        assert context.logging_context.remote_endpoint is None
 
 
 def test_override_span_name():

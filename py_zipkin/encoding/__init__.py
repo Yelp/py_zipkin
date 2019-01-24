@@ -3,9 +3,11 @@ import json
 
 import six
 
-from py_zipkin.encoding._types import Encoding
 from py_zipkin.encoding._decoders import get_decoder
 from py_zipkin.encoding._encoders import get_encoder
+from py_zipkin.encoding._helpers import Endpoint  # noqa: F401
+from py_zipkin.encoding._helpers import Span  # noqa: F401
+from py_zipkin.encoding._types import Encoding
 from py_zipkin.exception import ZipkinError
 
 _V2_ATTRIBUTES = ["tags", "localEndpoint", "remoteEndpoint", "shared", "kind"]
@@ -85,12 +87,12 @@ def convert_spans(spans, output_encoding, input_encoding=None):
 
     decoder = get_decoder(input_encoding)
     encoder = get_encoder(output_encoding)
-    span_builders = decoder.decode_spans(spans)
+    decoded_spans = decoder.decode_spans(spans)
     output_spans = []
 
     # Encode each indivicual span
-    for sb in span_builders:
-        output_spans.append(encoder.encode_span(sb))
+    for span in decoded_spans:
+        output_spans.append(encoder.encode_span(span))
 
     # Outputs from encoder.encode_span() can be easily concatenated in a list
     return encoder.encode_queue(output_spans)

@@ -3,12 +3,14 @@ import socket
 import mock
 import pytest
 
-from py_zipkin.encoding._helpers import create_endpoint
-from py_zipkin.encoding._encoders import get_encoder
-from py_zipkin.encoding._encoders import IEncoder
-from py_zipkin.encoding._encoders import _V1ThriftEncoder
-from py_zipkin.encoding._encoders import _V1JSONEncoder
 from py_zipkin import Encoding
+from py_zipkin import thrift
+from py_zipkin.encoding._encoders import IEncoder
+from py_zipkin.encoding._encoders import _V1JSONEncoder
+from py_zipkin.encoding._encoders import _V1ThriftEncoder
+from py_zipkin.encoding._encoders import get_encoder
+from py_zipkin.encoding._helpers import create_endpoint
+from py_zipkin.encoding._types import Kind
 from py_zipkin.exception import ZipkinError
 
 
@@ -152,3 +154,75 @@ class TestBaseJSONEncoder(object):
             'port': 8888,
             'ipv6': '2001:0db8:85a3:0000:0000:8a2e:0370:7334',
         }
+
+
+class TestV1JSONEncoder(object):
+    def test_remote_endpoint(self):
+        encoder = get_encoder(Encoding.V1_JSON)
+        remote_endpoint = create_endpoint(
+            service_name='test_server',
+            host='127.0.0.1',
+        )
+
+        # For server spans, the remote endpoint is encoded as 'ca'
+        binary_annotations = []
+        encoder.encode_remote_endpoint(
+            remote_endpoint,
+            Kind.SERVER,
+            binary_annotations,
+        )
+        assert binary_annotations == [{
+            'endpoint': {'ipv4': '127.0.0.1', 'serviceName': 'test_server'},
+            'key': 'ca',
+            'value': '1',
+        }]
+
+        # For client spans, the remote endpoint is encoded as 'sa'
+        binary_annotations = []
+        encoder.encode_remote_endpoint(
+            remote_endpoint,
+            Kind.CLIENT,
+            binary_annotations,
+        )
+        assert binary_annotations == [{
+            'endpoint': {'ipv4': '127.0.0.1', 'serviceName': 'test_server'},
+            'key': 'sa',
+            'value': '1',
+        }]
+
+
+class TestV1ThriftEncoder(object):
+    def test_remote_endpoint(self):
+        encoder = get_encoder(Encoding.V1_THRIFT)
+        remote_endpoint = create_endpoint(
+            service_name='test_server',
+            host='127.0.0.1',
+        )
+
+        # For server spans, the remote endpoint is encoded as 'ca'
+        binary_annotations = thrift.binary_annotation_list_builder({}, None)
+        encoder.encode_remote_endpoint(
+            remote_endpoint,
+            Kind.SERVER,
+            binary_annotations,
+        )
+        assert binary_annotations == [thrift.create_binary_annotation(
+            key='ca',
+            value=thrift.SERVER_ADDR_VAL,
+            annotation_type=thrift.zipkin_core.AnnotationType.BOOL,
+            host=thrift.create_endpoint(0, 'test_server', '127.0.0.1', None),
+        )]
+
+        # For client spans, the remote endpoint is encoded as 'sa'
+        binary_annotations = thrift.binary_annotation_list_builder({}, None)
+        encoder.encode_remote_endpoint(
+            remote_endpoint,
+            Kind.CLIENT,
+            binary_annotations,
+        )
+        assert binary_annotations == [thrift.create_binary_annotation(
+            key='sa',
+            value=thrift.SERVER_ADDR_VAL,
+            annotation_type=thrift.zipkin_core.AnnotationType.BOOL,
+            host=thrift.create_endpoint(0, 'test_server', '127.0.0.1', None),
+        )]

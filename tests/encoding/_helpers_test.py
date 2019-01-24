@@ -1,8 +1,60 @@
 import socket
 
 import mock
+import pytest
 
 from py_zipkin.encoding._helpers import create_endpoint
+from py_zipkin.encoding._helpers import Span
+from py_zipkin.encoding._types import Kind
+from py_zipkin.exception import ZipkinError
+from py_zipkin.util import generate_random_64bit_string
+
+
+def test_create_span_with_bad_kind():
+    with pytest.raises(ZipkinError) as e:
+        Span(
+            trace_id=generate_random_64bit_string(),
+            name='test span',
+            parent_id=generate_random_64bit_string(),
+            span_id=generate_random_64bit_string(),
+            kind='client',
+            timestamp=26.0,
+            duration=4.0,
+        )
+
+    assert 'Invalid kind value client. Must be of type Kind.' in str(e)
+
+
+def test_create_span_with_bad_local_endpoint():
+    with pytest.raises(ZipkinError) as e:
+        Span(
+            trace_id=generate_random_64bit_string(),
+            name='test span',
+            parent_id=generate_random_64bit_string(),
+            span_id=generate_random_64bit_string(),
+            kind=Kind.CLIENT,
+            timestamp=26.0,
+            duration=4.0,
+            local_endpoint='my_service',
+        )
+
+    assert 'Invalid local_endpoint value. Must be of type Endpoint.' in str(e)
+
+
+def test_create_span_with_bad_remote_endpoint():
+    with pytest.raises(ZipkinError) as e:
+        Span(
+            trace_id=generate_random_64bit_string(),
+            name='test span',
+            parent_id=generate_random_64bit_string(),
+            span_id=generate_random_64bit_string(),
+            kind=Kind.CLIENT,
+            timestamp=26.0,
+            duration=4.0,
+            remote_endpoint='my_service',
+        )
+
+    assert 'Invalid remote_endpoint value. Must be of type Endpoint.' in str(e)
 
 
 @mock.patch('socket.gethostbyname', autospec=True)

@@ -14,7 +14,7 @@ from py_zipkin.encoding._types import Kind
 from py_zipkin.exception import ZipkinError
 from py_zipkin.thrift import zipkin_core
 from py_zipkin.encoding._helpers import Endpoint
-from py_zipkin.encoding._helpers import SpanBuilder
+from py_zipkin.encoding._helpers import Span
 
 _HEX_DIGITS = "0123456789abcdef"
 _DROP_ANNOTATIONS = {'cs', 'sr', 'ss', 'cr'}
@@ -49,8 +49,8 @@ class IDecoder(object):
 
         :param spans: encoded list of spans
         :type spans: bytes
-        :return: list of span builders
-        :rtype: list
+        :return: list of spans
+        :rtype: list of Span
         """
         raise NotImplementedError()
 
@@ -62,10 +62,10 @@ class _V1ThriftDecoder(IDecoder):
 
         :param spans: encoded list of spans
         :type spans: bytes
-        :return: list of span builders
-        :rtype: list
+        :return: list of spans
+        :rtype: list of Span
         """
-        span_builders = []
+        decoded_spans = []
         transport = TMemoryBuffer(spans)
 
         if six.byte2int(spans) == TType.STRUCT:
@@ -76,8 +76,8 @@ class _V1ThriftDecoder(IDecoder):
         for _ in range(size):
             span = zipkin_core.Span()
             span.read(TBinaryProtocol(transport))
-            span_builders.append(self._decode_thrift_span(span))
-        return span_builders
+            decoded_spans.append(self._decode_thrift_span(span))
+        return decoded_spans
 
     def _convert_from_thrift_endpoint(self, thrift_endpoint):
         """Accepts a thrift decoded endpoint and converts it to an Endpoint.
@@ -188,15 +188,14 @@ class _V1ThriftDecoder(IDecoder):
         :param thrift_span: thrift span
         :type thrift_span: thrift Span object
         :returns: span builder representing this span
-        :rtype: SpanBuilder
+        :rtype: Span
         """
         parent_id = None
         local_endpoint = None
         annotations = {}
         tags = {}
         kind = Kind.LOCAL
-        service_name = ''
-        sa_endpoint = None
+        remote_endpoint = None
         timestamp = None
         duration = None
 
@@ -210,7 +209,7 @@ class _V1ThriftDecoder(IDecoder):
                 self._decode_thrift_annotations(thrift_span.annotations)
 
         if thrift_span.binary_annotations:
-            tags, local_endpoint, sa_endpoint = \
+            tags, local_endpoint, remote_endpoint = \
                 self._convert_from_thrift_binary_annotations(
                     thrift_span.binary_annotations,
                 )
@@ -220,20 +219,19 @@ class _V1ThriftDecoder(IDecoder):
             thrift_span.trace_id_high,
         )
 
-        return SpanBuilder(
+        return Span(
             trace_id=trace_id,
             name=thrift_span.name,
             parent_id=parent_id,
             span_id=self._convert_unsigned_long_to_lower_hex(thrift_span.id),
+            kind=kind,
             timestamp=self.seconds(timestamp or thrift_span.timestamp),
             duration=self.seconds(duration or thrift_span.duration),
+            local_endpoint=local_endpoint,
+            remote_endpoint=remote_endpoint,
+            shared=thrift_span.timestamp is None,
             annotations=annotations,
             tags=tags,
-            kind=kind,
-            local_endpoint=local_endpoint,
-            service_name=service_name,
-            sa_endpoint=sa_endpoint,
-            report_timestamp=thrift_span.timestamp is not None,
         )
 
     def _convert_trace_id_to_string(self, trace_id, trace_id_high=None):

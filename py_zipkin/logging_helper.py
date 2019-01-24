@@ -3,7 +3,7 @@ import os
 import time
 
 from py_zipkin import Kind
-from py_zipkin.encoding._helpers import SpanBuilder
+from py_zipkin.encoding._helpers import Span
 from py_zipkin.encoding._helpers import copy_endpoint_with_new_service_name
 from py_zipkin.encoding._encoders import get_encoder
 from py_zipkin.exception import ZipkinError
@@ -46,13 +46,13 @@ class ZipkinLoggingContext(object):
         self.span_storage = span_storage
         self.service_name = service_name
         self.report_root_timestamp = report_root_timestamp
-        self.binary_annotations_dict = binary_annotations or {}
+        self.tags = binary_annotations or {}
         self.add_logging_annotation = add_logging_annotation
         self.client_context = client_context
         self.max_span_batch_size = max_span_batch_size
         self.firehose_handler = firehose_handler
 
-        self.sa_endpoint = None
+        self.remote_endpoint = None
         self.encoder = get_encoder(encoding)
 
     def start(self):
@@ -103,7 +103,7 @@ class ZipkinLoggingContext(object):
             for span in self.span_storage:
                 span.local_endpoint = copy_endpoint_with_new_service_name(
                     self.endpoint,
-                    span.service_name,
+                    span.local_endpoint.service_name,
                 )
 
                 span_sender.add_span(span)
@@ -113,20 +113,19 @@ class ZipkinLoggingContext(object):
             if self.add_logging_annotation:
                 annotations[LOGGING_END_KEY] = time.time()
 
-            span_sender.add_span(SpanBuilder(
+            span_sender.add_span(Span(
                 trace_id=self.zipkin_attrs.trace_id,
                 name=self.span_name,
                 parent_id=self.zipkin_attrs.parent_span_id,
                 span_id=self.zipkin_attrs.span_id,
+                kind=Kind.CLIENT if self.client_context else Kind.SERVER,
                 timestamp=self.start_timestamp,
                 duration=end_timestamp - self.start_timestamp,
-                annotations=annotations,
-                tags=self.binary_annotations_dict,
-                kind=Kind.CLIENT if self.client_context else Kind.SERVER,
                 local_endpoint=self.endpoint,
-                service_name=self.service_name,
-                sa_endpoint=self.sa_endpoint,
-                report_timestamp=self.report_root_timestamp,
+                remote_endpoint=self.remote_endpoint,
+                shared=not self.report_root_timestamp,
+                annotations=annotations,
+                tags=self.tags,
             ))
 
 
