@@ -1,3 +1,9 @@
+0.17.0 (2019-01-25)
+-------------------
+- Support python 3.7
+- py-zipkin now depends on thriftpy2 rather than thriftpy. They
+  can coexist in the same codebase, so it should be safe to upgrade.
+
 0.16.1 (2018-11-16)
 -------------------
 - Handle null timestamps when decoding thrift traces

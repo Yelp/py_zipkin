@@ -5,7 +5,7 @@ import os
 from setuptools import find_packages
 from setuptools import setup
 
-__version__ = '0.16.1'
+__version__ = '0.17.0'
 
 
 def read(f):
@@ -27,7 +27,7 @@ setup(
     package_data={'': ['*.thrift']},
     install_requires=[
         'six',
-        'thriftpy2',
+        'thriftpy2>=0.4.0',
     ],
     extras_require={':python_version=="2.7"': ['enum34']},
     classifiers=[
