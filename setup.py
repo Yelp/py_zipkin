@@ -27,7 +27,7 @@ setup(
     package_data={'': ['*.thrift']},
     install_requires=[
         'six',
-        'thriftpy',
+        'thriftpy2',
     ],
     extras_require={':python_version=="2.7"': ['enum34']},
     classifiers=[
@@ -40,5 +40,6 @@ setup(
         "Programming Language :: Python :: 3.4",
         "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
     ],
 )

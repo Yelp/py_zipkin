@@ -3,17 +3,17 @@ import os
 import socket
 import struct
 
-import thriftpy
-from thriftpy.protocol.binary import TBinaryProtocol
-from thriftpy.protocol.binary import write_list_begin
-from thriftpy.thrift import TType
-from thriftpy.transport import TMemoryBuffer
+import thriftpy2
+from thriftpy2.protocol.binary import TBinaryProtocol
+from thriftpy2.protocol.binary import write_list_begin
+from thriftpy2.thrift import TType
+from thriftpy2.transport import TMemoryBuffer
 
 from py_zipkin.util import unsigned_hex_to_signed_int
 
 
 thrift_filepath = os.path.join(os.path.dirname(__file__), 'zipkinCore.thrift')
-zipkin_core = thriftpy.load(thrift_filepath, module_name="zipkinCore_thrift")
+zipkin_core = thriftpy2.load(thrift_filepath, module_name="zipkinCore_thrift")
 
 SERVER_ADDR_VAL = '\x01'
 LIST_HEADER_SIZE = 5  # size in bytes of the encoded list header
@@ -145,7 +145,7 @@ def create_span(
     timestamp_s,
     duration_s,
 ):
-    """Takes a bunch of span attributes and returns a thriftpy representation
+    """Takes a bunch of span attributes and returns a thriftpy2 representation
     of the span. Timestamps passed in are in seconds, they're converted to
     microseconds before thrift encoding.
     """
