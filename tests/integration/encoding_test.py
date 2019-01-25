@@ -5,9 +5,9 @@ from collections import OrderedDict
 
 import mock
 import pytest
-from thriftpy.protocol.binary import read_list_begin
-from thriftpy.protocol.binary import TBinaryProtocol
-from thriftpy.transport import TMemoryBuffer
+from thriftpy2.protocol.binary import read_list_begin
+from thriftpy2.protocol.binary import TBinaryProtocol
+from thriftpy2.transport import TMemoryBuffer
 
 from py_zipkin import Encoding
 from py_zipkin import Kind

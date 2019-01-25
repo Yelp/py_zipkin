@@ -4,10 +4,10 @@ import socket
 import struct
 
 import six
-from thriftpy.protocol.binary import read_list_begin
-from thriftpy.protocol.binary import TBinaryProtocol
-from thriftpy.thrift import TType
-from thriftpy.transport import TMemoryBuffer
+from thriftpy2.protocol.binary import read_list_begin
+from thriftpy2.protocol.binary import TBinaryProtocol
+from thriftpy2.thrift import TType
+from thriftpy2.transport import TMemoryBuffer
 
 from py_zipkin.encoding._types import Encoding
 from py_zipkin.encoding._types import Kind
