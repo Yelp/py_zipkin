@@ -20,7 +20,7 @@ def detect_span_version_and_encoding(message):
     https://github.com/openzipkin/zipkin/blob/master/zipkin/src/main/java/zipkin/internal/DetectingSpanDecoder.java
 
     :param message: span to perform operations on.
-    :type message: byte array
+    :type message: bytes
     :returns: span encoding.
     :rtype: Encoding
     """
@@ -72,15 +72,15 @@ def detect_span_version_and_encoding(message):
 def convert_spans(spans, output_encoding, input_encoding=None):
     """Converts encoded spans to a different encoding.
 
-    param spans: encoded input spans.
-    type spans: byte array
-    param output_encoding: desired output encoding.
-    type output_encoding: Encoding
-    param input_encoding: optional input encoding. If this is not specified, it'll
+    :param spans: encoded input spans.
+    :type spans: bytes
+    :param output_encoding: desired output encoding.
+    :type output_encoding: Encoding
+    :param input_encoding: optional input encoding. If this is not specified, it'll
         try to understand the encoding automatically by inspecting the input spans.
-    type input_encoding: Encoding
+    :type input_encoding: Encoding
     :returns: encoded spans.
-    :rtype: byte array
+    :rtype: bytes
     """
     if not isinstance(input_encoding, Encoding):
         input_encoding = detect_span_version_and_encoding(message=spans)

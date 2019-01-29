@@ -1,3 +1,6 @@
+Changelog
+=========
+
 0.18.1 (2019-02-22)
 -------------------
 - Fix ThreadLocalStack() bug introduced in 0.18.0

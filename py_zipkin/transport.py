@@ -15,13 +15,15 @@ class BaseTransportHandler(object):
         If you don't want to enforce a max payload size, return None.
 
         :returns: max payload size in bytes or None.
+        :rtype: int
         """
         raise NotImplementedError('get_max_payload_bytes is not implemented')
 
     def send(self, payload):  # pragma: no cover
         """Sends the encoded payload over the transport.
 
-        :argument payload: encoded list of spans.
+        :param payload: encoded list of spans.
+        :type payload: bytes
         """
         raise NotImplementedError('send is not implemented')
 

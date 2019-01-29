@@ -24,7 +24,7 @@ Holds the basic attributes needed to log a zipkin trace
 :param span_id: Span Id of the current request span
 :param parent_span_id: Parent span Id of the current request span
 :param flags: stores flags header. Currently unused
-:param is_sampled: pre-computed boolean whether the trace should be logged
+:param is_sampled: pre-computed bool whether the trace should be logged
 """
 ZipkinAttrs = namedtuple(
     'ZipkinAttrs',
@@ -37,61 +37,7 @@ log = logging.getLogger('py_zipkin.zipkin')
 
 
 class zipkin_span(object):
-    """Context manager/decorator for all of your zipkin tracing needs.
-
-    Usage #1: Start a trace with a given sampling rate
-
-    This begins the zipkin trace and also records the root span. The required
-    params are service_name, transport_handler, and sample_rate.
-
-    # Start a trace with do_stuff() as the root span
-    def some_batch_job(a, b):
-        with zipkin_span(
-            service_name='my_service',
-            span_name='my_span_name',
-            transport_handler=some_handler,
-            port=22,
-            sample_rate=0.05,
-        ):
-            do_stuff()
-
-    Usage #2: Trace a service call.
-
-    The typical use case is instrumenting a framework like Pyramid or Django. Only
-    ss and sr times are recorded for the root span. Required params are
-    service_name, zipkin_attrs, transport_handler, and port.
-
-    # Used in a pyramid tween
-    def tween(request):
-        zipkin_attrs = some_zipkin_attr_creator(request)
-        with zipkin_span(
-            service_name='my_service,'
-            span_name='my_span_name',
-            zipkin_attrs=zipkin_attrs,
-            transport_handler=some_handler,
-            port=22,
-        ) as zipkin_context:
-            response = handler(request)
-            zipkin_context.update_binary_annotations(
-                some_binary_annotations)
-            return response
-
-    Usage #3: Log a span within the context of a zipkin trace
-
-    If you're already in a zipkin trace, you can use this to log a span inside. The
-    only required param is service_name. If you're not in a zipkin trace, this
-    won't do anything.
-
-    # As a decorator
-    @zipkin_span(service_name='my_service', span_name='my_function')
-    def my_function():
-        do_stuff()
-
-    # As a context manager
-    def my_function():
-        with zipkin_span(service_name='my_service', span_name='do_stuff'):
-            do_stuff()
-    """
+    """Context manager/decorator for all of your zipkin tracing needs."""
 
     def __init__(
         self,
@@ -153,7 +99,7 @@ class zipkin_span(object):
         :type include: iterable
         :param add_logging_annotation: Whether to add a 'logging_end'
             annotation when py_zipkin finishes logging spans
-        :type add_logging_annotation: boolean
+        :type add_logging_annotation: bool
         :param report_root_timestamp: Whether the span should report timestamp
             and duration. Only applies to "root" spans in this local context,
             so spans created inside other span contexts will always log
@@ -161,9 +107,9 @@ class zipkin_span(object):
             that have zipkin_attrs passed in. Spans that make their own
             sampling decisions (i.e. are the root spans of entire traces) will
             always report timestamp/duration.
-        :type report_root_timestamp: boolean
+        :type report_root_timestamp: bool
         :param use_128bit_trace_id: If true, generate 128-bit trace_ids.
-        :type use_128bit_trace_id: boolean
+        :type use_128bit_trace_id: bool
         :param host: Contains the ipv4 or ipv6 value of the host. The ip value
             isn't automatically determined in a docker environment.
         :type host: string
@@ -649,7 +595,7 @@ def create_attrs_for_span(
                     If this is None, a random span_id will be generated.
     :type span_id: str
     :param use_128bit_trace_id: If true, generate 128-bit trace_ids
-    :type use_128bit_trace_id: boolean
+    :type use_128bit_trace_id: bool
     """
     # Calculate if this trace is sampled based on the sample rate
     if trace_id is None:
@@ -673,7 +619,11 @@ def create_attrs_for_span(
     )
 
 
-def create_http_headers_for_new_span(context_stack=None, tracer=None):
+def create_http_headers_for_new_span(
+    context_stack=None,
+    tracer=None,
+    new_span_id=True,
+):
     """
     Generate the headers for a new zipkin span.
 
@@ -682,6 +632,10 @@ def create_http_headers_for_new_span(context_stack=None, tracer=None):
         If the method is not called from within a zipkin_trace context,
         empty dict will be returned back.
 
+    :param context_stack:
+    :type context_stack: py_zipkin.storage.Stack
+    :param new_span_id:
+    :type new_span_id: bool
     :returns: dict containing (X-B3-TraceId, X-B3-SpanId, X-B3-ParentSpanId,
                 X-B3-Flags and X-B3-Sampled) keys OR an empty dict.
     """
@@ -695,9 +649,14 @@ def create_http_headers_for_new_span(context_stack=None, tracer=None):
     if not zipkin_attrs:
         return {}
 
+    if new_span_id:
+        span_id = generate_random_64bit_string()
+    else:
+        span_id = zipkin_attrs.span_id
+
     return {
         'X-B3-TraceId': zipkin_attrs.trace_id,
-        'X-B3-SpanId': generate_random_64bit_string(),
+        'X-B3-SpanId': span_id,
         'X-B3-ParentSpanId': zipkin_attrs.span_id,
         'X-B3-Flags': '0',
         'X-B3-Sampled': '1' if zipkin_attrs.is_sampled else '0',
