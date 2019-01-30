@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
+
 import json
 from collections import OrderedDict
 
@@ -11,9 +12,9 @@ from thriftpy2.transport import TMemoryBuffer
 
 from py_zipkin import Encoding
 from py_zipkin import Kind
+from py_zipkin import thrift
 from py_zipkin import zipkin
 from py_zipkin.thrift import zipkin_core
-from py_zipkin import thrift
 from py_zipkin.util import generate_random_64bit_string
 from py_zipkin.zipkin import ZipkinAttrs
 from tests.test_helpers import MockTransportHandler
@@ -60,7 +61,7 @@ def check_v1_json(obj, zipkin_attrs, inner_span_id, ts):
                     'serviceName': 'sa_service',
                 },
                 'key': 'sa',
-                'value': '1',
+                'value': True,
             },
         ],
         'annotations': [

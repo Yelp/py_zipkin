@@ -5,10 +5,10 @@ import pytest
 
 from py_zipkin import Encoding
 from py_zipkin import thrift
-from py_zipkin.encoding._encoders import IEncoder
 from py_zipkin.encoding._encoders import _V1JSONEncoder
 from py_zipkin.encoding._encoders import _V1ThriftEncoder
 from py_zipkin.encoding._encoders import get_encoder
+from py_zipkin.encoding._encoders import IEncoder
 from py_zipkin.encoding._helpers import create_endpoint
 from py_zipkin.encoding._types import Kind
 from py_zipkin.exception import ZipkinError
@@ -174,7 +174,7 @@ class TestV1JSONEncoder(object):
         assert binary_annotations == [{
             'endpoint': {'ipv4': '127.0.0.1', 'serviceName': 'test_server'},
             'key': 'ca',
-            'value': '1',
+            'value': True,
         }]
 
         # For client spans, the remote endpoint is encoded as 'sa'
@@ -187,7 +187,7 @@ class TestV1JSONEncoder(object):
         assert binary_annotations == [{
             'endpoint': {'ipv4': '127.0.0.1', 'serviceName': 'test_server'},
             'key': 'sa',
-            'value': '1',
+            'value': True,
         }]
 
 

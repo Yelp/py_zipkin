@@ -27,11 +27,7 @@ _DROP_ANNOTATIONS_BY_KIND = {
 
 
 class Span(object):
-    """Internal Span representation. It can generate both v1 and v2 spans.
-
-    It doesn't exactly map to either V1 or V2, since an intermediate format
-    makes it easier to convert to either format.
-    """
+    """Internal V2 Span representation."""
 
     def __init__(
         self,
