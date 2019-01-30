@@ -198,7 +198,7 @@ class _V1JSONEncoder(_BaseJSONEncoder):
 
         binary_annotations.append({
             'key': key,
-            'value': '1',
+            'value': True,
             'endpoint': json_remote_endpoint,
         })
 

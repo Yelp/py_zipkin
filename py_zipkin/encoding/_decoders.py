@@ -9,12 +9,12 @@ from thriftpy2.protocol.binary import TBinaryProtocol
 from thriftpy2.thrift import TType
 from thriftpy2.transport import TMemoryBuffer
 
+from py_zipkin.encoding._helpers import Endpoint
+from py_zipkin.encoding._helpers import Span
 from py_zipkin.encoding._types import Encoding
 from py_zipkin.encoding._types import Kind
 from py_zipkin.exception import ZipkinError
 from py_zipkin.thrift import zipkin_core
-from py_zipkin.encoding._helpers import Endpoint
-from py_zipkin.encoding._helpers import Span
 
 _HEX_DIGITS = "0123456789abcdef"
 _DROP_ANNOTATIONS = {'cs', 'sr', 'ss', 'cr'}
@@ -229,7 +229,7 @@ class _V1ThriftDecoder(IDecoder):
             duration=self.seconds(duration or thrift_span.duration),
             local_endpoint=local_endpoint,
             remote_endpoint=remote_endpoint,
-            shared=thrift_span.timestamp is None,
+            shared=(kind == Kind.SERVER and thrift_span.timestamp is None),
             annotations=annotations,
             tags=tags,
         )
