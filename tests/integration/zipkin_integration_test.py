@@ -535,7 +535,7 @@ def test_can_set_sa_annotation(encoding):
 
     if encoding == Encoding.V1_JSON:
         assert client_span['binaryAnnotations'][0]['key'] == 'sa'
-        assert client_span['binaryAnnotations'][0]['value'] == '1'
+        assert client_span['binaryAnnotations'][0]['value'] is True
         host = client_span['binaryAnnotations'][0]['endpoint']
     elif encoding == Encoding.V2_JSON:
         host = client_span['remoteEndpoint']

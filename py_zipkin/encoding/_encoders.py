@@ -3,6 +3,7 @@ import json
 
 from py_zipkin import thrift
 from py_zipkin.encoding._types import Encoding
+from py_zipkin.encoding._types import Kind
 from py_zipkin.exception import ZipkinError
 
 
@@ -42,11 +43,11 @@ class IEncoder(object):
         """
         raise NotImplementedError()
 
-    def encode_span(self, span_builder):
+    def encode_span(self, span):
         """Encodes a single span.
 
-        :param span_builder: span_builder object representing the span.
-        :type span_builder: SpanBuilder
+        :param span: Span object representing the span.
+        :type span: Span
         :return: encoded span.
         :rtype: str or bytes
         """
@@ -74,9 +75,28 @@ class _V1ThriftEncoder(IEncoder):
         """
         return thrift.LIST_HEADER_SIZE + current_size + len(new_span) <= max_size
 
-    def encode_span(self, span_builder):
+    def encode_remote_endpoint(self, remote_endpoint, kind, binary_annotations):
+        thrift_remote_endpoint = thrift.create_endpoint(
+            remote_endpoint.port,
+            remote_endpoint.service_name,
+            remote_endpoint.ipv4,
+            remote_endpoint.ipv6,
+        )
+        if kind == Kind.CLIENT:
+            key = thrift.zipkin_core.SERVER_ADDR
+        elif kind == Kind.SERVER:
+            key = thrift.zipkin_core.CLIENT_ADDR
+
+        binary_annotations.append(thrift.create_binary_annotation(
+            key=key,
+            value=thrift.SERVER_ADDR_VAL,
+            annotation_type=thrift.zipkin_core.AnnotationType.BOOL,
+            host=thrift_remote_endpoint,
+        ))
+
+    def encode_span(self, v2_span):
         """Encodes the current span to thrift."""
-        span = span_builder.build_v1_span()
+        span = v2_span.build_v1_span()
 
         thrift_endpoint = thrift.create_endpoint(
             span.endpoint.port,
@@ -95,20 +115,13 @@ class _V1ThriftEncoder(IEncoder):
             thrift_endpoint,
         )
 
-        # Add sa binary annotation
-        if span.sa_endpoint is not None:
-            thrift_sa_endpoint = thrift.create_endpoint(
-                span.sa_endpoint.port,
-                span.sa_endpoint.service_name,
-                span.sa_endpoint.ipv4,
-                span.sa_endpoint.ipv6,
+        # Add sa/ca binary annotations
+        if v2_span.remote_endpoint:
+            self.encode_remote_endpoint(
+                v2_span.remote_endpoint,
+                v2_span.kind,
+                thrift_binary_annotations,
             )
-            thrift_binary_annotations.append(thrift.create_binary_annotation(
-                key=thrift.zipkin_core.SERVER_ADDR,
-                value=thrift.SERVER_ADDR_VAL,
-                annotation_type=thrift.zipkin_core.AnnotationType.BOOL,
-                host=thrift_sa_endpoint,
-            ))
 
         thrift_span = thrift.create_span(
             span.id,
@@ -176,9 +189,22 @@ class _BaseJSONEncoder(IEncoder):
 class _V1JSONEncoder(_BaseJSONEncoder):
     """JSON encoder for V1 spans."""
 
-    def encode_span(self, span_builder):
+    def encode_remote_endpoint(self, remote_endpoint, kind, binary_annotations):
+        json_remote_endpoint = self._create_json_endpoint(remote_endpoint, True)
+        if kind == Kind.CLIENT:
+            key = 'sa'
+        elif kind == Kind.SERVER:
+            key = 'ca'
+
+        binary_annotations.append({
+            'key': key,
+            'value': True,
+            'endpoint': json_remote_endpoint,
+        })
+
+    def encode_span(self, v2_span):
         """Encodes a single span to JSON."""
-        span = span_builder.build_v1_span()
+        span = v2_span.build_v1_span()
 
         json_span = {
             'traceId': span.trace_id,
@@ -211,14 +237,13 @@ class _V1JSONEncoder(_BaseJSONEncoder):
                 'endpoint': v1_endpoint,
             })
 
-        # Add sa binary annotations
-        if span.sa_endpoint is not None:
-            json_sa_endpoint = self._create_json_endpoint(span.sa_endpoint, True)
-            json_span['binaryAnnotations'].append({
-                'key': 'sa',
-                'value': '1',
-                'endpoint': json_sa_endpoint,
-            })
+        # Add sa/ca binary annotations
+        if v2_span.remote_endpoint:
+            self.encode_remote_endpoint(
+                v2_span.remote_endpoint,
+                v2_span.kind,
+                json_span['binaryAnnotations'],
+            )
 
         encoded_span = json.dumps(json_span)
 
@@ -228,13 +253,12 @@ class _V1JSONEncoder(_BaseJSONEncoder):
 class _V2JSONEncoder(_BaseJSONEncoder):
     """JSON encoder for V2 spans."""
 
-    def encode_span(self, span_builder):
+    def encode_span(self, span):
         """Encodes a single span to JSON."""
-        span = span_builder.build_v2_span()
 
         json_span = {
             'traceId': span.trace_id,
-            'id': span.id,
+            'id': span.span_id,
         }
 
         if span.name:

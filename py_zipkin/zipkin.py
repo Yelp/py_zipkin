@@ -9,7 +9,7 @@ from py_zipkin import Encoding
 from py_zipkin import Kind
 from py_zipkin import storage
 from py_zipkin.encoding._helpers import create_endpoint
-from py_zipkin.encoding._helpers import SpanBuilder
+from py_zipkin.encoding._helpers import Span
 from py_zipkin.exception import ZipkinError
 from py_zipkin.logging_helper import ZipkinLoggingContext
 from py_zipkin.storage import ThreadLocalStack
@@ -216,7 +216,7 @@ class zipkin_span(object):
         self.do_pop_attrs = False
         # Spans that log a 'cs' timestamp can additionally record a
         # 'sa' binary annotation that shows where the request is going.
-        self.sa_endpoint = None
+        self.remote_endpoint = None
 
         # It used to  be possible to override timestamp and duration by passing
         # in the cs/cr or sr/ss annotations. We want to keep backward compatibility
@@ -471,18 +471,19 @@ class zipkin_span(object):
         else:
             duration = end_timestamp - self.start_timestamp
 
-        self._span_storage.append(SpanBuilder(
+        endpoint = create_endpoint(self.port, self.service_name, self.host)
+        self._span_storage.append(Span(
             trace_id=self.zipkin_attrs.trace_id,
             name=self.span_name,
             parent_id=self.zipkin_attrs.parent_span_id,
             span_id=self.zipkin_attrs.span_id,
+            kind=self.kind,
             timestamp=self.timestamp if self.timestamp else self.start_timestamp,
             duration=duration,
             annotations=self.annotations,
+            local_endpoint=endpoint,
+            remote_endpoint=self.remote_endpoint,
             tags=self.binary_annotations,
-            kind=self.kind,
-            service_name=self.service_name,
-            sa_endpoint=self.sa_endpoint,
         ))
 
     def update_binary_annotations(self, extra_annotations):
@@ -499,7 +500,7 @@ class zipkin_span(object):
         else:
             # Otherwise, we're in the context of the root span, so just update
             # the binary annotations for the logging context directly.
-            self.logging_context.binary_annotations_dict.update(extra_annotations)
+            self.logging_context.tags.update(extra_annotations)
 
     def add_sa_binary_annotation(
         self,
@@ -529,19 +530,19 @@ class zipkin_span(object):
             # should result in a logged error
             return
 
-        sa_endpoint = create_endpoint(
+        remote_endpoint = create_endpoint(
             port=port,
             service_name=service_name,
             host=host,
         )
         if not self.logging_context:
-            if self.sa_endpoint is not None:
+            if self.remote_endpoint is not None:
                 raise ValueError('SA annotation already set.')
-            self.sa_endpoint = sa_endpoint
+            self.remote_endpoint = remote_endpoint
         else:
-            if self.logging_context.sa_endpoint is not None:
+            if self.logging_context.remote_endpoint is not None:
                 raise ValueError('SA annotation already set.')
-            self.logging_context.sa_endpoint = sa_endpoint
+            self.logging_context.remote_endpoint = remote_endpoint
 
     def override_span_name(self, name):
         """Overrides the current span name.

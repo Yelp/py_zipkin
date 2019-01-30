@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
-import json
 
+import json
 
 from py_zipkin import Encoding
 from py_zipkin.encoding import convert_spans
@@ -28,7 +28,6 @@ def test_encoding():
         'timestamp': us(ts),
         'duration': us(10),
         'kind': 'CLIENT',
-        'shared': True,
         'localEndpoint': {
             'ipv4': '10.0.0.0',
             'port': 8080,

@@ -16,15 +16,7 @@ Endpoint = namedtuple(
 _V1Span = namedtuple(
     'V1Span',
     ['trace_id', 'name', 'parent_id', 'id', 'timestamp', 'duration', 'endpoint',
-     'annotations', 'binary_annotations', 'sa_endpoint'],
-)
-
-
-_V2Span = namedtuple(
-    'V2Span',
-    ['trace_id', 'name', 'parent_id', 'id', 'kind', 'timestamp',
-     'duration', 'debug', 'shared', 'local_endpoint', 'remote_endpoint',
-     'annotations', 'tags'],
+     'annotations', 'binary_annotations', 'remote_endpoint'],
 )
 
 
@@ -34,12 +26,8 @@ _DROP_ANNOTATIONS_BY_KIND = {
 }
 
 
-class SpanBuilder(object):
-    """Internal Span representation. It can generate both v1 and v2 spans.
-
-    It doesn't exactly map to either V1 or V2, since an intermediate format
-    makes it easier to convert to either format.
-    """
+class Span(object):
+    """Internal V2 Span representation."""
 
     def __init__(
         self,
@@ -47,17 +35,17 @@ class SpanBuilder(object):
         name,
         parent_id,
         span_id,
+        kind,
         timestamp,
         duration,
-        annotations,
-        tags,
-        kind,
         local_endpoint=None,
-        service_name=None,
-        sa_endpoint=None,
-        report_timestamp=True,
+        remote_endpoint=None,
+        debug=False,
+        shared=False,
+        annotations=None,
+        tags=None,
     ):
-        """Creates a new SpanBuilder.
+        """Creates a new Span.
 
         :param trace_id: Trace id.
         :type trace_id: str
@@ -67,25 +55,26 @@ class SpanBuilder(object):
         :type parent_id: str
         :param span_id: Span id.
         :type span_id: str
+        :param kind: Span type (client, server, local, etc...)
+        :type kind: Kind
         :param timestamp: start timestamp in seconds.
         :type timestamp: float
         :param duration: span duration in seconds.
         :type duration: float
+        :param local_endpoint: the host that recorded this span.
+        :type local_endpoint: Endpoint
+        :param remote_endpoint: the remote service.
+        :type remote_endpoint: Endpoint
+        :param debug: True is a request to store this span even if it
+            overrides sampling policy.
+        :type debug: bool
+        :param shared: True if we are contributing to a span started by
+            another tracer (ex on a different host).
+        :type shared: bool
         :param annotations: Optional dict of str -> timestamp annotations.
         :type annotations: dict
         :param tags: Optional dict of str -> str span tags.
         :type tags: dict
-        :param kind: Span type (client, server, local, etc...)
-        :type kind: Kind
-        :param local_endpoint: The host that recorded this span.
-        :type local_endpoint: Endpoint
-        :param service_name: The name of the called service
-        :type service_name: str
-        :param sa_endpoint: Remote server in client spans.
-        :type sa_endpoint: Endpoint
-        :param report_timestamp: Whether the span should report
-            timestamp and duration.
-        :type report_timestamp: bool
         """
         self.trace_id = trace_id
         self.name = name
@@ -94,16 +83,24 @@ class SpanBuilder(object):
         self.kind = kind
         self.timestamp = timestamp
         self.duration = duration
-        self.annotations = annotations
-        self.tags = tags
         self.local_endpoint = local_endpoint
-        self.service_name = service_name
-        self.sa_endpoint = sa_endpoint
-        self.report_timestamp = report_timestamp
+        self.remote_endpoint = remote_endpoint
+        self.debug = debug
+        self.shared = shared
+        self.annotations = annotations or {}
+        self.tags = tags or {}
 
         if not isinstance(kind, Kind):
             raise ZipkinError(
                 'Invalid kind value {}. Must be of type Kind.'.format(kind))
+
+        if local_endpoint and not isinstance(local_endpoint, Endpoint):
+            raise ZipkinError(
+                'Invalid local_endpoint value. Must be of type Endpoint.')
+
+        if remote_endpoint and not isinstance(remote_endpoint, Endpoint):
+            raise ZipkinError(
+                'Invalid remote_endpoint value. Must be of type Endpoint.')
 
     def build_v1_span(self):
         """Builds and returns a V1 Span.
@@ -135,38 +132,12 @@ class SpanBuilder(object):
             name=self.name,
             parent_id=self.parent_id,
             id=self.span_id,
-            timestamp=self.timestamp if self.report_timestamp else None,
-            duration=self.duration if self.report_timestamp else None,
+            timestamp=self.timestamp if self.shared is False else None,
+            duration=self.duration if self.shared is False else None,
             endpoint=self.local_endpoint,
             annotations=full_annotations,
             binary_annotations=self.tags,
-            sa_endpoint=self.sa_endpoint,
-        )
-
-    def build_v2_span(self):
-        """Builds and returns a V2 Span.
-
-        :return: newly generated _V2Span
-        :rtype: _V2Span
-        """
-        remote_endpoint = None
-        if self.sa_endpoint:
-            remote_endpoint = self.sa_endpoint
-
-        return _V2Span(
-            trace_id=self.trace_id,
-            name=self.name,
-            parent_id=self.parent_id,
-            id=self.span_id,
-            kind=self.kind,
-            timestamp=self.timestamp,
-            duration=self.duration,
-            debug=False,
-            shared=self.report_timestamp is False,
-            local_endpoint=self.local_endpoint,
-            remote_endpoint=remote_endpoint,
-            annotations=self.annotations,
-            tags=self.tags,
+            remote_endpoint=self.remote_endpoint,
         )
 
 

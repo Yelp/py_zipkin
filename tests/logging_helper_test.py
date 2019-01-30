@@ -5,7 +5,7 @@ from py_zipkin import Encoding
 from py_zipkin import Kind
 from py_zipkin import logging_helper
 from py_zipkin.encoding._helpers import Endpoint
-from py_zipkin.encoding._helpers import SpanBuilder
+from py_zipkin.encoding._helpers import Span
 from py_zipkin.encoding._helpers import create_endpoint
 from py_zipkin.encoding._encoders import get_encoder
 from py_zipkin.exception import ZipkinError
@@ -31,7 +31,7 @@ def context():
 
 
 @pytest.fixture
-def empty_binary_annotations_dict():
+def empty_tags():
     return {}
 
 
@@ -78,7 +78,6 @@ def test_zipkin_logging_server_context_emit_spans(
     server_span_id = '0000000000000002'
     client_span_id = '0000000000000003'
     client_span_name = 'breadcrumbs'
-    client_svc_name = 'svc'
     attr = ZipkinAttrs(
         trace_id=trace_id,
         span_id=server_span_id,
@@ -88,17 +87,19 @@ def test_zipkin_logging_server_context_emit_spans(
     )
     span_storage = SpanStorage()
 
-    client_span = SpanBuilder(
+    client_span = Span(
         trace_id=trace_id,
         name=client_span_name,
         parent_id=server_span_id,
         span_id=client_span_id,
+        kind=Kind.CLIENT,
         timestamp=26.0,
         duration=4.0,
+        local_endpoint=create_endpoint(
+            service_name='test_server',
+        ),
         annotations={'ann2': 2, 'cs': 26, 'cr': 30},
         tags={'bann2': 'yiss'},
-        kind=Kind.CLIENT,
-        service_name=client_svc_name,
     )
     span_storage.append(client_span)
 
@@ -118,23 +119,22 @@ def test_zipkin_logging_server_context_emit_spans(
     context.start_timestamp = 24
     context.response_status_code = 200
 
-    context.binary_annotations_dict = {'k': 'v'}
+    context.tags = {'k': 'v'}
     time_mock.return_value = 42
 
     context.emit_spans()
     client_log_call, server_log_call = add_span_mock.call_args_list
-    assert server_log_call[0][1].build_v1_span() == SpanBuilder(
+    assert server_log_call[0][1].build_v1_span() == Span(
         trace_id=trace_id,
         name='GET /foo',
         parent_id=parent_span_id,
         span_id=server_span_id,
+        kind=Kind.SERVER,
         timestamp=24.0,
         duration=18.0,
+        local_endpoint=fake_endpoint,
         annotations={'sr': 24, 'ss': 42},
         tags={'k': 'v'},
-        kind=Kind.SERVER,
-        service_name=client_svc_name,
-        local_endpoint=fake_endpoint,
     ).build_v1_span()
     assert client_log_call[0][1] == client_span
     assert flush_mock.call_count == 1
@@ -166,17 +166,17 @@ def test_zipkin_logging_server_context_emit_spans_with_firehose(
 
     span_storage = SpanStorage()
 
-    client_span = SpanBuilder(
+    client_span = Span(
         trace_id=trace_id,
         name=client_span_name,
         parent_id=server_span_id,
         span_id=client_span_id,
+        kind=Kind.CLIENT,
         timestamp=26.0,
         duration=4.0,
+        local_endpoint=create_endpoint(service_name=client_svc_name),
         annotations={'ann2': 2, 'cs': 26, 'cr': 30},
         tags={'bann2': 'yiss'},
-        kind=Kind.CLIENT,
-        service_name=client_svc_name,
     )
     span_storage.append(client_span)
 
@@ -198,7 +198,7 @@ def test_zipkin_logging_server_context_emit_spans_with_firehose(
     context.start_timestamp = 24
     context.response_status_code = 200
 
-    context.binary_annotations_dict = {'k': 'v'}
+    context.tags = {'k': 'v'}
     time_mock.return_value = 42
 
     context.emit_spans()
@@ -207,18 +207,17 @@ def test_zipkin_logging_server_context_emit_spans_with_firehose(
     firehose_server_log_call, server_log_call = call_args[1], call_args[3]
     assert server_log_call[0][1].build_v1_span() == \
         firehose_server_log_call[0][1].build_v1_span()
-    assert server_log_call[0][1].build_v1_span() == SpanBuilder(
+    assert server_log_call[0][1].build_v1_span() == Span(
         trace_id=trace_id,
         name='GET /foo',
         parent_id=parent_span_id,
         span_id=server_span_id,
+        kind=Kind.SERVER,
         timestamp=24.0,
         duration=18.0,
+        local_endpoint=fake_endpoint,
         annotations={'sr': 24, 'ss': 42},
         tags={'k': 'v'},
-        kind=Kind.SERVER,
-        service_name=client_svc_name,
-        local_endpoint=fake_endpoint,
     ).build_v1_span()
     assert client_log_call[0][1] == firehose_client_log_call[0][1] == client_span
     assert flush_mock.call_count == 2
@@ -262,23 +261,22 @@ def test_zipkin_logging_client_context_emit_spans(
     context.start_timestamp = 24
     context.response_status_code = 200
 
-    context.binary_annotations_dict = {'k': 'v'}
+    context.tags = {'k': 'v'}
     time_mock.return_value = 42
 
     context.emit_spans()
     log_call = add_span_mock.call_args_list[0]
-    assert log_call[0][1].build_v1_span() == SpanBuilder(
+    assert log_call[0][1].build_v1_span() == Span(
         trace_id=trace_id,
         name='GET /foo',
         parent_id=None,
         span_id=client_span_id,
+        kind=Kind.CLIENT,
         timestamp=24.0,
         duration=18.0,
+        local_endpoint=fake_endpoint,
         annotations={'cs': 24, 'cr': 42},
         tags={'k': 'v'},
-        kind=Kind.CLIENT,
-        service_name='test_server',
-        local_endpoint=fake_endpoint,
     ).build_v1_span()
     assert flush_mock.call_count == 1
 
@@ -347,7 +345,7 @@ def test_batch_sender_add_span_not_sampled_with_firehose(add_span_mock,
     context.start_timestamp = 24
     context.response_status_code = 200
 
-    context.binary_annotations_dict = {'k': 'v'}
+    context.tags = {'k': 'v'}
     time_mock.return_value = 42
 
     context.emit_spans()
@@ -357,7 +355,7 @@ def test_batch_sender_add_span_not_sampled_with_firehose(add_span_mock,
 
 def test_batch_sender_add_span(
     empty_annotations_dict,
-    empty_binary_annotations_dict,
+    empty_tags,
     fake_endpoint,
 ):
     # This test verifies it's possible to add 1 span without throwing errors.
@@ -370,18 +368,17 @@ def test_batch_sender_add_span(
         encoder=encoder,
     )
     with sender:
-        sender.add_span(SpanBuilder(
+        sender.add_span(Span(
             trace_id='000000000000000f',
             name='span',
             parent_id='0000000000000001',
             span_id='0000000000000002',
+            kind=Kind.CLIENT,
             timestamp=26.0,
             duration=4.0,
-            annotations=empty_annotations_dict,
-            tags=empty_binary_annotations_dict,
-            kind=Kind.CLIENT,
             local_endpoint=fake_endpoint,
-            service_name='test_service',
+            annotations=empty_annotations_dict,
+            tags=empty_tags,
         ))
     assert encoder.encode_queue.call_count == 1
 
@@ -399,7 +396,7 @@ def test_batch_sender_with_error_on_exit():
 
 def test_batch_sender_add_span_many_times(
     empty_annotations_dict,
-    empty_binary_annotations_dict,
+    empty_tags,
     fake_endpoint,
 ):
     # We create MAX_PORTION_SIZE * 2 + 1 spans, so we should trigger flush 3
@@ -413,19 +410,17 @@ def test_batch_sender_add_span_many_times(
     max_portion_size = logging_helper.ZipkinBatchSender.MAX_PORTION_SIZE
     with sender:
         for _ in range(max_portion_size * 2 + 1):
-            sender.add_span(SpanBuilder(
+            sender.add_span(Span(
                 trace_id='000000000000000f',
                 name='span',
                 parent_id='0000000000000001',
                 span_id='0000000000000002',
+                kind=Kind.CLIENT,
                 timestamp=26.0,
                 duration=4.0,
-                annotations=empty_annotations_dict,
-                tags=empty_binary_annotations_dict,
-                kind=Kind.CLIENT,
                 local_endpoint=fake_endpoint,
-                service_name='test_service',
-                report_timestamp=False,
+                annotations=empty_annotations_dict,
+                tags=empty_tags,
             ))
 
     assert encoder.encode_queue.call_count == 3
@@ -436,7 +431,7 @@ def test_batch_sender_add_span_many_times(
 
 def test_batch_sender_add_span_too_big(
     empty_annotations_dict,
-    empty_binary_annotations_dict,
+    empty_tags,
     fake_endpoint,
 ):
     # This time we set max_payload_bytes to 1000, so we have to send more batches.
@@ -450,35 +445,33 @@ def test_batch_sender_add_span_too_big(
     )
     with sender:
         for _ in range(201):
-            sender.add_span(SpanBuilder(
+            sender.add_span(Span(
                 trace_id='000000000000000f',
                 name='span',
                 parent_id='0000000000000001',
                 span_id='0000000000000002',
+                kind=Kind.CLIENT,
                 timestamp=26.0,
                 duration=4.0,
-                annotations=empty_annotations_dict,
-                tags=empty_binary_annotations_dict,
-                kind=Kind.CLIENT,
                 local_endpoint=fake_endpoint,
-                service_name='test_service',
-                report_timestamp=False,
+                annotations=empty_annotations_dict,
+                tags=empty_tags,
             ))
 
     # 5 spans per batch, means we need 201 / 4 = 41 batches to send them all.
     assert mock_transport_handler.call_count == 41
     for i in range(40):
-        # The first 40 batches have 5 spans of 175 bytes + 5 bytes of
-        # list headers = 880 bytes
-        assert len(mock_transport_handler.call_args_list[i][0][0]) == 880
-    # The last batch has a single remaining span of 175 bytes + 5 bytes of
-    # list headers = 180 bytes
-    assert len(mock_transport_handler.call_args_list[40][0][0]) == 180
+        # The first 40 batches have 5 spans of 197 bytes + 5 bytes of
+        # list headers = 990 bytes
+        assert len(mock_transport_handler.call_args_list[i][0][0]) == 990
+    # The last batch has a single remaining span of 197 bytes + 5 bytes of
+    # list headers = 202 bytes
+    assert len(mock_transport_handler.call_args_list[40][0][0]) == 202
 
 
 def test_batch_sender_flush_calls_transport_handler_with_correct_params(
     empty_annotations_dict,
-    empty_binary_annotations_dict,
+    empty_tags,
     fake_endpoint,
 ):
     # Tests that the transport handler is called with the value returned
@@ -492,26 +485,24 @@ def test_batch_sender_flush_calls_transport_handler_with_correct_params(
         encoder=encoder,
     )
     with sender:
-        sender.add_span(SpanBuilder(
+        sender.add_span(Span(
             trace_id='000000000000000f',
             name='span',
             parent_id='0000000000000001',
             span_id='0000000000000002',
+            kind=Kind.CLIENT,
             timestamp=26.0,
             duration=4.0,
-            annotations=empty_annotations_dict,
-            tags=empty_binary_annotations_dict,
-            kind=Kind.CLIENT,
             local_endpoint=fake_endpoint,
-            service_name='test_service',
-            report_timestamp=False,
+            annotations=empty_annotations_dict,
+            tags=empty_tags,
         ))
     transport_handler.assert_called_once_with('foobar')
 
 
 def test_batch_sender_defensive_about_transport_handler(
     empty_annotations_dict,
-    empty_binary_annotations_dict,
+    empty_tags,
     fake_endpoint,
 ):
     """Make sure log_span doesn't try to call the transport handler if it's
@@ -523,19 +514,17 @@ def test_batch_sender_defensive_about_transport_handler(
         encoder=encoder,
     )
     with sender:
-        sender.add_span(SpanBuilder(
+        sender.add_span(Span(
             trace_id='000000000000000f',
             name='span',
             parent_id='0000000000000001',
             span_id='0000000000000002',
+            kind=Kind.CLIENT,
             timestamp=26.0,
             duration=4.0,
-            annotations=empty_annotations_dict,
-            tags=empty_binary_annotations_dict,
-            kind=Kind.CLIENT,
             local_endpoint=fake_endpoint,
-            service_name='test_service',
-            report_timestamp=False,
+            annotations=empty_annotations_dict,
+            tags=empty_tags,
         ))
     assert encoder.encode_span.call_count == 1
     assert encoder.encode_queue.call_count == 0
