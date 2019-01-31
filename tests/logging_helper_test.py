@@ -8,38 +8,11 @@ from py_zipkin.encoding._encoders import get_encoder
 from py_zipkin.encoding._helpers import create_endpoint
 from py_zipkin.encoding._helpers import Endpoint
 from py_zipkin.encoding._helpers import Span
-from py_zipkin.encoding._helpers import create_endpoint
-from py_zipkin.encoding._encoders import get_encoder
 from py_zipkin.exception import ZipkinError
-from py_zipkin.storage import SpanStorage
 from py_zipkin.zipkin import ZipkinAttrs
 from tests.test_helpers import MockEncoder
+from tests.test_helpers import MockLocalStorage
 from tests.test_helpers import MockTransportHandler
-
-
-@pytest.fixture
-def context():
-    attr = ZipkinAttrs(None, None, None, None, False)
-    return logging_helper.ZipkinLoggingContext(
-        zipkin_attrs=attr,
-        endpoint=create_endpoint(80, 'test_server', '127.0.0.1'),
-        span_name='span_name',
-        transport_handler=MockTransportHandler(),
-        report_root_timestamp=False,
-        span_storage=SpanStorage(),
-        service_name='test_server',
-        encoding=Encoding.V1_JSON,
-    )
-
-
-@pytest.fixture
-def empty_tags():
-    return {}
-
-
-@pytest.fixture
-def empty_annotations_dict():
-    return {}
 
 
 @pytest.fixture
@@ -53,7 +26,18 @@ def fake_endpoint():
 
 
 @mock.patch('py_zipkin.logging_helper.time.time', autospec=True)
-def test_zipkin_logging_context(time_mock, context):
+def test_zipkin_logging_context(time_mock):
+    attr = ZipkinAttrs(None, None, None, None, False)
+    context = logging_helper.ZipkinLoggingContext(
+        zipkin_attrs=attr,
+        endpoint=create_endpoint(80, 'test_server', '127.0.0.1'),
+        span_name='span_name',
+        transport_handler=MockTransportHandler(),
+        report_root_timestamp=False,
+        local_storage=MockLocalStorage(),
+        service_name='test_server',
+        encoding=Encoding.V1_JSON,
+    )
     # Tests the context manager aspects of the ZipkinLoggingContext
     time_mock.return_value = 42
     # Ignore the actual logging part
@@ -87,7 +71,7 @@ def test_zipkin_logging_server_context_emit_spans(
         flags=None,
         is_sampled=True,
     )
-    span_storage = SpanStorage()
+    local_storage = MockLocalStorage()
 
     client_span = Span(
         trace_id=trace_id,
@@ -103,7 +87,7 @@ def test_zipkin_logging_server_context_emit_spans(
         annotations={'ann2': 2, 'cs': 26, 'cr': 30},
         tags={'bann2': 'yiss'},
     )
-    span_storage.append(client_span)
+    local_storage.storage.span_storage.append(client_span)
 
     transport_handler = mock.Mock()
 
@@ -113,7 +97,7 @@ def test_zipkin_logging_server_context_emit_spans(
         span_name='GET /foo',
         transport_handler=transport_handler,
         report_root_timestamp=True,
-        span_storage=span_storage,
+        local_storage=local_storage,
         service_name='test_server',
         encoding=Encoding.V1_JSON,
     )
@@ -166,7 +150,7 @@ def test_zipkin_logging_server_context_emit_spans_with_firehose(
         is_sampled=True,
     )
 
-    span_storage = SpanStorage()
+    local_storage = MockLocalStorage()
 
     client_span = Span(
         trace_id=trace_id,
@@ -180,7 +164,7 @@ def test_zipkin_logging_server_context_emit_spans_with_firehose(
         annotations={'ann2': 2, 'cs': 26, 'cr': 30},
         tags={'bann2': 'yiss'},
     )
-    span_storage.append(client_span)
+    local_storage.storage.span_storage.append(client_span)
 
     transport_handler = mock.Mock()
     firehose_handler = mock.Mock()
@@ -191,7 +175,7 @@ def test_zipkin_logging_server_context_emit_spans_with_firehose(
         span_name='GET /foo',
         transport_handler=transport_handler,
         report_root_timestamp=True,
-        span_storage=span_storage,
+        local_storage=local_storage,
         firehose_handler=firehose_handler,
         service_name='test_server',
         encoding=Encoding.V1_JSON,
@@ -245,7 +229,7 @@ def test_zipkin_logging_client_context_emit_spans(
         is_sampled=True,
     )
 
-    span_storage = SpanStorage()
+    local_storage = MockLocalStorage()
     transport_handler = mock.Mock()
 
     context = logging_helper.ZipkinLoggingContext(
@@ -254,7 +238,7 @@ def test_zipkin_logging_client_context_emit_spans(
         span_name='GET /foo',
         transport_handler=transport_handler,
         report_root_timestamp=True,
-        span_storage=span_storage,
+        local_storage=local_storage,
         client_context=True,
         service_name='test_server',
         encoding=Encoding.V1_JSON,
@@ -296,7 +280,7 @@ def test_batch_sender_add_span_not_called_if_not_sampled(add_span_mock,
         flags=None,
         is_sampled=False,
     )
-    span_storage = SpanStorage()
+    local_storage = MockLocalStorage()
     transport_handler = mock.Mock()
 
     context = logging_helper.ZipkinLoggingContext(
@@ -305,7 +289,7 @@ def test_batch_sender_add_span_not_called_if_not_sampled(add_span_mock,
         span_name='span_name',
         transport_handler=transport_handler,
         report_root_timestamp=False,
-        span_storage=span_storage,
+        local_storage=local_storage,
         service_name='test_server',
         encoding=Encoding.V1_JSON,
     )
@@ -329,7 +313,7 @@ def test_batch_sender_add_span_not_sampled_with_firehose(add_span_mock,
         flags=None,
         is_sampled=False,
     )
-    span_storage = SpanStorage()
+    local_storage = MockLocalStorage()
     transport_handler = mock.Mock()
     firehose_handler = mock.Mock()
 
@@ -339,7 +323,7 @@ def test_batch_sender_add_span_not_sampled_with_firehose(add_span_mock,
         span_name='span_name',
         transport_handler=transport_handler,
         report_root_timestamp=False,
-        span_storage=span_storage,
+        local_storage=local_storage,
         firehose_handler=firehose_handler,
         service_name='test_server',
         encoding=Encoding.V1_JSON,
@@ -355,11 +339,7 @@ def test_batch_sender_add_span_not_sampled_with_firehose(add_span_mock,
     assert flush_mock.call_count == 1
 
 
-def test_batch_sender_add_span(
-    empty_annotations_dict,
-    empty_tags,
-    fake_endpoint,
-):
+def test_batch_sender_add_span(fake_endpoint):
     # This test verifies it's possible to add 1 span without throwing errors.
     # It also checks that exiting the ZipkinBatchSender context manager
     # triggers a flush of all the already added spans.
@@ -379,8 +359,8 @@ def test_batch_sender_add_span(
             timestamp=26.0,
             duration=4.0,
             local_endpoint=fake_endpoint,
-            annotations=empty_annotations_dict,
-            tags=empty_tags,
+            annotations={},
+            tags={},
         ))
     assert encoder.encode_queue.call_count == 1
 
@@ -396,11 +376,7 @@ def test_batch_sender_with_error_on_exit():
             raise Exception('Error!')
 
 
-def test_batch_sender_add_span_many_times(
-    empty_annotations_dict,
-    empty_tags,
-    fake_endpoint,
-):
+def test_batch_sender_add_span_many_times(fake_endpoint):
     # We create MAX_PORTION_SIZE * 2 + 1 spans, so we should trigger flush 3
     # times, once every MAX_PORTION_SIZE spans.
     encoder = MockEncoder()
@@ -421,8 +397,8 @@ def test_batch_sender_add_span_many_times(
                 timestamp=26.0,
                 duration=4.0,
                 local_endpoint=fake_endpoint,
-                annotations=empty_annotations_dict,
-                tags=empty_tags,
+                annotations={},
+                tags={},
             ))
 
     assert encoder.encode_queue.call_count == 3
@@ -431,11 +407,7 @@ def test_batch_sender_add_span_many_times(
     assert len(encoder.encode_queue.call_args_list[2][0][0]) == 1
 
 
-def test_batch_sender_add_span_too_big(
-    empty_annotations_dict,
-    empty_tags,
-    fake_endpoint,
-):
+def test_batch_sender_add_span_too_big(fake_endpoint):
     # This time we set max_payload_bytes to 1000, so we have to send more batches.
     # Each encoded span is 175 bytes, so we can fit 5 of those in 1000 bytes.
     mock_transport_handler = mock.Mock(spec=MockTransportHandler)
@@ -456,8 +428,8 @@ def test_batch_sender_add_span_too_big(
                 timestamp=26.0,
                 duration=4.0,
                 local_endpoint=fake_endpoint,
-                annotations=empty_annotations_dict,
-                tags=empty_tags,
+                annotations={},
+                tags={},
             ))
 
     # 5 spans per batch, means we need 201 / 4 = 41 batches to send them all.
@@ -472,8 +444,6 @@ def test_batch_sender_add_span_too_big(
 
 
 def test_batch_sender_flush_calls_transport_handler_with_correct_params(
-    empty_annotations_dict,
-    empty_tags,
     fake_endpoint,
 ):
     # Tests that the transport handler is called with the value returned
@@ -496,17 +466,13 @@ def test_batch_sender_flush_calls_transport_handler_with_correct_params(
             timestamp=26.0,
             duration=4.0,
             local_endpoint=fake_endpoint,
-            annotations=empty_annotations_dict,
-            tags=empty_tags,
+            annotations={},
+            tags={},
         ))
     transport_handler.assert_called_once_with('foobar')
 
 
-def test_batch_sender_defensive_about_transport_handler(
-    empty_annotations_dict,
-    empty_tags,
-    fake_endpoint,
-):
+def test_batch_sender_defensive_about_transport_handler(fake_endpoint):
     """Make sure log_span doesn't try to call the transport handler if it's
     None."""
     encoder = MockEncoder()
@@ -525,8 +491,8 @@ def test_batch_sender_defensive_about_transport_handler(
             timestamp=26.0,
             duration=4.0,
             local_endpoint=fake_endpoint,
-            annotations=empty_annotations_dict,
-            tags=empty_tags,
+            annotations={},
+            tags={},
         ))
     assert encoder.encode_span.call_count == 1
     assert encoder.encode_queue.call_count == 0

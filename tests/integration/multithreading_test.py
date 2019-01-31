@@ -4,7 +4,7 @@ from threading import Thread
 
 from py_zipkin import Encoding
 from py_zipkin.zipkin import zipkin_span
-from tests.conftest import MockTransportHandler
+from tests.test_helpers import MockTransportHandler
 
 
 @zipkin_span(service_name='service1', span_name='service1_do_stuff')

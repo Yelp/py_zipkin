@@ -5,9 +5,9 @@ import mock
 import pytest
 
 from py_zipkin import thrift
+from py_zipkin.encoding._decoders import _V1ThriftDecoder
 from py_zipkin.encoding._decoders import get_decoder
 from py_zipkin.encoding._decoders import IDecoder
-from py_zipkin.encoding._decoders import _V1ThriftDecoder
 from py_zipkin.encoding._helpers import Endpoint
 from py_zipkin.encoding._types import Encoding
 from py_zipkin.encoding._types import Kind

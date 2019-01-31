@@ -28,7 +28,7 @@ def test_storage_stack_still_works_if_you_dont_pass_in_storage():
     assert not py_zipkin.storage.Stack().get()
 
 
-@mock.patch('py_zipkin.storage.thread_local._thread_local.zipkin_attrs', ['foo'])
+@mock.patch('py_zipkin.thread_local._thread_local.zipkin_attrs', ['foo'])
 def test_get_zipkin_attrs_returns_the_last_of_the_list():
     assert 'foo' == py_zipkin.storage.ThreadLocalStack().get()
 

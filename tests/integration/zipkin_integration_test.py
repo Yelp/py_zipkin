@@ -5,9 +5,9 @@ import pytest
 
 from py_zipkin import Encoding
 from py_zipkin import Kind
-from py_zipkin import storage
 from py_zipkin import zipkin
 from py_zipkin.logging_helper import LOGGING_END_KEY
+from py_zipkin.storage.thread_local import ThreadLocalStorage
 from py_zipkin.zipkin import ZipkinAttrs
 
 
@@ -550,7 +550,7 @@ def test_memory_leak():
     # In py_zipkin >= 0.13.0 and <= 0.14.0 this test fails since the
     # span_storage contains 10 spans once you exit the for loop.
     mock_transport_handler, mock_logs = mock_logger()
-    assert len(storage.ThreadLocalSpanStorage()) == 0
+    assert len(ThreadLocalStorage().storage.span_storage) == 0
     for _ in range(10):
         with zipkin.zipkin_client_span(
             service_name='test_service_name',
@@ -566,4 +566,4 @@ def test_memory_leak():
                 pass
 
     assert len(mock_logs) == 0
-    assert len(storage.ThreadLocalSpanStorage()) == 0
+    assert len(ThreadLocalStorage().storage.span_storage) == 0

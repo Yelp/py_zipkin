@@ -3,11 +3,9 @@ import os
 import time
 
 from py_zipkin import Kind
-from py_zipkin.encoding._helpers import Span
-from py_zipkin.encoding._helpers import copy_endpoint_with_new_service_name
 from py_zipkin.encoding._encoders import get_encoder
 from py_zipkin.encoding._helpers import copy_endpoint_with_new_service_name
-from py_zipkin.encoding._helpers import SpanBuilder
+from py_zipkin.encoding._helpers import Span
 from py_zipkin.exception import ZipkinError
 from py_zipkin.transport import BaseTransportHandler
 
@@ -31,7 +29,7 @@ class ZipkinLoggingContext(object):
         span_name,
         transport_handler,
         report_root_timestamp,
-        span_storage,
+        local_storage,
         service_name,
         binary_annotations=None,
         add_logging_annotation=False,
@@ -45,7 +43,7 @@ class ZipkinLoggingContext(object):
         self.span_name = span_name
         self.transport_handler = transport_handler
         self.response_status_code = 0
-        self.span_storage = span_storage
+        self._local_storage = local_storage
         self.service_name = service_name
         self.report_root_timestamp = report_root_timestamp
         self.tags = binary_annotations or {}
@@ -87,7 +85,7 @@ class ZipkinLoggingContext(object):
             )
 
         if not self.zipkin_attrs.is_sampled:
-            self.span_storage.clear()
+            self._local_storage.storage.span_storage.clear()
             return
 
         span_sender = ZipkinBatchSender(self.transport_handler,
@@ -95,14 +93,14 @@ class ZipkinLoggingContext(object):
                                         self.encoder)
 
         self._emit_spans_with_span_sender(span_sender)
-        self.span_storage.clear()
+        self._local_storage.storage.span_storage.clear()
 
     def _emit_spans_with_span_sender(self, span_sender):
         with span_sender:
             end_timestamp = time.time()
 
             # Collect, annotate, and log client spans from the logging handler
-            for span in self.span_storage:
+            for span in self._local_storage.storage.span_storage:
                 span.local_endpoint = copy_endpoint_with_new_service_name(
                     self.endpoint,
                     span.local_endpoint.service_name,

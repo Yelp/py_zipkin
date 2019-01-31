@@ -5,9 +5,11 @@ import mock
 import six
 
 from py_zipkin import Kind
-from py_zipkin import zipkin
 from py_zipkin import thrift
+from py_zipkin import zipkin
 from py_zipkin.encoding._encoders import IEncoder
+from py_zipkin.storage import LocalStorage
+from py_zipkin.storage import ZipkinStorage
 from py_zipkin.thrift import zipkin_core
 from py_zipkin.transport import BaseTransportHandler
 from py_zipkin.util import generate_random_128bit_string
@@ -48,6 +50,16 @@ class MockEncoder(IEncoder):
         assert isinstance(new_span, six.string_types)
 
         return self.fits_bool
+
+
+class MockLocalStorage(LocalStorage):
+    def __init__(self, *argv, **kwargs):
+        super(MockLocalStorage, self).__init__(*argv, **kwargs)
+        self._storage = ZipkinStorage()
+
+    @property
+    def storage(self):
+        return self._storage
 
 
 def generate_list_of_spans(encoding):
