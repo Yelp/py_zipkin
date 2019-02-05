@@ -261,6 +261,27 @@ def test_zipkin_extraneous_kind_raises(mock_zipkin_span, span_func):
             pass
 
 
+@mock.patch.object(zipkin, 'log', autospec=True)
+def test_zipkin_setting_transport_twice(mock_log):
+    with zipkin.zipkin_span(
+        service_name='some_service_name',
+        span_name='span_name',
+        transport_handler=MockTransportHandler(),
+        sample_rate=100.0,
+        kind=Kind.LOCAL,
+    ) as outer_span:
+        with zipkin.zipkin_span(
+            service_name='some_service_name',
+            span_name='another_span',
+            transport_handler=MockTransportHandler(),
+            sample_rate=100.0,
+            kind=Kind.LOCAL,
+        ) as inner_span:
+            assert mock_log.info.call_count == 1
+            assert inner_span.logging_context is None
+            assert outer_span.logging_context is not None
+
+
 @mock.patch('py_zipkin.zipkin.create_attrs_for_span', autospec=True)
 @mock.patch('py_zipkin.zipkin.create_endpoint')
 @mock.patch('py_zipkin.zipkin.ZipkinLoggingContext', autospec=True)

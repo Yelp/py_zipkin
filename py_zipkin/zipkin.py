@@ -405,6 +405,13 @@ class zipkin_span(object):
             # Don't set up any logging if we're not sampling
             if not self.zipkin_attrs.is_sampled and not self.firehose_handler:
                 return self
+            # If transport is already configured don't override it. Doing so would
+            # cause all previously recorded spans to never be emitted as exiting
+            # the inner logging context will reset transport_configured to False.
+            if self._span_storage.is_transport_configured():
+                log.info('Transport was already configured, ignoring override'
+                         'from span {}'.format(self.span_name))
+                return self
             endpoint = create_endpoint(self.port, self.service_name, self.host)
             self.logging_context = ZipkinLoggingContext(
                 self.zipkin_attrs,
