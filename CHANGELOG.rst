@@ -1,3 +1,8 @@
+0.17.1 (2019-02-05)
+-------------------
+- Ignore transport_handler overrides in an inner span since that causes
+  spans to be dropped.
+
 0.17.0 (2019-01-25)
 -------------------
 - Support python 3.7
