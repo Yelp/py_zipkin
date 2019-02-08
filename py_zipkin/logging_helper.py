@@ -29,7 +29,7 @@ class ZipkinLoggingContext(object):
         span_name,
         transport_handler,
         report_root_timestamp,
-        span_storage,
+        get_tracer,
         service_name,
         binary_annotations=None,
         add_logging_annotation=False,
@@ -43,7 +43,7 @@ class ZipkinLoggingContext(object):
         self.span_name = span_name
         self.transport_handler = transport_handler
         self.response_status_code = 0
-        self.span_storage = span_storage
+        self._get_tracer = get_tracer
         self.service_name = service_name
         self.report_root_timestamp = report_root_timestamp
         self.tags = binary_annotations or {}
@@ -85,7 +85,7 @@ class ZipkinLoggingContext(object):
             )
 
         if not self.zipkin_attrs.is_sampled:
-            self.span_storage.clear()
+            self._get_tracer().clear()
             return
 
         span_sender = ZipkinBatchSender(self.transport_handler,
@@ -93,14 +93,14 @@ class ZipkinLoggingContext(object):
                                         self.encoder)
 
         self._emit_spans_with_span_sender(span_sender)
-        self.span_storage.clear()
+        self._get_tracer().clear()
 
     def _emit_spans_with_span_sender(self, span_sender):
         with span_sender:
             end_timestamp = time.time()
 
             # Collect, annotate, and log client spans from the logging handler
-            for span in self.span_storage:
+            for span in self._get_tracer()._span_storage:
                 span.local_endpoint = copy_endpoint_with_new_service_name(
                     self.endpoint,
                     span.local_endpoint.service_name,

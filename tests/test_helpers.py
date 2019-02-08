@@ -8,6 +8,7 @@ from py_zipkin import Kind
 from py_zipkin import thrift
 from py_zipkin import zipkin
 from py_zipkin.encoding._encoders import IEncoder
+from py_zipkin.storage import Tracer
 from py_zipkin.thrift import zipkin_core
 from py_zipkin.transport import BaseTransportHandler
 from py_zipkin.util import generate_random_128bit_string
@@ -48,6 +49,11 @@ class MockEncoder(IEncoder):
         assert isinstance(new_span, six.string_types)
 
         return self.fits_bool
+
+
+class MockTracer(Tracer):
+    def get_context(self):
+        return self._context_stack
 
 
 def generate_list_of_spans(encoding):

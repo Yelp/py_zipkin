@@ -1,6 +1,64 @@
+import logging
 from collections import deque
 
 from py_zipkin import thread_local
+from py_zipkin.thread_local import get_thread_local_span_storage
+from py_zipkin.thread_local import get_thread_local_zipkin_attrs
+try:  # pragma: no cover
+    import contextvars
+    _contextvars_tracer = contextvars.ContextVar('py_zipkin.Tracer object')
+except ImportError:  # pragma: no cover
+    # The contextvars module was added in python 3.7
+    _contextvars_tracer = None
+
+
+log = logging.getLogger('py_zipkin.storage')
+
+
+def get_thread_local_tracer():
+    if not hasattr(thread_local._thread_local, 'tracer'):
+        thread_local._thread_local.tracer = Tracer()
+    return thread_local._thread_local.tracer
+
+
+def get_contextvar_tracer():  # pragma: no cover
+    try:
+        return _contextvars_tracer.get()
+    except LookupError:
+        _contextvars_tracer.set(Tracer())
+        return _contextvars_tracer.get()
+
+
+class Tracer(object):
+
+    def __init__(self):
+        self._is_transport_configured = False
+        self._span_storage = SpanStorage()
+        self._context_stack = Stack()
+
+    def get_zipkin_attrs(self):
+        return self._context_stack.get()
+
+    def push_zipkin_attrs(self, ctx):
+        self._context_stack.push(ctx)
+
+    def pop_zipkin_attrs(self):
+        return self._context_stack.pop()
+
+    def add_span(self, span):
+        self._span_storage.append(span)
+
+    def get_spans(self):
+        return self._span_storage
+
+    def clear(self):
+        self._span_storage.clear()
+
+    def set_transport_configured(self, configured):
+        self._is_transport_configured = configured
+
+    def is_transport_configured(self):
+        return self._is_transport_configured
 
 
 class Stack(object):
@@ -11,8 +69,12 @@ class Stack(object):
     The latter two return None if the stack is empty.
     """
 
-    def __init__(self, storage):
-        self._storage = storage
+    def __init__(self, storage=None):
+        if storage is not None:
+            log.warning('Passing a storage object to Stack is deprecated.')
+            self._storage = storage
+        else:
+            self._storage = []
 
     def push(self, item):
         self._storage.append(item)
@@ -37,38 +99,24 @@ class ThreadLocalStack(Stack):
     """
 
     def __init__(self):
-        pass
+        log.warning('ThreadLocalStack is deprecated. Set local_storage instead.')
 
     @property
     def _storage(self):
-        return thread_local.get_thread_local_zipkin_attrs()
+        return get_thread_local_zipkin_attrs()
 
 
 class SpanStorage(deque):
-    def __init__(self):
-        super(SpanStorage, self).__init__()
-        self._is_transport_configured = False
-
-    def is_transport_configured(self):
-        """Helper function to check whether a transport is configured.
-
-        We need to propagate this info to the child zipkin_spans since
-        if no transport is set-up they should not generate any Span to
-        avoid memory leaks.
-
-        :returns: whether transport is configured or not
-        :rtype: bool
-        """
-        return self._is_transport_configured
-
-    def set_transport_configured(self, configured):
-        """Set whether the transport is configured or not.
-
-        :param configured: whether transport is configured or not
-        :type configured: bool
-        """
-        self._is_transport_configured = configured
+    pass
 
 
 def default_span_storage():
-    return thread_local.get_thread_local_span_storage()
+    log.warning('default_span_storage is deprecated. Set local_storage instead.')
+    return get_thread_local_span_storage()
+
+
+def get_default_tracer():
+    if _contextvars_tracer:
+        return get_contextvar_tracer()
+
+    return get_thread_local_tracer()
