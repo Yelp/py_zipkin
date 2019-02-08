@@ -5,8 +5,8 @@ import mock
 import six
 
 from py_zipkin import Kind
-from py_zipkin import zipkin
 from py_zipkin import thrift
+from py_zipkin import zipkin
 from py_zipkin.encoding._encoders import IEncoder
 from py_zipkin.thrift import zipkin_core
 from py_zipkin.transport import BaseTransportHandler

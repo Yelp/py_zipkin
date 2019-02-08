@@ -138,7 +138,7 @@ py_zipkin (for the moment) thrift-encodes spans. The actual transport layer is
 pluggable, though.
 
 The recommended way to implement a new transport handler is to subclass
-`py_zipkin.transport.BaseTransportHandler` and implement the `send` and 
+`py_zipkin.transport.BaseTransportHandler` and implement the `send` and
 `get_max_payload_bytes` methods.
 
 `send` receives an already encoded thrift list as argument.
@@ -151,7 +151,7 @@ your Zipkin collector is running at localhost:9411.
 
 > NOTE: older versions of py_zipkin suggested implementing the transport handler
 > as a function with a single argument. That's still supported and should work
-> with the current py_zipkin version, but it's deprecated. 
+> with the current py_zipkin version, but it's deprecated.
 
 ```python
 import requests

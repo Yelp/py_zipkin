@@ -102,6 +102,18 @@ class Span(object):
             raise ZipkinError(
                 'Invalid remote_endpoint value. Must be of type Endpoint.')
 
+    def __eq__(self, other):  # pragma: no cover
+        """Compare function to help assert span1 == span2 in py3"""
+        return self.__dict__ == other.__dict__
+
+    def __cmp__(self, other):  # pragma: no cover
+        """Compare function to help assert span1 == span2 in py2"""
+        return self.__dict__ == other.__dict__
+
+    def __str__(self):  # pragma: no cover
+        """Compare function to nicely print Span rather than just the pointer"""
+        return str(self.__dict__)
+
     def build_v1_span(self):
         """Builds and returns a V1 Span.
 

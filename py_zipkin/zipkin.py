@@ -189,7 +189,7 @@ class zipkin_span(object):
         """
         self.service_name = service_name
         self.span_name = span_name
-        self.zipkin_attrs = zipkin_attrs
+        self.zipkin_attrs_override = zipkin_attrs
         self.transport_handler = transport_handler
         self.max_span_batch_size = max_span_batch_size
         self.annotations = annotations or {}
@@ -217,6 +217,7 @@ class zipkin_span(object):
         # Spans that log a 'cs' timestamp can additionally record a
         # 'sa' binary annotation that shows where the request is going.
         self.remote_endpoint = None
+        self.zipkin_attrs = None
 
         # It used to  be possible to override timestamp and duration by passing
         # in the cs/cr or sr/ss annotations. We want to keep backward compatibility
@@ -239,9 +240,9 @@ class zipkin_span(object):
                 "use the timestamp and duration parameters."
             )
 
-        # Root spans have transport_handler and at least one of zipkin_attrs
-        # or sample_rate.
-        if self.zipkin_attrs or self.sample_rate is not None:
+        # Root spans have transport_handler and at least one of
+        # zipkin_attrs_override or sample_rate.
+        if self.zipkin_attrs_override or self.sample_rate is not None:
             # transport_handler is mandatory for root spans
             if self.transport_handler is None:
                 raise ZipkinError(
@@ -268,10 +269,15 @@ class zipkin_span(object):
                 span_name=self.span_name,
                 zipkin_attrs=self.zipkin_attrs,
                 transport_handler=self.transport_handler,
+                max_span_batch_size=self.max_span_batch_size,
                 annotations=self.annotations,
                 binary_annotations=self.binary_annotations,
                 port=self.port,
                 sample_rate=self.sample_rate,
+                include=None,
+                add_logging_annotation=self.add_logging_annotation,
+                report_root_timestamp=self.report_root_timestamp_override,
+                use_128bit_trace_id=self.use_128bit_trace_id,
                 host=self.host,
                 context_stack=self._context_stack,
                 span_storage=self._span_storage,
@@ -312,19 +318,7 @@ class zipkin_span(object):
         # If both kind and include are unset, then it's a local span.
         return Kind.LOCAL
 
-    def start(self):
-        """Enter the new span context. All annotations logged inside this
-        context will be attributed to this span. All new spans generated
-        inside this context will have this span as their parent.
-
-        In the unsampled case, this context still generates new span IDs and
-        pushes them onto the threadlocal stack, so downstream services calls
-        made will pass the correct headers. However, the logging handler is
-        never attached in the unsampled case, so the spans are never logged.
-        """
-        self.do_pop_attrs = False
-        report_root_timestamp = False
-
+    def _get_current_context(self):
         # This check is technically not necessary since only root spans will have
         # sample_rate, zipkin_attrs or a transport set. But it helps making the
         # code clearer by separating the logic for a root span from the one for a
@@ -343,51 +337,65 @@ class zipkin_span(object):
             if self.sample_rate is not None:
 
                 # If this trace is not sampled, we re-roll the dice.
-                if self.zipkin_attrs and not self.zipkin_attrs.is_sampled:
+                if self.zipkin_attrs_override and \
+                        not self.zipkin_attrs_override.is_sampled:
                     # This will be the root span of the trace, so we should
                     # set timestamp and duration.
-                    report_root_timestamp = True
-                    self.zipkin_attrs = create_attrs_for_span(
+                    return True, create_attrs_for_span(
                         sample_rate=self.sample_rate,
-                        trace_id=self.zipkin_attrs.trace_id,
-                        use_128bit_trace_id=self.use_128bit_trace_id,
+                        trace_id=self.zipkin_attrs_override.trace_id,
                     )
 
-                # If zipkin_attrs was not passed in, we simply generate new
-                # zipkin_attrs to start a new trace.
-                elif not self.zipkin_attrs:
-                    # This will be the root span of the trace, so we should
-                    # set timestamp and duration.
-                    report_root_timestamp = True
-                    self.zipkin_attrs = create_attrs_for_span(
+                # If zipkin_attrs_override was not passed in, we simply generate
+                # new zipkin_attrs to start a new trace.
+                elif not self.zipkin_attrs_override:
+                    return True, create_attrs_for_span(
                         sample_rate=self.sample_rate,
                         use_128bit_trace_id=self.use_128bit_trace_id,
                     )
 
-            if self.firehose_handler and not self.zipkin_attrs:
+            if self.firehose_handler and not self.zipkin_attrs_override:
                 # If it has gotten here, the only thing that is
                 # causing a trace is the firehose. So we force a trace
                 # with sample rate of 0
-                report_root_timestamp = True
-                self.zipkin_attrs = create_attrs_for_span(
+                return True, create_attrs_for_span(
                     sample_rate=0.0,
                     use_128bit_trace_id=self.use_128bit_trace_id,
                 )
+
+            # If we arrive here it means the sample_rate was not set while
+            # zipkin_attrs_override was, so let's simply return that.
+            return False, self.zipkin_attrs_override
+
         else:
-            # If zipkin_attrs was not passed in, we check if there's already a
-            # trace context in _context_stack.
-            if not self.zipkin_attrs:
-                existing_zipkin_attrs = self._context_stack.get()
-                # If there's an existing context, let's create new zipkin_attrs
-                # with that context as parent.
-                if existing_zipkin_attrs:
-                    self.zipkin_attrs = ZipkinAttrs(
-                        trace_id=existing_zipkin_attrs.trace_id,
-                        span_id=generate_random_64bit_string(),
-                        parent_span_id=existing_zipkin_attrs.span_id,
-                        flags=existing_zipkin_attrs.flags,
-                        is_sampled=existing_zipkin_attrs.is_sampled,
-                    )
+            # Check if there's already a trace context in _context_stack.
+            existing_zipkin_attrs = self._context_stack.get()
+            # If there's an existing context, let's create new zipkin_attrs
+            # with that context as parent.
+            if existing_zipkin_attrs:
+                return False, ZipkinAttrs(
+                    trace_id=existing_zipkin_attrs.trace_id,
+                    span_id=generate_random_64bit_string(),
+                    parent_span_id=existing_zipkin_attrs.span_id,
+                    flags=existing_zipkin_attrs.flags,
+                    is_sampled=existing_zipkin_attrs.is_sampled,
+                )
+
+        return False, None
+
+    def start(self):
+        """Enter the new span context. All annotations logged inside this
+        context will be attributed to this span. All new spans generated
+        inside this context will have this span as their parent.
+
+        In the unsampled case, this context still generates new span IDs and
+        pushes them onto the threadlocal stack, so downstream services calls
+        made will pass the correct headers. However, the logging handler is
+        never attached in the unsampled case, so the spans are never logged.
+        """
+        self.do_pop_attrs = False
+
+        report_root_timestamp, self.zipkin_attrs = self._get_current_context()
 
         # If zipkin_attrs are not set up by now, that means this span is not
         # configured to perform logging itself, and it's not in an existing
@@ -494,12 +502,7 @@ class zipkin_span(object):
         ))
 
     def update_binary_annotations(self, extra_annotations):
-        """Updates the binary annotations for the current span.
-
-        If this trace is not being sampled then this is a no-op.
-        """
-        if not self.zipkin_attrs:
-            return
+        """Updates the binary annotations for the current span."""
         if not self.logging_context:
             # This is not the root span, so binary annotations will be added
             # to the log handler when this span context exits.
@@ -529,9 +532,6 @@ class zipkin_span(object):
         :param host: Host address of the destination
         :type host: str
         """
-        if not self.zipkin_attrs:
-            return
-
         if self.kind != Kind.CLIENT:
             # TODO: trying to set a sa binary annotation for a non-client span
             # should result in a logged error
