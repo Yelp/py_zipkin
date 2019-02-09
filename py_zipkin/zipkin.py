@@ -187,8 +187,9 @@ class zipkin_span(object):
         :type duration: float
         :param encoding: Output encoding format, defaults to V1 thrift spans.
         :type encoding: Encoding
-        :param get_tracer:
-        :type tracer: function
+        :param get_tracer: getter function that returns the current Tracer. Will be
+            invoked at runtime every time we need to access the tracer object.
+        :type get_tracer: function
         """
         self.service_name = service_name
         self.span_name = span_name
@@ -337,6 +338,11 @@ class zipkin_span(object):
         return Kind.LOCAL
 
     def _get_current_context(self):
+        """Returns the current ZipkinAttrs and generates new ones if needed.
+
+        :returns: (report_root_timestamp, zipkin_attrs)
+        :rtype: (bool, ZipkinAttrs)
+        """
         # This check is technically not necessary since only root spans will have
         # sample_rate, zipkin_attrs or a transport set. But it helps making the
         # code clearer by separating the logic for a root span from the one for a
