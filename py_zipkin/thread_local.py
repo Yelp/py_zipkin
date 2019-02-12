@@ -14,7 +14,7 @@ def get_thread_local_zipkin_attrs():
     propagation.
 
     .. deprecated::
-       Use the Thread interface which offers better multi-threading support.
+       Use the Tracer interface which offers better multi-threading support.
        get_thread_local_zipkin_attrs will be removed in version 1.0.
 
     :returns: list that may contain zipkin attribute tuples
@@ -35,7 +35,7 @@ def get_thread_local_span_storage():
     they emit the spans.
 
     .. deprecated::
-       Use the Thread interface which offers better multi-threading support.
+       Use the Tracer interface which offers better multi-threading support.
        get_thread_local_span_storage will be removed in version 1.0.
 
     :returns: SpanStore object containing all non-root spans.
@@ -53,7 +53,7 @@ def get_zipkin_attrs():
     """Get the topmost level zipkin attributes stored.
 
     .. deprecated::
-       Use the Thread interface which offers better multi-threading support.
+       Use the Tracer interface which offers better multi-threading support.
        get_zipkin_attrs will be removed in version 1.0.
 
     :returns: tuple containing zipkin attrs
@@ -69,7 +69,7 @@ def pop_zipkin_attrs():
     """Pop the topmost level zipkin attributes, if present.
 
     .. deprecated::
-       Use the Thread interface which offers better multi-threading support.
+       Use the Tracer interface which offers better multi-threading support.
        pop_zipkin_attrs will be removed in version 1.0.
 
     :returns: tuple containing zipkin attrs
@@ -85,7 +85,7 @@ def push_zipkin_attrs(zipkin_attr):
     """Stores the zipkin attributes to thread local.
 
     .. deprecated::
-       Use the Thread interface which offers better multi-threading support.
+       Use the Tracer interface which offers better multi-threading support.
        push_zipkin_attrs will be removed in version 1.0.
 
     :param zipkin_attr: tuple containing zipkin related attrs

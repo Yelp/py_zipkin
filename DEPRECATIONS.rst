@@ -5,21 +5,21 @@ New Tracer interface
 --------------------
 
 The following classes and methods are deprecated and should not be used.
-Please use the Thread interface instead.
+Please use the Tracer interface instead.
 They will be removed in version 1.0.
 
 REASON: they don't work well in multi-threaded environments and can cause
 dropped spans or memory leaks.
 
-- py_zipkin.storage.Stack
-- py_zipkin.storage.ThreadLocalStack
-- py_zipkin.storage.SpanStorage
-- py_zipkin.storage.default_span_storage
-- py_zipkin.thread_local.get_thread_local_zipkin_attrs
-- py_zipkin.thread_local.get_thread_local_span_storage
-- py_zipkin.thread_local.get_zipkin_attrs
-- py_zipkin.thread_local.pop_zipkin_attrs
-- py_zipkin.thread_local.push_zipkin_attrs
+- `py_zipkin.storage.Stack`
+- `py_zipkin.storage.ThreadLocalStack`
+- `py_zipkin.storage.SpanStorage`
+- `py_zipkin.storage.default_span_storage`
+- `py_zipkin.thread_local.get_thread_local_zipkin_attrs`
+- `py_zipkin.thread_local.get_thread_local_span_storage`
+- `py_zipkin.thread_local.get_zipkin_attrs`
+- `py_zipkin.thread_local.pop_zipkin_attrs`
+- `py_zipkin.thread_local.push_zipkin_attrs`
 
 To access the current zipkin_attrs
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

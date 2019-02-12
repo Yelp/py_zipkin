@@ -104,7 +104,7 @@ class Stack(object):
     The latter two return None if the stack is empty.
 
     .. deprecated::
-       Use the Thread interface which offers better multi-threading support.
+       Use the Tracer interface which offers better multi-threading support.
        Stack will be removed in version 1.0.
     """
 
@@ -136,7 +136,7 @@ class ThreadLocalStack(Stack):
     Every instance shares the same thread local data.
 
     .. deprecated::
-       Use the Thread interface which offers better multi-threading support.
+       Use the Tracer interface which offers better multi-threading support.
        ThreadLocalStack will be removed in version 1.0.
     """
 
@@ -153,7 +153,7 @@ class SpanStorage(deque):
     """Stores the list of completed spans ready to be sent.
 
     .. deprecated::
-       Use the Thread interface which offers better multi-threading support.
+       Use the Tracer interface which offers better multi-threading support.
        SpanStorage will be removed in version 1.0.
     """
     pass
