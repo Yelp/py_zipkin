@@ -43,12 +43,11 @@ your own.
     from py_zipkin import Tracer
 
     tracer = Tracer()
-    with zipkin_span(
+    with tracer.zipkin_span(
         service_name="homepage",
         span_name="get /home",
         transport=MockTransport(),
         sample_rate=100.0,
-        get_tracer=lambda: tracer,
     ):
         # do stuff
 

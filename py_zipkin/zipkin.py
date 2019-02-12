@@ -116,7 +116,7 @@ class zipkin_span(object):
         timestamp=None,
         duration=None,
         encoding=Encoding.V1_THRIFT,
-        get_tracer=None,
+        _tracer=None,
     ):
         """Logs a zipkin span. If this is the root span, then a zipkin
         trace is started as well.
@@ -187,9 +187,9 @@ class zipkin_span(object):
         :type duration: float
         :param encoding: Output encoding format, defaults to V1 thrift spans.
         :type encoding: Encoding
-        :param get_tracer: getter function that returns the current Tracer. Will be
-            invoked at runtime every time we need to access the tracer object.
-        :type get_tracer: function
+        :param _tracer: Current tracer object. This argument is passed in
+            automatically when you create a zipkin_span from a Tracer.
+        :type _tracer: Tracer
         """
         self.service_name = service_name
         self.span_name = span_name
@@ -211,10 +211,7 @@ class zipkin_span(object):
         self.timestamp = timestamp
         self.duration = duration
         self.encoding = encoding
-        if get_tracer is not None:
-            self.get_tracer = get_tracer
-        else:
-            self.get_tracer = get_default_tracer
+        self._tracer = _tracer
 
         self._is_local_root_span = False
         self.logging_context = None
@@ -267,10 +264,6 @@ class zipkin_span(object):
             raise ZipkinError('span_storage should be an instance '
                               'of py_zipkin.storage.SpanStorage')
 
-        if not callable(self.get_tracer):
-            raise ZipkinError('get_tracer should be a funtion that '
-                              'returns a Tracer object')
-
         if self._span_storage is not None:
             log.warning('span_storage is deprecated. Set local_storage instead.')
             self.get_tracer()._span_storage = self._span_storage
@@ -304,10 +297,16 @@ class zipkin_span(object):
                 timestamp=self.timestamp,
                 duration=self.duration,
                 encoding=self.encoding,
-                get_tracer=self.get_tracer,
+                _tracer=self._tracer,
             ):
                 return f(*args, **kwargs)
         return decorated
+
+    def get_tracer(self):
+        if self._tracer is not None:
+            return self._tracer
+        else:
+            return get_default_tracer()
 
     def __enter__(self):
         return self.start()

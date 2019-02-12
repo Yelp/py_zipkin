@@ -95,6 +95,11 @@ class Tracer(object):
     def is_transport_configured(self):
         return self._is_transport_configured
 
+    def zipkin_span(self, *argv, **kwargs):
+        from py_zipkin.zipkin import zipkin_span
+        kwargs['_tracer'] = self
+        return zipkin_span(*argv, **kwargs)
+
 
 class Stack(object):
     """

@@ -50,7 +50,7 @@ class TestZipkinSpan(object):
         span_storage = SpanStorage()
         tracer = MockTracer()
 
-        context = zipkin.zipkin_span(
+        context = tracer.zipkin_span(
             service_name='test_service',
             span_name='test_span',
             zipkin_attrs=zipkin_attrs,
@@ -72,7 +72,6 @@ class TestZipkinSpan(object):
             timestamp=1234,
             duration=10,
             encoding=Encoding.V2_JSON,
-            get_tracer=lambda: tracer,
         )
 
         assert context.service_name == 'test_service'
@@ -100,14 +99,14 @@ class TestZipkinSpan(object):
         assert context.timestamp == 1234
         assert context.duration == 10
         assert context.encoding == Encoding.V2_JSON
+        assert context._tracer == tracer
         # Check for backward compatibility
         assert tracer.get_spans() == span_storage
         assert tracer.get_context() == stack
 
-    @mock.patch.object(zipkin, 'get_default_tracer', autospec=True)
     @mock.patch.object(zipkin.storage, 'default_span_storage', autospec=True)
     @mock.patch.object(zipkin.zipkin_span, '_generate_kind', autospec=True)
-    def test_init_defaults(self, mock_generate_kind, mock_storage, mock_tracer):
+    def test_init_defaults(self, mock_generate_kind, mock_storage):
         # Test that special arguments are properly defaulted
         mock_storage.return_value = SpanStorage()
         context = zipkin.zipkin_span(
@@ -119,7 +118,6 @@ class TestZipkinSpan(object):
         assert context.span_name == 'test_span'
         assert context.annotations == {}
         assert context.binary_annotations == {}
-        assert context.get_tracer == mock_tracer
         assert mock_generate_kind.call_args == mock.call(
             context,
             None,
@@ -214,19 +212,6 @@ class TestZipkinSpan(object):
                     port=5,
                     sample_rate=100.0,
                     span_storage=[],
-            ):
-                pass
-
-    def test_init_get_tracer_not_callable(self):
-        # Missing transport_handler
-        with pytest.raises(ZipkinError):
-            with zipkin.zipkin_span(
-                    service_name='some_service_name',
-                    span_name='span_name',
-                    transport_handler=MockTransportHandler(),
-                    port=5,
-                    sample_rate=100.0,
-                    get_tracer=MockTracer(),
             ):
                 pass
 
@@ -407,16 +392,14 @@ class TestZipkinSpan(object):
             flags=None,
             is_sampled=True,
         )
-        context = zipkin.zipkin_span(
+        tracer = MockTracer()
+        context = tracer.zipkin_span(
             service_name='test_service',
             span_name='test_span',
         )
-        context.get_tracer()._context_stack.push(zipkin_attrs)
+        tracer._context_stack.push(zipkin_attrs)
 
         _, current_attrs = context._get_current_context()
-
-        # clean up the stack to not pollute other tests
-        context.get_tracer()._context_stack.pop()
 
         assert mock_create_attr.call_count == 0
         assert current_attrs == ZipkinAttrs(
@@ -459,8 +442,7 @@ class TestZipkinSpan(object):
         firehose = MockTransportHandler()
         tracer = MockTracer()
 
-        def get_tracer(): return tracer
-        context = zipkin.zipkin_span(
+        context = tracer.zipkin_span(
             service_name='test_service',
             span_name='test_span',
             transport_handler=transport,
@@ -468,7 +450,6 @@ class TestZipkinSpan(object):
             sample_rate=100.0,
             max_span_batch_size=50,
             encoding=Encoding.V2_JSON,
-            get_tracer=get_tracer,
         )
 
         context.start()
@@ -481,7 +462,7 @@ class TestZipkinSpan(object):
             'test_span',
             transport,
             True,
-            get_tracer,
+            context.get_tracer,
             'test_service',
             binary_annotations={},
             add_logging_annotation=False,
@@ -497,12 +478,11 @@ class TestZipkinSpan(object):
     def test_start_root_span_not_sampled(self, mock_log_ctx):
         transport = MockTransportHandler()
         tracer = MockTracer()
-        context = zipkin.zipkin_span(
+        context = tracer.zipkin_span(
             service_name='test_service',
             span_name='test_span',
             transport_handler=transport,
             sample_rate=0.0,
-            get_tracer=lambda: tracer,
         )
 
         context.start()
@@ -518,13 +498,12 @@ class TestZipkinSpan(object):
         transport = MockTransportHandler()
         firehose = MockTransportHandler()
         tracer = MockTracer()
-        context = zipkin.zipkin_span(
+        context = tracer.zipkin_span(
             service_name='test_service',
             span_name='test_span',
             transport_handler=transport,
             firehose_handler=firehose,
             sample_rate=0.0,
-            get_tracer=lambda: tracer,
         )
 
         context.start()
@@ -541,12 +520,11 @@ class TestZipkinSpan(object):
         # and log a message to inform the user.
         transport = MockTransportHandler()
         tracer = MockTracer()
-        context = zipkin.zipkin_span(
+        context = tracer.zipkin_span(
             service_name='test_service',
             span_name='test_span',
             transport_handler=transport,
             sample_rate=100.0,
-            get_tracer=lambda: tracer,
         )
 
         tracer.set_transport_configured(configured=True)
@@ -604,12 +582,11 @@ class TestZipkinSpan(object):
         # Transport is not setup, exit immediately
         transport = MockTransportHandler()
         tracer = MockTracer()
-        context = zipkin.zipkin_span(
+        context = tracer.zipkin_span(
             service_name='test_service',
             span_name='test_span',
             transport_handler=transport,
             sample_rate=100.0,
-            get_tracer=lambda: tracer,
         )
         context.start()
 
@@ -627,10 +604,9 @@ class TestZipkinSpan(object):
         tracer = MockTracer()
         tracer.set_transport_configured(configured=True)
         tracer.get_context().push(zipkin.create_attrs_for_span())
-        context = zipkin.zipkin_span(
+        context = tracer.zipkin_span(
             service_name='test_service',
             span_name='test_span',
-            get_tracer=lambda: tracer,
         )
         context.start()
 
@@ -659,12 +635,11 @@ class TestZipkinSpan(object):
         tracer.set_transport_configured(configured=True)
         tracer.get_context().push(zipkin.create_attrs_for_span())
         ts = time.time()
-        context = zipkin.zipkin_span(
+        context = tracer.zipkin_span(
             service_name='test_service',
             span_name='test_span',
             timestamp=ts,
             duration=25,
-            get_tracer=lambda: tracer,
         )
         context.start()
 

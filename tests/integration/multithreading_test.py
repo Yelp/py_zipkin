@@ -3,8 +3,11 @@ import json
 from threading import Thread
 
 from py_zipkin import Encoding
+from py_zipkin.storage import get_default_tracer
 from py_zipkin.zipkin import zipkin_span
 from tests.test_helpers import MockTransportHandler
+
+tracer = get_default_tracer()
 
 
 @zipkin_span(service_name='service1', span_name='service1_do_stuff')
@@ -20,7 +23,7 @@ def run_inside_another_thread(transport):
         need a way to return the results to the main thread.
     :type transport: MockTransportHandler
     """
-    with zipkin_span(
+    with get_default_tracer().zipkin_span(
         service_name='webapp',
         span_name='index',
         transport_handler=transport,
