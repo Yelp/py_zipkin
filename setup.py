@@ -5,7 +5,7 @@ import os
 from setuptools import find_packages
 from setuptools import setup
 
-__version__ = '0.17.1'
+__version__ = '0.18.0'
 
 
 def read(f):
@@ -18,7 +18,7 @@ setup(
     provides=["py_zipkin"],
     author='Yelp, Inc.',
     author_email='opensource+py-zipkin@yelp.com',
-    license='Copyright Yelp 2018',
+    license='Copyright Yelp 2019',
     url="https://github.com/Yelp/py_zipkin",
     description='Library for using Zipkin in Python.',
     long_description='\n\n'.join((read('README.md'), read('CHANGELOG.rst'))),

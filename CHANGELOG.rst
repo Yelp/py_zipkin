@@ -1,3 +1,8 @@
+0.18.0 (2019-02-13)
+-------------------
+- Fix multithreading issues
+- Added Tracer module
+
 0.17.1 (2019-02-05)
 -------------------
 - Ignore transport_handler overrides in an inner span since that causes
