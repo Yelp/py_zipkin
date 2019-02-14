@@ -12,7 +12,7 @@ from py_zipkin.encoding._helpers import create_endpoint
 from py_zipkin.encoding._helpers import Span
 from py_zipkin.exception import ZipkinError
 from py_zipkin.logging_helper import ZipkinLoggingContext
-from py_zipkin.storage import ThreadLocalStack
+from py_zipkin.storage import get_default_tracer
 from py_zipkin.util import generate_random_128bit_string
 from py_zipkin.util import generate_random_64bit_string
 
@@ -116,6 +116,7 @@ class zipkin_span(object):
         timestamp=None,
         duration=None,
         encoding=Encoding.V1_THRIFT,
+        _tracer=None,
     ):
         """Logs a zipkin span. If this is the root span, then a zipkin
         trace is started as well.
@@ -186,6 +187,9 @@ class zipkin_span(object):
         :type duration: float
         :param encoding: Output encoding format, defaults to V1 thrift spans.
         :type encoding: Encoding
+        :param _tracer: Current tracer object. This argument is passed in
+            automatically when you create a zipkin_span from a Tracer.
+        :type _tracer: Tracer
         """
         self.service_name = service_name
         self.span_name = span_name
@@ -200,16 +204,14 @@ class zipkin_span(object):
         self.report_root_timestamp_override = report_root_timestamp
         self.use_128bit_trace_id = use_128bit_trace_id
         self.host = host
-        self._context_stack = context_stack or ThreadLocalStack()
-        if span_storage is not None:
-            self._span_storage = span_storage
-        else:
-            self._span_storage = storage.default_span_storage()
+        self._context_stack = context_stack
+        self._span_storage = span_storage
         self.firehose_handler = firehose_handler
         self.kind = self._generate_kind(kind, include)
         self.timestamp = timestamp
         self.duration = duration
         self.encoding = encoding
+        self._tracer = _tracer
 
         self._is_local_root_span = False
         self.logging_context = None
@@ -257,9 +259,18 @@ class zipkin_span(object):
         if self.sample_rate is not None and not (0.0 <= self.sample_rate <= 100.0):
             raise ZipkinError('Sample rate must be between 0.0 and 100.0')
 
-        if not isinstance(self._span_storage, storage.SpanStorage):
+        if self._span_storage is not None and \
+                not isinstance(self._span_storage, storage.SpanStorage):
             raise ZipkinError('span_storage should be an instance '
                               'of py_zipkin.storage.SpanStorage')
+
+        if self._span_storage is not None:
+            log.warning('span_storage is deprecated. Set local_storage instead.')
+            self.get_tracer()._span_storage = self._span_storage
+
+        if self._context_stack is not None:
+            log.warning('context_stack is deprecated. Set local_storage instead.')
+            self.get_tracer()._context_stack = self._context_stack
 
     def __call__(self, f):
         @functools.wraps(f)
@@ -286,9 +297,16 @@ class zipkin_span(object):
                 timestamp=self.timestamp,
                 duration=self.duration,
                 encoding=self.encoding,
+                _tracer=self._tracer,
             ):
                 return f(*args, **kwargs)
         return decorated
+
+    def get_tracer(self):
+        if self._tracer is not None:
+            return self._tracer
+        else:
+            return get_default_tracer()
 
     def __enter__(self):
         return self.start()
@@ -319,6 +337,11 @@ class zipkin_span(object):
         return Kind.LOCAL
 
     def _get_current_context(self):
+        """Returns the current ZipkinAttrs and generates new ones if needed.
+
+        :returns: (report_root_timestamp, zipkin_attrs)
+        :rtype: (bool, ZipkinAttrs)
+        """
         # This check is technically not necessary since only root spans will have
         # sample_rate, zipkin_attrs or a transport set. But it helps making the
         # code clearer by separating the logic for a root span from the one for a
@@ -369,7 +392,7 @@ class zipkin_span(object):
 
         else:
             # Check if there's already a trace context in _context_stack.
-            existing_zipkin_attrs = self._context_stack.get()
+            existing_zipkin_attrs = self.get_tracer().get_zipkin_attrs()
             # If there's an existing context, let's create new zipkin_attrs
             # with that context as parent.
             if existing_zipkin_attrs:
@@ -404,7 +427,7 @@ class zipkin_span(object):
         if not self.zipkin_attrs:
             return self
 
-        self._context_stack.push(self.zipkin_attrs)
+        self.get_tracer().push_zipkin_attrs(self.zipkin_attrs)
         self.do_pop_attrs = True
 
         self.start_timestamp = time.time()
@@ -416,7 +439,7 @@ class zipkin_span(object):
             # If transport is already configured don't override it. Doing so would
             # cause all previously recorded spans to never be emitted as exiting
             # the inner logging context will reset transport_configured to False.
-            if self._span_storage.is_transport_configured():
+            if self.get_tracer().is_transport_configured():
                 log.info('Transport was already configured, ignoring override'
                          'from span {}'.format(self.span_name))
                 return self
@@ -427,7 +450,7 @@ class zipkin_span(object):
                 self.span_name,
                 self.transport_handler,
                 report_root_timestamp or self.report_root_timestamp_override,
-                self._span_storage,
+                self.get_tracer,
                 self.service_name,
                 binary_annotations=self.binary_annotations,
                 add_logging_annotation=self.add_logging_annotation,
@@ -437,7 +460,7 @@ class zipkin_span(object):
                 encoding=self.encoding,
             )
             self.logging_context.start()
-            self._span_storage.set_transport_configured(configured=True)
+            self.get_tracer().set_transport_configured(configured=True)
 
         return self
 
@@ -452,12 +475,12 @@ class zipkin_span(object):
         """
 
         if self.do_pop_attrs:
-            self._context_stack.pop()
+            self.get_tracer().pop_zipkin_attrs()
 
         # If no transport is configured, there's no reason to create a new Span.
         # This also helps avoiding memory leaks since without a transport nothing
-        # would pull spans out of _span_storage.
-        if not self._span_storage.is_transport_configured():
+        # would pull spans out of get_tracer().
+        if not self.get_tracer().is_transport_configured():
             return
 
         # Add the error annotation if an exception occurred
@@ -473,7 +496,7 @@ class zipkin_span(object):
         if self.logging_context:
             self.logging_context.stop()
             self.logging_context = None
-            self._span_storage.set_transport_configured(configured=False)
+            self.get_tracer().set_transport_configured(configured=False)
             return
 
         # If we've gotten here, that means that this span is a child span of
@@ -487,7 +510,7 @@ class zipkin_span(object):
             duration = end_timestamp - self.start_timestamp
 
         endpoint = create_endpoint(self.port, self.service_name, self.host)
-        self._span_storage.append(Span(
+        self.get_tracer().add_span(Span(
             trace_id=self.zipkin_attrs.trace_id,
             name=self.span_name,
             parent_id=self.zipkin_attrs.parent_span_id,
@@ -650,7 +673,7 @@ def create_attrs_for_span(
     )
 
 
-def create_http_headers_for_new_span(context_stack=None):
+def create_http_headers_for_new_span(context_stack=None, tracer=None):
     """
     Generate the headers for a new zipkin span.
 
@@ -662,9 +685,13 @@ def create_http_headers_for_new_span(context_stack=None):
     :returns: dict containing (X-B3-TraceId, X-B3-SpanId, X-B3-ParentSpanId,
                 X-B3-Flags and X-B3-Sampled) keys OR an empty dict.
     """
-    if context_stack is None:
-        context_stack = ThreadLocalStack()
-    zipkin_attrs = context_stack.get()
+    if tracer:
+        zipkin_attrs = tracer.get_zipkin_attrs()
+    elif context_stack:
+        zipkin_attrs = context_stack.get()
+    else:
+        zipkin_attrs = get_default_tracer().get_zipkin_attrs()
+
     if not zipkin_attrs:
         return {}
 

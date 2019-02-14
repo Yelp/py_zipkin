@@ -13,15 +13,17 @@ from py_zipkin.encoding._helpers import create_endpoint
 from py_zipkin.encoding._helpers import Span
 from py_zipkin.exception import ZipkinError
 from py_zipkin.storage import default_span_storage
+from py_zipkin.storage import get_default_tracer
 from py_zipkin.storage import SpanStorage
 from py_zipkin.storage import Stack
 from py_zipkin.storage import ThreadLocalStack
 from py_zipkin.util import generate_random_64bit_string
 from py_zipkin.zipkin import ZipkinAttrs
+from tests.test_helpers import MockTracer
 from tests.test_helpers import MockTransportHandler
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def clean_thread_local():
     yield
 
@@ -30,6 +32,10 @@ def clean_thread_local():
         pass
 
     default_span_storage().clear()
+
+    while get_default_tracer().pop_zipkin_attrs():
+        pass
+    get_default_tracer()._span_storage.clear()
 
 
 class TestZipkinSpan(object):
@@ -42,8 +48,9 @@ class TestZipkinSpan(object):
         firehose = MockTransportHandler()
         stack = Stack([])
         span_storage = SpanStorage()
+        tracer = MockTracer()
 
-        context = zipkin.zipkin_span(
+        context = tracer.zipkin_span(
             service_name='test_service',
             span_name='test_span',
             zipkin_attrs=zipkin_attrs,
@@ -92,13 +99,15 @@ class TestZipkinSpan(object):
         assert context.timestamp == 1234
         assert context.duration == 10
         assert context.encoding == Encoding.V2_JSON
+        assert context._tracer == tracer
+        # Check for backward compatibility
+        assert tracer.get_spans() == span_storage
+        assert tracer.get_context() == stack
 
-    @mock.patch.object(zipkin, 'ThreadLocalStack', autospec=True)
     @mock.patch.object(zipkin.storage, 'default_span_storage', autospec=True)
     @mock.patch.object(zipkin.zipkin_span, '_generate_kind', autospec=True)
-    def test_init_defaults(self, mock_generate_kind, mock_storage, mock_stack):
+    def test_init_defaults(self, mock_generate_kind, mock_storage):
         # Test that special arguments are properly defaulted
-        mock_stack.return_value = Stack([])
         mock_storage.return_value = SpanStorage()
         context = zipkin.zipkin_span(
             service_name='test_service',
@@ -109,8 +118,6 @@ class TestZipkinSpan(object):
         assert context.span_name == 'test_span'
         assert context.annotations == {}
         assert context.binary_annotations == {}
-        assert context._context_stack == mock_stack.return_value
-        assert context._span_storage == mock_storage.return_value
         assert mock_generate_kind.call_args == mock.call(
             context,
             None,
@@ -385,16 +392,14 @@ class TestZipkinSpan(object):
             flags=None,
             is_sampled=True,
         )
-        context = zipkin.zipkin_span(
+        tracer = MockTracer()
+        context = tracer.zipkin_span(
             service_name='test_service',
             span_name='test_span',
         )
-        context._context_stack.push(zipkin_attrs)
+        tracer._context_stack.push(zipkin_attrs)
 
         _, current_attrs = context._get_current_context()
-
-        # clean up the stack to not pollute other tests
-        context._context_stack.pop()
 
         assert mock_create_attr.call_count == 0
         assert current_attrs == ZipkinAttrs(
@@ -425,7 +430,8 @@ class TestZipkinSpan(object):
         # No current context in the stack, let's exit immediately
         context = zipkin.zipkin_span('test_service', 'test_span')
 
-        with mock.patch.object(context._context_stack, 'push') as mock_push:
+        with mock.patch.object(context.get_tracer()._context_stack, 'push') \
+                as mock_push:
             context.start()
             assert mock_push.call_count == 0
 
@@ -434,15 +440,15 @@ class TestZipkinSpan(object):
     def test_start_root_span(self, mock_time, mock_log_ctx):
         transport = MockTransportHandler()
         firehose = MockTransportHandler()
-        span_storage = SpanStorage()
-        context = zipkin.zipkin_span(
+        tracer = MockTracer()
+
+        context = tracer.zipkin_span(
             service_name='test_service',
             span_name='test_span',
             transport_handler=transport,
             firehose_handler=firehose,
             sample_rate=100.0,
             max_span_batch_size=50,
-            span_storage=span_storage,
             encoding=Encoding.V2_JSON,
         )
 
@@ -456,7 +462,7 @@ class TestZipkinSpan(object):
             'test_span',
             transport,
             True,
-            context._span_storage,
+            context.get_tracer,
             'test_service',
             binary_annotations={},
             add_logging_annotation=False,
@@ -466,25 +472,24 @@ class TestZipkinSpan(object):
             encoding=Encoding.V2_JSON,
         )
         assert mock_log_ctx.return_value.start.call_count == 1
-        assert span_storage.is_transport_configured() is True
+        assert tracer.is_transport_configured() is True
 
     @mock.patch.object(zipkin, 'ZipkinLoggingContext', autospec=True)
     def test_start_root_span_not_sampled(self, mock_log_ctx):
         transport = MockTransportHandler()
-        span_storage = SpanStorage()
-        context = zipkin.zipkin_span(
+        tracer = MockTracer()
+        context = tracer.zipkin_span(
             service_name='test_service',
             span_name='test_span',
             transport_handler=transport,
             sample_rate=0.0,
-            span_storage=span_storage,
         )
 
         context.start()
 
         assert context.zipkin_attrs is not None
         assert mock_log_ctx.call_count == 0
-        assert span_storage.is_transport_configured() is False
+        assert tracer.is_transport_configured() is False
 
     @mock.patch.object(zipkin, 'ZipkinLoggingContext', autospec=True)
     def test_start_root_span_not_sampled_firehose(self, mock_log_ctx):
@@ -492,14 +497,13 @@ class TestZipkinSpan(object):
         # setup the transport anyway.
         transport = MockTransportHandler()
         firehose = MockTransportHandler()
-        span_storage = SpanStorage()
-        context = zipkin.zipkin_span(
+        tracer = MockTracer()
+        context = tracer.zipkin_span(
             service_name='test_service',
             span_name='test_span',
             transport_handler=transport,
             firehose_handler=firehose,
             sample_rate=0.0,
-            span_storage=span_storage,
         )
 
         context.start()
@@ -507,7 +511,7 @@ class TestZipkinSpan(object):
         assert context.zipkin_attrs is not None
         assert mock_log_ctx.call_count == 1
         assert mock_log_ctx.return_value.start.call_count == 1
-        assert span_storage.is_transport_configured() is True
+        assert tracer.is_transport_configured() is True
 
     @mock.patch.object(zipkin, 'ZipkinLoggingContext', autospec=True)
     @mock.patch.object(zipkin.log, 'info', autospec=True)
@@ -515,22 +519,21 @@ class TestZipkinSpan(object):
         # Transport is already setup, so we should not override it
         # and log a message to inform the user.
         transport = MockTransportHandler()
-        span_storage = SpanStorage()
-        context = zipkin.zipkin_span(
+        tracer = MockTracer()
+        context = tracer.zipkin_span(
             service_name='test_service',
             span_name='test_span',
             transport_handler=transport,
             sample_rate=100.0,
-            span_storage=span_storage,
         )
 
-        span_storage.set_transport_configured(configured=True)
+        tracer.set_transport_configured(configured=True)
 
         context.start()
 
         assert context.zipkin_attrs is not None
         assert mock_log_ctx.call_count == 0
-        assert span_storage.is_transport_configured() is True
+        assert tracer.is_transport_configured() is True
         assert mock_log.call_count == 1
 
     def test_exit(self):
@@ -578,13 +581,12 @@ class TestZipkinSpan(object):
     def test_stop_root(self):
         # Transport is not setup, exit immediately
         transport = MockTransportHandler()
-        span_storage = SpanStorage()
-        context = zipkin.zipkin_span(
+        tracer = MockTracer()
+        context = tracer.zipkin_span(
             service_name='test_service',
             span_name='test_span',
             transport_handler=transport,
             sample_rate=100.0,
-            span_storage=span_storage,
         )
         context.start()
 
@@ -593,25 +595,25 @@ class TestZipkinSpan(object):
             assert mock_log_ctx.stop.call_count == 1
             # Test that we reset evverything after calling stop()
             assert context.logging_context is None
-            assert span_storage.is_transport_configured() is False
-            assert len(span_storage) == 0
+            assert tracer.is_transport_configured() is False
+            assert len(tracer.get_spans()) == 0
 
     @mock.patch('time.time', autospec=True, return_value=123)
     def test_stop_non_root(self, mock_time):
         # Transport is not setup, exit immediately
-        span_storage = SpanStorage()
-        span_storage.set_transport_configured(configured=True)
-        context = zipkin.zipkin_span(
+        tracer = MockTracer()
+        tracer.set_transport_configured(configured=True)
+        tracer.get_context().push(zipkin.create_attrs_for_span())
+        context = tracer.zipkin_span(
             service_name='test_service',
             span_name='test_span',
-            span_storage=span_storage,
         )
         context.start()
 
         context.stop()
-        assert len(span_storage) == 1
+        assert len(tracer.get_spans()) == 1
         endpoint = create_endpoint(service_name='test_service')
-        assert span_storage[0] == Span(
+        assert tracer.get_spans()[0] == Span(
             trace_id=context.zipkin_attrs.trace_id,
             name='test_span',
             parent_id=context.zipkin_attrs.parent_span_id,
@@ -625,26 +627,26 @@ class TestZipkinSpan(object):
             tags={},
         )
 
-        assert span_storage.is_transport_configured() is True
+        assert tracer.is_transport_configured() is True
 
     def test_stop_non_root_ts_duration_overridden(self):
         # Transport is not setup, exit immediately
-        span_storage = SpanStorage()
-        span_storage.set_transport_configured(configured=True)
+        tracer = MockTracer()
+        tracer.set_transport_configured(configured=True)
+        tracer.get_context().push(zipkin.create_attrs_for_span())
         ts = time.time()
-        context = zipkin.zipkin_span(
+        context = tracer.zipkin_span(
             service_name='test_service',
             span_name='test_span',
-            span_storage=span_storage,
             timestamp=ts,
             duration=25,
         )
         context.start()
 
         context.stop()
-        assert len(span_storage) == 1
+        assert len(tracer.get_spans()) == 1
         endpoint = create_endpoint(service_name='test_service')
-        assert span_storage[0] == Span(
+        assert tracer.get_spans()[0] == Span(
             trace_id=context.zipkin_attrs.trace_id,
             name='test_span',
             parent_id=context.zipkin_attrs.parent_span_id,
@@ -658,9 +660,9 @@ class TestZipkinSpan(object):
             tags={},
         )
 
-        assert span_storage.is_transport_configured() is True
+        assert tracer.is_transport_configured() is True
 
-    def test_update_binary_annotations_root(self, clean_thread_local):
+    def test_update_binary_annotations_root(self):
         with zipkin.zipkin_span(
             service_name='test_service',
             span_name='test_span',
@@ -682,7 +684,7 @@ class TestZipkinSpan(object):
             span_name='test_span',
             binary_annotations={'region': 'uswest-1'}
         )
-        context._context_stack.push(zipkin.create_attrs_for_span())
+        context.get_tracer()._context_stack.push(zipkin.create_attrs_for_span())
         with context as span:
             span.update_binary_annotations({'status': '200'})
 
@@ -726,7 +728,7 @@ class TestZipkinSpan(object):
             with pytest.raises(ValueError):
                 span.add_sa_binary_annotation(80, 'remote_service', '10.1.2.3')
 
-    def test_add_sa_binary_annotation_root(self, clean_thread_local):
+    def test_add_sa_binary_annotation_root(self):
         # Nothing happens if this is not a client span
         with zipkin.zipkin_client_span(
             service_name='test_service',
@@ -744,7 +746,7 @@ class TestZipkinSpan(object):
             with pytest.raises(ValueError):
                 span.add_sa_binary_annotation(80, 'remote_service', '10.1.2.3')
 
-    def test_override_span_name(self, clean_thread_local):
+    def test_override_span_name(self):
         with zipkin.zipkin_client_span(
                 service_name='test_service',
                 span_name='test_span',
@@ -815,10 +817,10 @@ def test_create_attrs_for_span(random_64bit_mock, random_128bit_mock):
     )
 
 
-@mock.patch('py_zipkin.storage.ThreadLocalStack', autospec=True)
-def test_create_headers_for_new_span_empty_if_no_active_request(mock_stack):
-    mock_stack.return_value.get.return_value = None
-    assert {} == zipkin.create_http_headers_for_new_span()
+def test_create_headers_for_new_span_empty_if_no_active_request():
+    with mock.patch.object(get_default_tracer(), 'get_zipkin_attrs') as mock_ctx:
+        mock_ctx.return_value = None
+        assert {} == zipkin.create_http_headers_for_new_span()
 
 
 @mock.patch('py_zipkin.zipkin.generate_random_64bit_string', autospec=True)
@@ -839,4 +841,25 @@ def test_create_headers_for_new_span_returns_header_if_active_request(gen_mock):
     }
     assert expected == zipkin.create_http_headers_for_new_span(
         context_stack=mock_context_stack,
+    )
+
+
+@mock.patch('py_zipkin.zipkin.generate_random_64bit_string', autospec=True)
+def test_create_headers_for_new_span_custom_tracer(gen_mock):
+    tracer = MockTracer()
+    tracer.push_zipkin_attrs(mock.Mock(
+        trace_id='27133d482ba4f605',
+        span_id='37133d482ba4f605',
+        is_sampled=True,
+    ))
+    gen_mock.return_value = '17133d482ba4f605'
+    expected = {
+        'X-B3-TraceId': '27133d482ba4f605',
+        'X-B3-SpanId': '17133d482ba4f605',
+        'X-B3-ParentSpanId': '37133d482ba4f605',
+        'X-B3-Flags': '0',
+        'X-B3-Sampled': '1',
+    }
+    assert expected == zipkin.create_http_headers_for_new_span(
+        tracer=tracer,
     )

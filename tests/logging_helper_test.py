@@ -9,9 +9,9 @@ from py_zipkin.encoding._helpers import create_endpoint
 from py_zipkin.encoding._helpers import Endpoint
 from py_zipkin.encoding._helpers import Span
 from py_zipkin.exception import ZipkinError
-from py_zipkin.storage import SpanStorage
 from py_zipkin.zipkin import ZipkinAttrs
 from tests.test_helpers import MockEncoder
+from tests.test_helpers import MockTracer
 from tests.test_helpers import MockTransportHandler
 
 
@@ -30,13 +30,14 @@ def test_zipkin_logging_context(time_mock):
     # Tests the context manager aspects of the ZipkinLoggingContext
     time_mock.return_value = 42
     attr = ZipkinAttrs(None, None, None, None, False)
+    tracer = MockTracer()
     context = logging_helper.ZipkinLoggingContext(
         zipkin_attrs=attr,
         endpoint=create_endpoint(80, 'test_server', '127.0.0.1'),
         span_name='span_name',
         transport_handler=MockTransportHandler(),
         report_root_timestamp=False,
-        span_storage=SpanStorage(),
+        get_tracer=lambda: tracer,
         service_name='test_server',
         encoding=Encoding.V1_JSON,
     )
@@ -71,7 +72,7 @@ def test_zipkin_logging_server_context_emit_spans(
         flags=None,
         is_sampled=True,
     )
-    span_storage = SpanStorage()
+    tracer = MockTracer()
 
     client_span = Span(
         trace_id=trace_id,
@@ -87,7 +88,7 @@ def test_zipkin_logging_server_context_emit_spans(
         annotations={'ann2': 2, 'cs': 26, 'cr': 30},
         tags={'bann2': 'yiss'},
     )
-    span_storage.append(client_span)
+    tracer.get_spans().append(client_span)
 
     transport_handler = mock.Mock()
 
@@ -97,7 +98,7 @@ def test_zipkin_logging_server_context_emit_spans(
         span_name='GET /foo',
         transport_handler=transport_handler,
         report_root_timestamp=True,
-        span_storage=span_storage,
+        get_tracer=lambda: tracer,
         service_name='test_server',
         encoding=Encoding.V1_JSON,
     )
@@ -150,7 +151,7 @@ def test_zipkin_logging_server_context_emit_spans_with_firehose(
         is_sampled=True,
     )
 
-    span_storage = SpanStorage()
+    tracer = MockTracer()
 
     client_span = Span(
         trace_id=trace_id,
@@ -164,7 +165,7 @@ def test_zipkin_logging_server_context_emit_spans_with_firehose(
         annotations={'ann2': 2, 'cs': 26, 'cr': 30},
         tags={'bann2': 'yiss'},
     )
-    span_storage.append(client_span)
+    tracer.get_spans().append(client_span)
 
     transport_handler = mock.Mock()
     firehose_handler = mock.Mock()
@@ -175,7 +176,7 @@ def test_zipkin_logging_server_context_emit_spans_with_firehose(
         span_name='GET /foo',
         transport_handler=transport_handler,
         report_root_timestamp=True,
-        span_storage=span_storage,
+        get_tracer=lambda: tracer,
         firehose_handler=firehose_handler,
         service_name='test_server',
         encoding=Encoding.V1_JSON,
@@ -229,7 +230,7 @@ def test_zipkin_logging_client_context_emit_spans(
         is_sampled=True,
     )
 
-    span_storage = SpanStorage()
+    tracer = MockTracer()
     transport_handler = mock.Mock()
 
     context = logging_helper.ZipkinLoggingContext(
@@ -238,7 +239,7 @@ def test_zipkin_logging_client_context_emit_spans(
         span_name='GET /foo',
         transport_handler=transport_handler,
         report_root_timestamp=True,
-        span_storage=span_storage,
+        get_tracer=lambda: tracer,
         client_context=True,
         service_name='test_server',
         encoding=Encoding.V1_JSON,
@@ -280,7 +281,7 @@ def test_batch_sender_add_span_not_called_if_not_sampled(add_span_mock,
         flags=None,
         is_sampled=False,
     )
-    span_storage = SpanStorage()
+    tracer = MockTracer()
     transport_handler = mock.Mock()
 
     context = logging_helper.ZipkinLoggingContext(
@@ -289,7 +290,7 @@ def test_batch_sender_add_span_not_called_if_not_sampled(add_span_mock,
         span_name='span_name',
         transport_handler=transport_handler,
         report_root_timestamp=False,
-        span_storage=span_storage,
+        get_tracer=lambda: tracer,
         service_name='test_server',
         encoding=Encoding.V1_JSON,
     )
@@ -313,7 +314,7 @@ def test_batch_sender_add_span_not_sampled_with_firehose(add_span_mock,
         flags=None,
         is_sampled=False,
     )
-    span_storage = SpanStorage()
+    tracer = MockTracer()
     transport_handler = mock.Mock()
     firehose_handler = mock.Mock()
 
@@ -323,7 +324,7 @@ def test_batch_sender_add_span_not_sampled_with_firehose(add_span_mock,
         span_name='span_name',
         transport_handler=transport_handler,
         report_root_timestamp=False,
-        span_storage=span_storage,
+        get_tracer=lambda: tracer,
         firehose_handler=firehose_handler,
         service_name='test_server',
         encoding=Encoding.V1_JSON,
