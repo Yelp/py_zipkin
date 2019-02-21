@@ -3,9 +3,6 @@ import logging
 import threading
 from collections import deque
 
-from py_zipkin.thread_local import get_thread_local_span_storage
-from py_zipkin.thread_local import get_thread_local_zipkin_attrs
-
 try:  # pragma: no cover
     # Since python 3.7 threadlocal is deprecated in favor of contextvars
     # which also work in asyncio.
@@ -151,7 +148,7 @@ class ThreadLocalStack(Stack):
 
     @property
     def _storage(self):
-        return get_thread_local_zipkin_attrs()
+        return get_default_tracer()._context_stack._storage
 
 
 class SpanStorage(deque):
@@ -167,7 +164,7 @@ class SpanStorage(deque):
 def default_span_storage():
     log.warning('default_span_storage is deprecated. See DEPRECATIONS.rst for'
                 'details on how to migrate to using Tracer.')
-    return get_thread_local_span_storage()
+    return get_default_tracer()._span_storage
 
 
 def get_default_tracer():
