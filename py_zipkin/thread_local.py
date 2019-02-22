@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 import logging
-import threading
 
-_thread_local = threading.local()
+from py_zipkin.storage import get_default_tracer
 
 log = logging.getLogger('py_zipkin.thread_local')
 
@@ -22,9 +21,7 @@ def get_thread_local_zipkin_attrs():
     """
     log.warning('get_thread_local_zipkin_attrs is deprecated. See DEPRECATIONS.rst'
                 ' for details on how to migrate to using Tracer.')
-    if not hasattr(_thread_local, 'zipkin_attrs'):
-        _thread_local.zipkin_attrs = []
-    return _thread_local.zipkin_attrs
+    return get_default_tracer()._context_stack._storage
 
 
 def get_thread_local_span_storage():
@@ -43,10 +40,7 @@ def get_thread_local_span_storage():
     """
     log.warning('get_thread_local_span_storage is deprecated. See DEPRECATIONS.rst'
                 ' for details on how to migrate to using Tracer.')
-    if not hasattr(_thread_local, 'span_storage'):
-        from py_zipkin.storage import SpanStorage
-        _thread_local.span_storage = SpanStorage()
-    return _thread_local.span_storage
+    return get_default_tracer()._span_storage
 
 
 def get_zipkin_attrs():
