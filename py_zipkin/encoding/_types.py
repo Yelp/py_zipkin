@@ -14,4 +14,6 @@ class Kind(Enum):
     """Type of Span."""
     CLIENT = 'CLIENT'
     SERVER = 'SERVER'
+    PRODUCER = 'PRODUCER'
+    CONSUMER = 'CONSUMER'
     LOCAL = None

@@ -153,7 +153,7 @@ class Span(object):
         )
 
 
-def create_endpoint(port=0, service_name='unknown', host=None):
+def create_endpoint(port=None, service_name=None, host=None, use_defaults=True):
     """Creates a new Endpoint object.
 
     :param port: TCP/UDP port. Defaults to 0.
@@ -163,29 +163,37 @@ def create_endpoint(port=0, service_name='unknown', host=None):
     :param host: ipv4 or ipv6 address of the host. Defaults to the
     current host ip.
     :type host: str
+    :param use_defaults: whether to use defaults.
+    :type use_defaults: bool
     :returns: zipkin Endpoint object
     """
-    if host is None:
-        try:
-            host = socket.gethostbyname(socket.gethostname())
-        except socket.gaierror:
-            host = '127.0.0.1'
+    if use_defaults:
+        if port is None:
+            port = 0
+        if service_name is None:
+            service_name = 'unknown'
+        if host is None:
+            try:
+                host = socket.gethostbyname(socket.gethostname())
+            except socket.gaierror:
+                host = '127.0.0.1'
 
     ipv4 = None
     ipv6 = None
 
-    # Check ipv4 or ipv6.
-    try:
-        socket.inet_pton(socket.AF_INET, host)
-        ipv4 = host
-    except socket.error:
-        # If it's not an ipv4 address, maybe it's ipv6.
+    if host:
+        # Check ipv4 or ipv6.
         try:
-            socket.inet_pton(socket.AF_INET6, host)
-            ipv6 = host
+            socket.inet_pton(socket.AF_INET, host)
+            ipv4 = host
         except socket.error:
-            # If it's neither ipv4 or ipv6, leave both ip addresses unset.
-            pass
+            # If it's not an ipv4 address, maybe it's ipv6.
+            try:
+                socket.inet_pton(socket.AF_INET6, host)
+                ipv6 = host
+            except socket.error:
+                # If it's neither ipv4 or ipv6, leave both ip addresses unset.
+                pass
 
     return Endpoint(
         ipv4=ipv4,

@@ -2,6 +2,7 @@
 import json
 
 from py_zipkin import thrift
+from py_zipkin.encoding import protobuf
 from py_zipkin.encoding._types import Encoding
 from py_zipkin.encoding._types import Kind
 from py_zipkin.exception import ZipkinError
@@ -21,6 +22,8 @@ def get_encoder(encoding):
         return _V1JSONEncoder()
     if encoding == Encoding.V2_JSON:
         return _V2JSONEncoder()
+    if encoding == Encoding.V2_PROTOBUF:
+        return _V2ProtobufEncoder()
     raise ZipkinError('Unknown encoding: {}'.format(encoding))
 
 
@@ -298,3 +301,32 @@ class _V2JSONEncoder(_BaseJSONEncoder):
         encoded_span = json.dumps(json_span)
 
         return encoded_span
+
+
+class _V2ProtobufEncoder(IEncoder):
+    """Protobuf encoder for V2 spans."""
+
+    def fits(self, current_count, current_size, max_size, new_span):
+        """Checks if the new span fits in the max payload size.
+
+        We can't encode protobuf spans one by one and just sum their sizes as we
+        do for thrift and json. So for now this function remains unimplemented and
+        always returns True.
+
+        It'll be fixed by a future PR which will need to refactor this logic.
+        """
+        return True
+
+    def encode_span(self, span):
+        """Encodes a single span to protobuf."""
+        if not protobuf.installed():
+            raise ZipkinError(
+                'protobuf encoding requires installing the protobuf\'s extra '
+                'requirements. Use py-zipkin[protobuf] in your requirements.txt.'
+            )
+
+        return protobuf.create_protobuf_span(span)
+
+    def encode_queue(self, queue):
+        """Concatenates the list to a protobuf list and encodes it to bytes"""
+        return protobuf.encode_pb_list(queue)

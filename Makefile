@@ -23,3 +23,6 @@ clean:
 	@rm -rf .tox build dist *.egg-info
 	find . -name '*.pyc' -delete
 	find . -name '__pycache__' -delete
+
+update-protobuf:
+	$(MAKE) -C py_zipkin/encoding/protobuf update-protobuf
