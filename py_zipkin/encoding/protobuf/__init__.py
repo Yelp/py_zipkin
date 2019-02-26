@@ -58,9 +58,12 @@ def create_protobuf_span(span):
     if pb_kind:
         pb_kwargs['kind'] = pb_kind
 
-    pb_kwargs['name'] = span.name
-    pb_kwargs['timestamp'] = int(span.timestamp * 1000 * 1000)
-    pb_kwargs['duration'] = int(span.duration * 1000 * 1000)
+    if span.name:
+        pb_kwargs['name'] = span.name
+    if span.timestamp:
+        pb_kwargs['timestamp'] = int(span.timestamp * 1000 * 1000)
+    if span.duration:
+        pb_kwargs['duration'] = int(span.duration * 1000 * 1000)
 
     if span.local_endpoint:
         pb_kwargs['local_endpoint'] = _convert_endpoint(span.local_endpoint)
