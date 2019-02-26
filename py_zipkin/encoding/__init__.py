@@ -34,10 +34,8 @@ def detect_span_version_and_encoding(message):
 
     # Check for binary format
     if six.byte2int(message) <= 16:
-        if message[0] == 10 and message[1] != 0:
-            # Excluding from coverage since Protobuf encoding is
-            # not yet implemented.
-            return Encoding.V2_PROTOBUF  # pragma: no cover
+        if six.byte2int(message[0]) == 10 and six.byte2int(message[1]) != 0:
+            return Encoding.V2_PROTO3
         return Encoding.V1_THRIFT
 
     str_msg = message.decode('utf-8')

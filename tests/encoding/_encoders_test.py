@@ -92,7 +92,7 @@ def test_encoder():
         _V2JSONEncoder,
     )
     assert isinstance(
-        get_encoder(Encoding.V2_PROTOBUF),
+        get_encoder(Encoding.V2_PROTO3),
         _V2ProtobufEncoder,
     )
     with pytest.raises(ZipkinError):
@@ -246,7 +246,7 @@ class TestV2ProtobufEncoder(object):
 
     @pytest.fixture
     def encoder(self):
-        return get_encoder(Encoding.V2_PROTOBUF)
+        return get_encoder(Encoding.V2_PROTO3)
 
     def test_fits(self, encoder):
         # This is not currently implemented, will always return True

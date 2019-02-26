@@ -22,7 +22,7 @@ def get_encoder(encoding):
         return _V1JSONEncoder()
     if encoding == Encoding.V2_JSON:
         return _V2JSONEncoder()
-    if encoding == Encoding.V2_PROTOBUF:
+    if encoding == Encoding.V2_PROTO3:
         return _V2ProtobufEncoder()
     raise ZipkinError('Unknown encoding: {}'.format(encoding))
 

@@ -7,7 +7,7 @@ class Encoding(Enum):
     V1_THRIFT = 'V1_THRIFT'
     V1_JSON = 'V1_JSON'
     V2_JSON = 'V2_JSON'
-    V2_PROTOBUF = 'V2_PROTOBUF'
+    V2_PROTO3 = 'V2_PROTO3'
 
 
 class Kind(Enum):
