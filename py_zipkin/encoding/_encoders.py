@@ -307,15 +307,8 @@ class _V2ProtobufEncoder(IEncoder):
     """Protobuf encoder for V2 spans."""
 
     def fits(self, current_count, current_size, max_size, new_span):
-        """Checks if the new span fits in the max payload size.
-
-        We can't encode protobuf spans one by one and just sum their sizes as we
-        do for thrift and json. So for now this function remains unimplemented and
-        always returns True.
-
-        It'll be fixed by a future PR which will need to refactor this logic.
-        """
-        return True
+        """Checks if the new span fits in the max payload size."""
+        return current_size + len(new_span) <= max_size
 
     def encode_span(self, span):
         """Encodes a single span to protobuf."""
@@ -325,8 +318,9 @@ class _V2ProtobufEncoder(IEncoder):
                 'requirements. Use py-zipkin[protobuf] in your requirements.txt.'
             )
 
-        return protobuf.create_protobuf_span(span)
+        pb_span = protobuf.create_protobuf_span(span)
+        return protobuf.encode_pb_list([pb_span])
 
     def encode_queue(self, queue):
         """Concatenates the list to a protobuf list and encodes it to bytes"""
-        return protobuf.encode_pb_list(queue)
+        return b''.join(queue)

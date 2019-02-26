@@ -14,7 +14,6 @@ from py_zipkin.encoding._encoders import IEncoder
 from py_zipkin.encoding._helpers import create_endpoint
 from py_zipkin.encoding._helpers import Span
 from py_zipkin.encoding._types import Kind
-from py_zipkin.encoding.protobuf import zipkin_pb2
 from py_zipkin.exception import ZipkinError
 
 
@@ -249,8 +248,13 @@ class TestV2ProtobufEncoder(object):
         return get_encoder(Encoding.V2_PROTO3)
 
     def test_fits(self, encoder):
-        # This is not currently implemented, will always return True
-        assert encoder.fits(None, None, None, None) is True
+        span = Span('1', 'name', '2', '3', Kind.CLIENT, 10, 10)
+        pb_span = encoder.encode_span(span)
+        span_len = len(pb_span)
+
+        assert encoder.fits(None, 0, span_len * 2, pb_span) is True
+        assert encoder.fits(None, span_len, span_len * 2, pb_span) is True
+        assert encoder.fits(None, span_len + 1, span_len * 2, pb_span) is False
 
     @mock.patch('py_zipkin.encoding.protobuf.installed', autospec=True)
     def test_encode_span(self, mock_installed, encoder):
@@ -262,7 +266,7 @@ class TestV2ProtobufEncoder(object):
 
         mock_installed.return_value = True
         pb_span = encoder.encode_span(span)
-        assert isinstance(pb_span, zipkin_pb2.Span)
+        assert isinstance(pb_span, bytes)
 
     def test_encode_queue(self, encoder):
         span = Span('1', 'name', '2', '3', Kind.CLIENT, 10, 10)
