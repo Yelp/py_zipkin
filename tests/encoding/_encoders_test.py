@@ -7,9 +7,12 @@ from py_zipkin import Encoding
 from py_zipkin import thrift
 from py_zipkin.encoding._encoders import _V1JSONEncoder
 from py_zipkin.encoding._encoders import _V1ThriftEncoder
+from py_zipkin.encoding._encoders import _V2JSONEncoder
+from py_zipkin.encoding._encoders import _V2ProtobufEncoder
 from py_zipkin.encoding._encoders import get_encoder
 from py_zipkin.encoding._encoders import IEncoder
 from py_zipkin.encoding._helpers import create_endpoint
+from py_zipkin.encoding._helpers import Span
 from py_zipkin.encoding._types import Kind
 from py_zipkin.exception import ZipkinError
 
@@ -83,6 +86,14 @@ def test_encoder():
         get_encoder(Encoding.V1_JSON),
         _V1JSONEncoder,
     )
+    assert isinstance(
+        get_encoder(Encoding.V2_JSON),
+        _V2JSONEncoder,
+    )
+    assert isinstance(
+        get_encoder(Encoding.V2_PROTO3),
+        _V2ProtobufEncoder,
+    )
     with pytest.raises(ZipkinError):
         get_encoder(None)
 
@@ -138,6 +149,7 @@ class TestBaseJSONEncoder(object):
             port=8888,
             service_name=None,
             host='2001:0db8:85a3:0000:0000:8a2e:0370:7334',
+            use_defaults=False,
         )
         assert encoder._create_json_endpoint(v1_endpoint, True) == {
             'serviceName': '',
@@ -149,6 +161,7 @@ class TestBaseJSONEncoder(object):
             port=8888,
             service_name=None,
             host='2001:0db8:85a3:0000:0000:8a2e:0370:7334',
+            use_defaults=False,
         )
         assert encoder._create_json_endpoint(v2_endpoint, False) == {
             'port': 8888,
@@ -226,3 +239,38 @@ class TestV1ThriftEncoder(object):
             annotation_type=thrift.zipkin_core.AnnotationType.BOOL,
             host=thrift.create_endpoint(0, 'test_server', '127.0.0.1', None),
         )]
+
+
+class TestV2ProtobufEncoder(object):
+
+    @pytest.fixture
+    def encoder(self):
+        return get_encoder(Encoding.V2_PROTO3)
+
+    def test_fits(self, encoder):
+        span = Span('1', 'name', '2', '3', Kind.CLIENT, 10, 10)
+        pb_span = encoder.encode_span(span)
+        span_len = len(pb_span)
+
+        assert encoder.fits(None, 0, span_len * 2, pb_span) is True
+        assert encoder.fits(None, span_len, span_len * 2, pb_span) is True
+        assert encoder.fits(None, span_len + 1, span_len * 2, pb_span) is False
+
+    @mock.patch('py_zipkin.encoding.protobuf.installed', autospec=True)
+    def test_encode_span(self, mock_installed, encoder):
+        span = Span('1', 'name', '2', '3', Kind.CLIENT, 10, 10)
+
+        mock_installed.return_value = False
+        with pytest.raises(ZipkinError):
+            encoder.encode_span(span)
+
+        mock_installed.return_value = True
+        pb_span = encoder.encode_span(span)
+        assert isinstance(pb_span, bytes)
+
+    def test_encode_queue(self, encoder):
+        span = Span('1', 'name', '2', '3', Kind.CLIENT, 10, 10)
+        pb_span = encoder.encode_span(span)
+
+        pb_list = encoder.encode_queue([pb_span])
+        assert isinstance(pb_list, bytes)

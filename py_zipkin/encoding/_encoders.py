@@ -2,6 +2,7 @@
 import json
 
 from py_zipkin import thrift
+from py_zipkin.encoding import protobuf
 from py_zipkin.encoding._types import Encoding
 from py_zipkin.encoding._types import Kind
 from py_zipkin.exception import ZipkinError
@@ -21,6 +22,8 @@ def get_encoder(encoding):
         return _V1JSONEncoder()
     if encoding == Encoding.V2_JSON:
         return _V2JSONEncoder()
+    if encoding == Encoding.V2_PROTO3:
+        return _V2ProtobufEncoder()
     raise ZipkinError('Unknown encoding: {}'.format(encoding))
 
 
@@ -298,3 +301,26 @@ class _V2JSONEncoder(_BaseJSONEncoder):
         encoded_span = json.dumps(json_span)
 
         return encoded_span
+
+
+class _V2ProtobufEncoder(IEncoder):
+    """Protobuf encoder for V2 spans."""
+
+    def fits(self, current_count, current_size, max_size, new_span):
+        """Checks if the new span fits in the max payload size."""
+        return current_size + len(new_span) <= max_size
+
+    def encode_span(self, span):
+        """Encodes a single span to protobuf."""
+        if not protobuf.installed():
+            raise ZipkinError(
+                'protobuf encoding requires installing the protobuf\'s extra '
+                'requirements. Use py-zipkin[protobuf] in your requirements.txt.'
+            )
+
+        pb_span = protobuf.create_protobuf_span(span)
+        return protobuf.encode_pb_list([pb_span])
+
+    def encode_queue(self, queue):
+        """Concatenates the list to a protobuf list and encodes it to bytes"""
+        return b''.join(queue)

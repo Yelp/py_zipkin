@@ -29,7 +29,10 @@ setup(
         'six',
         'thriftpy2>=0.4.0',
     ],
-    extras_require={':python_version=="2.7"': ['enum34']},
+    extras_require={
+        ':python_version=="2.7"': ['enum34'],
+        'protobuf': 'protobuf',
+    },
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
