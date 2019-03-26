@@ -34,8 +34,6 @@ ZipkinAttrs = namedtuple(
 
 ERROR_KEY = 'error'
 
-log = logging.getLogger('py_zipkin.zipkin')
-
 
 class zipkin_span(object):
     """Context manager/decorator for all of your zipkin tracing needs.
@@ -466,11 +464,7 @@ class zipkin_span(object):
         return self
 
     def __exit__(self, _exc_type, _exc_value, _exc_traceback):
-        try:
-            self.stop(_exc_type, _exc_value, _exc_traceback)
-        except Exception:
-            log.error('ZipkinError', exc_info=True)
-            self.get_tracer().clear()
+        self.stop(_exc_type, _exc_value, _exc_traceback)
 
     def stop(self, _exc_type=None, _exc_value=None, _exc_traceback=None):
         """Exit the span context. Zipkin attrs are pushed onto the
@@ -499,10 +493,18 @@ class zipkin_span(object):
         # process (i.e. this zipkin_span not inside of any other local
         # zipkin_spans)
         if self.logging_context:
-            self.logging_context.stop()
-            self.logging_context = None
-            self.get_tracer().set_transport_configured(configured=False)
-            return
+            try:
+                self.logging_context.stop()
+            except Exception:
+                self.get_tracer().clear()
+                err_msg = 'Error while emitting zipkin trace. {}'.format(
+                    self.service_name,
+                )
+                log.error(err_msg)
+            finally:
+                self.logging_context = None
+                self.get_tracer().set_transport_configured(configured=False)
+                return
 
         # If we've gotten here, that means that this span is a child span of
         # this context's root span (i.e. it's a zipkin_span inside another

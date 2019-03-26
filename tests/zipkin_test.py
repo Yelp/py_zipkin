@@ -578,8 +578,31 @@ class TestZipkinSpan(object):
             })
             assert len(span_storage) == 0
 
+    def test_error_stopping_log_context(self):
+        '''Tests if exception is raised while emitting traces that
+           tracer is cleaned u
+        '''
+        transport = MockTransportHandler()
+        tracer = MockTracer()
+        context = tracer.zipkin_span(
+            service_name='test_service',
+            span_name='test_span',
+            transport_handler=transport,
+            sample_rate=100.0,
+        )
+        context.start()
+
+        with mock.patch.object(context, 'logging_context') as mock_log_ctx:
+            mock_log_ctx.stop.side_effect = Exception
+            try:
+                context.stop()
+            except Exception:
+                pytest.fail('Exception not expected to be thrown!')
+
+            assert mock_log_ctx.stop.call_count == 1
+            assert len(tracer.get_spans()) == 0
+
     def test_stop_root(self):
-        # Transport is not setup, exit immediately
         transport = MockTransportHandler()
         tracer = MockTracer()
         context = tracer.zipkin_span(
@@ -593,14 +616,13 @@ class TestZipkinSpan(object):
         with mock.patch.object(context, 'logging_context') as mock_log_ctx:
             context.stop()
             assert mock_log_ctx.stop.call_count == 1
-            # Test that we reset evverything after calling stop()
+            # Test that we reset everything after calling stop()
             assert context.logging_context is None
             assert tracer.is_transport_configured() is False
             assert len(tracer.get_spans()) == 0
 
     @mock.patch('time.time', autospec=True, return_value=123)
     def test_stop_non_root(self, mock_time):
-        # Transport is not setup, exit immediately
         tracer = MockTracer()
         tracer.set_transport_configured(configured=True)
         tracer.get_context().push(zipkin.create_attrs_for_span())
@@ -630,7 +652,6 @@ class TestZipkinSpan(object):
         assert tracer.is_transport_configured() is True
 
     def test_stop_non_root_ts_duration_overridden(self):
-        # Transport is not setup, exit immediately
         tracer = MockTracer()
         tracer.set_transport_configured(configured=True)
         tracer.get_context().push(zipkin.create_attrs_for_span())
