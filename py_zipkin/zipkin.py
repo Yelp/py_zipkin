@@ -16,6 +16,7 @@ from py_zipkin.storage import get_default_tracer
 from py_zipkin.util import generate_random_128bit_string
 from py_zipkin.util import generate_random_64bit_string
 
+log = logging.getLogger(__name__)
 
 """
 Holds the basic attributes needed to log a zipkin trace
@@ -465,7 +466,11 @@ class zipkin_span(object):
         return self
 
     def __exit__(self, _exc_type, _exc_value, _exc_traceback):
-        self.stop(_exc_type, _exc_value, _exc_traceback)
+        try:
+            self.stop(_exc_type, _exc_value, _exc_traceback)
+        except Exception:
+            log.error('ZipkinError', exc_info=True)
+            self.get_tracer().clear()
 
     def stop(self, _exc_type=None, _exc_value=None, _exc_traceback=None):
         """Exit the span context. Zipkin attrs are pushed onto the
