@@ -1,3 +1,8 @@
+0.18.2 (2019-03-26)
+-------------------
+- Handled exception while emitting trace and log the error
+- Ensure tracer is cleared regardless span of emit outcome
+
 0.18.1 (2019-02-22)
 -------------------
 - Fix ThreadLocalStack() bug introduced in 0.18.0
