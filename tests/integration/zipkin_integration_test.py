@@ -11,7 +11,7 @@ from py_zipkin.logging_helper import LOGGING_END_KEY
 from py_zipkin.storage import get_default_tracer
 from py_zipkin.zipkin import log
 from py_zipkin.zipkin import ZipkinAttrs
-
+from tests.test_helpers import MockTracer
 
 USECS = 1000000
 
@@ -259,6 +259,7 @@ def test_service_exits_on_erroneous_span(log_mock):
        Services may not be handling them. Instead log an error
     """
     mock_transport_handler, mock_logs = mock_logger()
+    tracer = MockTracer()
     try:
         zipkin_attrs = ZipkinAttrs(
             trace_id='0',
@@ -267,7 +268,7 @@ def test_service_exits_on_erroneous_span(log_mock):
             flags='0',
             is_sampled=True,
         )
-        with zipkin.zipkin_span(
+        with tracer.zipkin_span(
             service_name='test_service_name',
             span_name='service_span',
             zipkin_attrs=zipkin_attrs,
@@ -282,6 +283,7 @@ def test_service_exits_on_erroneous_span(log_mock):
     finally:
         assert log_mock.call_count == 1
         assert len(mock_logs) == 0
+        assert len(tracer.get_spans()) == 0
 
 
 def test_service_span_report_timestamp_override():

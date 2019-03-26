@@ -580,7 +580,8 @@ class TestZipkinSpan(object):
 
     def test_error_stopping_log_context(self):
         '''Tests if exception is raised while emitting traces that
-           tracer is cleaned u
+           1. tracer is cleared
+           2. excpetion is not passed up
         '''
         transport = MockTransportHandler()
         tracer = MockTracer()

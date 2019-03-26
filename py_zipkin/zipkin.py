@@ -495,14 +495,15 @@ class zipkin_span(object):
         if self.logging_context:
             try:
                 self.logging_context.stop()
-            except Exception:
-                self.get_tracer().clear()
-                err_msg = 'Error while emitting zipkin trace. {}'.format(
+            except Exception as ex:
+                err_msg = 'Error emitting zipkin trace, service:{}, {}'.format(
                     self.service_name,
+                    repr(ex),
                 )
                 log.error(err_msg)
             finally:
                 self.logging_context = None
+                self.get_tracer().clear()
                 self.get_tracer().set_transport_configured(configured=False)
                 return
 
