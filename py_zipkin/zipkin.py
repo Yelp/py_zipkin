@@ -16,6 +16,7 @@ from py_zipkin.storage import get_default_tracer
 from py_zipkin.util import generate_random_128bit_string
 from py_zipkin.util import generate_random_64bit_string
 
+log = logging.getLogger(__name__)
 
 """
 Holds the basic attributes needed to log a zipkin trace
@@ -32,8 +33,6 @@ ZipkinAttrs = namedtuple(
 )
 
 ERROR_KEY = 'error'
-
-log = logging.getLogger('py_zipkin.zipkin')
 
 
 class zipkin_span(object):
@@ -494,10 +493,18 @@ class zipkin_span(object):
         # process (i.e. this zipkin_span not inside of any other local
         # zipkin_spans)
         if self.logging_context:
-            self.logging_context.stop()
-            self.logging_context = None
-            self.get_tracer().set_transport_configured(configured=False)
-            return
+            try:
+                self.logging_context.stop()
+            except Exception as ex:
+                err_msg = 'Error emitting zipkin trace. {}'.format(
+                    repr(ex),
+                )
+                log.error(err_msg)
+            finally:
+                self.logging_context = None
+                self.get_tracer().clear()
+                self.get_tracer().set_transport_configured(configured=False)
+                return
 
         # If we've gotten here, that means that this span is a child span of
         # this context's root span (i.e. it's a zipkin_span inside another
