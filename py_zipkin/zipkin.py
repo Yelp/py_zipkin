@@ -496,8 +496,7 @@ class zipkin_span(object):
             try:
                 self.logging_context.stop()
             except Exception as ex:
-                err_msg = 'Error emitting zipkin trace, service:{}, {}'.format(
-                    self.service_name,
+                err_msg = 'Error emitting zipkin trace. {}'.format(
                     repr(ex),
                 )
                 log.error(err_msg)
