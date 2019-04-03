@@ -486,7 +486,7 @@ class zipkin_span(object):
         if any((_exc_type, _exc_value, _exc_traceback)):
             error_msg = u'{0}: {1}'.format(_exc_type.__name__, _exc_value)
             self.update_binary_annotations({
-                ERROR_KEY: error_msg,
+                ERROR_KEY: error_msg.encode('utf-8'),
             })
 
         # Logging context is only initialized for "root" spans of the local
