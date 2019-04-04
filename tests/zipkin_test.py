@@ -578,22 +578,6 @@ class TestZipkinSpan(object):
             })
             assert len(span_storage) == 0
 
-         with mock.patch.object(context, 'update_binary_annotations') as mock_upd:
-            context.start()
-            context.stop(ValueError, 'おやすみ')
-            assert mock_upd.call_args == mock.call({
-                zipkin.ERROR_KEY: 'ValueError: おやすみ'
-            })
-            assert len(span_storage) == 0
-
-        with mock.patch.object(context, 'update_binary_annotations') as mock_upd:
-            context.start()
-            context.stop(ValueError, '晚安')
-            assert mock_upd.call_args == mock.call({
-                zipkin.ERROR_KEY: 'ValueError: 晚安'
-            })
-            assert len(span_storage) == 0
-
     def test_error_stopping_log_context(self):
         '''Tests if exception is raised while emitting traces that
            1. tracer is cleared
