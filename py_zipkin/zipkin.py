@@ -486,12 +486,14 @@ class zipkin_span(object):
         # Add the error annotation if an exception occurred
         if any((_exc_type, _exc_value, _exc_traceback)):
             error_msg = u'{0}: {1}'.format(_exc_type.__name__, _exc_value)
-            self.update_binary_annotations({
-                if int(sys.version[0:1]) >= 3:
+            if int(sys.version[0:1]) >= 3:
+                self.update_binary_annotations({
                     ERROR_KEY: error_msg,
-                else:
+                })
+            else:
+                self.update_binary_annotations({
                     ERROR_KEY: error_msg.encode('UTF-8'),
-            })
+                })
 
         # Logging context is only initialized for "root" spans of the local
         # process (i.e. this zipkin_span not inside of any other local
