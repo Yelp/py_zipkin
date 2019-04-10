@@ -3,7 +3,7 @@ import functools
 import logging
 import random
 import time
-import sys
+import six
 from collections import namedtuple
 
 from py_zipkin import Encoding
@@ -486,7 +486,7 @@ class zipkin_span(object):
         # Add the error annotation if an exception occurred
         if any((_exc_type, _exc_value, _exc_traceback)):
             error_msg = u'{0}: {1}'.format(_exc_type.__name__, _exc_value)
-            if int(sys.version[0:1]) >= 3:
+            if six.PY3:
                 self.update_binary_annotations({
                     ERROR_KEY: error_msg,  # pragma: no cover
                 })
