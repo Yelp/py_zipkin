@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import sys
+import six
 import functools
 import logging
 import random
@@ -486,13 +486,13 @@ class zipkin_span(object):
         # Add the error annotation if an exception occurred
         if any((_exc_type, _exc_value, _exc_traceback)):
             error_msg = u'{0}: {1}'.format(_exc_type.__name__, _exc_value)
-            if int(sys.version[0:1]) >= 3:
+            if six.PY3:
                 self.update_binary_annotations({
-                    ERROR_KEY: error_msg,
+                    ERROR_KEY: error_msg,  # pragma: no cover
                 })
             else:
                 self.update_binary_annotations({
-                    ERROR_KEY: error_msg.encode('UTF-8'),
+                    ERROR_KEY: error_msg.encode('UTF-8'),  # pragma: no cover
                 })
 
         # Logging context is only initialized for "root" spans of the local
