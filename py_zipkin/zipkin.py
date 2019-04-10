@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-import six
 import functools
 import logging
 import random
 import time
+import six
 from collections import namedtuple
 
 from py_zipkin import Encoding
