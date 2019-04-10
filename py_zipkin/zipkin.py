@@ -3,7 +3,6 @@ import functools
 import logging
 import random
 import time
-import six
 from collections import namedtuple
 
 from py_zipkin import Encoding
@@ -16,6 +15,7 @@ from py_zipkin.logging_helper import ZipkinLoggingContext
 from py_zipkin.storage import get_default_tracer
 from py_zipkin.util import generate_random_128bit_string
 from py_zipkin.util import generate_random_64bit_string
+import six
 
 log = logging.getLogger(__name__)
 
