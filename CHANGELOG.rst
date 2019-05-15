@@ -1,3 +1,7 @@
+0.18.3 (2019-05-15)
+-------------------
+- Fix unicode bug when decoding thrift tag strings
+
 0.18.2 (2019-03-26)
 -------------------
 - Handled exception while emitting trace and log the error
