@@ -165,7 +165,7 @@ class _V1ThriftDecoder(IDecoder):
                 if annotation_type == zipkin_core.AnnotationType.BOOL:
                     tags[key] = "true" if value == 1 else "false"
                 elif annotation_type == zipkin_core.AnnotationType.STRING:
-                    tags[key] = str(value)
+                    tags[key] = value
                 else:
                     log.warning('Only STRING and BOOL binary annotations are '
                                 'supported right now and can be properly decoded.')
