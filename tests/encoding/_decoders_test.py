@@ -169,6 +169,28 @@ class TestV1ThriftDecoder(object):
         assert local_endpoint == Endpoint('test_service', '10.0.0.1', None, 8888)
         assert remote_endpoint == Endpoint('rem_service', '10.0.0.2', None, 9999)
 
+    def test__convert_from_thrift_binary_annotations_unicode(self):
+        decoder = _V1ThriftDecoder()
+        local_host = thrift.create_endpoint(8888, 'test_service', '10.0.0.1', None)
+        ann_type = zipkin_core.AnnotationType
+        thrift_binary_annotations = [
+            create_binary_annotation('key1', u'再见', ann_type.STRING, local_host),
+            create_binary_annotation('key2', 'val2', ann_type.STRING, local_host),
+            create_binary_annotation('key3', '再见', ann_type.STRING, local_host),
+        ]
+
+        tags, local_endpoint, remote_endpoint = \
+            decoder._convert_from_thrift_binary_annotations(
+                thrift_binary_annotations,
+            )
+
+        assert tags == {
+            'key1': u'再见',
+            'key2': 'val2',
+            'key3': '再见',
+        }
+        assert local_endpoint == Endpoint('test_service', '10.0.0.1', None, 8888)
+
     def test_seconds_doesnt_crash_with_none(self):
         decoder = _V1ThriftDecoder()
         assert decoder.seconds(6000000) == 6.0
