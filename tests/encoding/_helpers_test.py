@@ -22,7 +22,9 @@ def test_create_span_with_bad_kind():
             duration=4.0,
         )
 
-    assert 'Invalid kind value client. Must be of type Kind.' in str(e)
+    assert (
+        'Invalid kind value client. Must be of type Kind.' in str(e.value)
+    )
 
 
 def test_create_span_with_bad_local_endpoint():
@@ -38,7 +40,9 @@ def test_create_span_with_bad_local_endpoint():
             local_endpoint='my_service',
         )
 
-    assert 'Invalid local_endpoint value. Must be of type Endpoint.' in str(e)
+    assert (
+        'Invalid local_endpoint value. Must be of type Endpoint.' in str(e.value)
+    )
 
 
 def test_create_span_with_bad_remote_endpoint():
@@ -54,7 +58,9 @@ def test_create_span_with_bad_remote_endpoint():
             remote_endpoint='my_service',
         )
 
-    assert 'Invalid remote_endpoint value. Must be of type Endpoint.' in str(e)
+    assert (
+        'Invalid remote_endpoint value. Must be of type Endpoint.' in str(e.value)
+    )
 
 
 @mock.patch('socket.gethostbyname', autospec=True)
