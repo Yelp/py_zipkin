@@ -1,3 +1,7 @@
+0.18.4 (2019-08-02)
+-------------------
+- Fix thriftpy2 import to allow cython module
+
 0.18.3 (2019-05-15)
 -------------------
 - Fix unicode bug when decoding thrift tag strings
