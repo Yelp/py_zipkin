@@ -1,3 +1,7 @@
+0.18.5 (2019-08-08)
+-------------------
+- Add testing.MockTransportHandler module
+
 0.18.4 (2019-08-02)
 -------------------
 - Fix thriftpy2 import to allow cython module
