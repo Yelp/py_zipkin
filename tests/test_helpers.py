@@ -9,28 +9,11 @@ from py_zipkin import thrift
 from py_zipkin import zipkin
 from py_zipkin.encoding._encoders import IEncoder
 from py_zipkin.storage import Tracer
+from py_zipkin.testing import MockTransportHandler
 from py_zipkin.thrift import zipkin_core
-from py_zipkin.transport import BaseTransportHandler
 from py_zipkin.util import generate_random_128bit_string
 from py_zipkin.util import generate_random_64bit_string
 from py_zipkin.zipkin import ZipkinAttrs
-
-
-class MockTransportHandler(BaseTransportHandler):
-
-    def __init__(self, max_payload_bytes=None):
-        self.max_payload_bytes = max_payload_bytes
-        self.payloads = []
-
-    def send(self, payload):
-        self.payloads.append(payload)
-        return payload
-
-    def get_max_payload_bytes(self):
-        return self.max_payload_bytes
-
-    def get_payloads(self):
-        return self.payloads
 
 
 class MockEncoder(IEncoder):
