@@ -1,3 +1,7 @@
+0.18.6 (2019-09-23)
+-------------------
+- Ensure tags are strings when using V2_JSON encoding
+
 0.18.5 (2019-08-08)
 -------------------
 - Add testing.MockTransportHandler module
