@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 import json
 
+import six
+
 from py_zipkin import thrift
 from py_zipkin.encoding import protobuf
 from py_zipkin.encoding._types import Encoding
@@ -287,7 +289,10 @@ class _V2JSONEncoder(_BaseJSONEncoder):
                 False,
             )
         if span.tags and len(span.tags) > 0:
-            json_span['tags'] = span.tags
+            # Ensure that tags are all strings
+            json_span['tags'] = {
+                str(key): str(value) for key, value in six.iteritems(span.tags)
+            }
 
         if span.annotations:
             json_span['annotations'] = [
