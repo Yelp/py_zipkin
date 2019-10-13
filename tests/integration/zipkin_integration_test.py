@@ -335,7 +335,6 @@ def test_service_span_that_is_independently_sampled(encoding):
         zipkin_attrs=zipkin_attrs,
         transport_handler=mock_transport_handler,
         port=45,
-        sample_rate=100.0,
         firehose_handler=mock_firehose_handler,
         encoding=encoding,
     ):

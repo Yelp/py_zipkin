@@ -241,6 +241,10 @@ class zipkin_span(object):
                 "use the timestamp and duration parameters."
             )
 
+        if self.zipkin_attrs_override and self.sample_rate is not None:
+            raise ZipkinError(
+                'sample_rate should not be set when zipkin_attrs are provided')
+
         # Root spans have transport_handler and at least one of
         # zipkin_attrs_override or sample_rate.
         if self.zipkin_attrs_override or self.sample_rate is not None:
@@ -358,19 +362,9 @@ class zipkin_span(object):
             # new trace.
             if self.sample_rate is not None:
 
-                # If this trace is not sampled, we re-roll the dice.
-                if self.zipkin_attrs_override and \
-                        not self.zipkin_attrs_override.is_sampled:
-                    # This will be the root span of the trace, so we should
-                    # set timestamp and duration.
-                    return True, create_attrs_for_span(
-                        sample_rate=self.sample_rate,
-                        trace_id=self.zipkin_attrs_override.trace_id,
-                    )
-
                 # If zipkin_attrs_override was not passed in, we simply generate
                 # new zipkin_attrs to start a new trace.
-                elif not self.zipkin_attrs_override:
+                if not self.zipkin_attrs_override:
                     return True, create_attrs_for_span(
                         sample_rate=self.sample_rate,
                         use_128bit_trace_id=self.use_128bit_trace_id,

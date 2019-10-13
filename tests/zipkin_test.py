@@ -59,7 +59,6 @@ class TestZipkinSpan(object):
             annotations={'test_annotation': 1},
             binary_annotations={'status': '200'},
             port=80,
-            sample_rate=100.0,
             include=('cs', 'cr'),
             add_logging_annotation=True,
             report_root_timestamp=True,
@@ -82,7 +81,6 @@ class TestZipkinSpan(object):
         assert context.annotations == {'test_annotation': 1}
         assert context.binary_annotations == {'status': '200'}
         assert context.port == 80
-        assert context.sample_rate == 100.0
         assert context.add_logging_annotation is True
         assert context.report_root_timestamp_override is True
         assert context.use_128bit_trace_id is True
@@ -215,6 +213,17 @@ class TestZipkinSpan(object):
             ):
                 pass
 
+    def test_error_when_sample_rate_and_attrs_override(self):
+        with pytest.raises(ZipkinError):
+            with zipkin.zipkin_span(
+                    service_name='some_service_name',
+                    span_name='span_name',
+                    sample_rate=100.0,
+                    transport_handler=MockTransportHandler(),
+                    zipkin_attrs=zipkin.create_attrs_for_span(),
+            ):
+                pass
+
     def test_initinvalid_sample_rate(self):
         with pytest.raises(ZipkinError):
             with zipkin.zipkin_span(
@@ -274,36 +283,6 @@ class TestZipkinSpan(object):
         assert context._generate_kind(None, None) == Kind.LOCAL
 
     @mock.patch.object(zipkin, 'create_attrs_for_span', autospec=True)
-    def test_get_current_context_root_sample_rate_override_not_sampled(
-        self,
-        mock_create_attr,
-    ):
-        # Root span, with custom zipkin_attrs, not sampled and sample_rate
-        zipkin_attrs = ZipkinAttrs(
-            trace_id=generate_random_64bit_string(),
-            span_id=generate_random_64bit_string(),
-            parent_span_id=generate_random_64bit_string(),
-            flags=None,
-            is_sampled=False,
-        )
-        context = zipkin.zipkin_span(
-            service_name='test_service',
-            span_name='test_span',
-            transport_handler=MockTransportHandler(),
-            zipkin_attrs=zipkin_attrs,
-            sample_rate=100.0,
-        )
-
-        report_root, _ = context._get_current_context()
-
-        assert mock_create_attr.call_args == mock.call(
-            sample_rate=100.0,
-            trace_id=zipkin_attrs.trace_id,
-        )
-        # It wasn't sampled before and now it is, so this is the trace root
-        assert report_root is True
-
-    @mock.patch.object(zipkin, 'create_attrs_for_span', autospec=True)
     def test_get_current_context_root_sample_rate_override_sampled(
             self,
             mock_create_attr,
@@ -322,7 +301,6 @@ class TestZipkinSpan(object):
             span_name='test_span',
             transport_handler=MockTransportHandler(),
             zipkin_attrs=zipkin_attrs,
-            sample_rate=100.0,
         )
 
         report_root, current_attrs = context._get_current_context()
