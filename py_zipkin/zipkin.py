@@ -351,18 +351,7 @@ class zipkin_span(object):
         # child span.
         if self._is_local_root_span:
 
-            # If sample_rate is set, we need to (re)generate a trace context.
-            # If zipkin_attrs (trace context) were passed in as argument there are
-            # 2 possibilities:
-            # is_sampled = False --> we keep the same trace_id but re-roll the dice
-            #                        for is_sampled.
-            # is_sampled = True  --> we don't want to stop sampling halfway through
-            #                        a sampled trace, so we do nothing.
-            # If no zipkin_attrs were passed in, we generate new ones and start a
-            # new trace.
             if self.sample_rate is not None:
-
-                # If zipkin_attrs_override was not passed in, we simply generate
                 # new zipkin_attrs to start a new trace.
                 if not self.zipkin_attrs_override:
                     return True, create_attrs_for_span(

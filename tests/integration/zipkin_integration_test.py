@@ -219,8 +219,10 @@ def test_sr_ss_annotation_override(encoding):
 
 
 @pytest.mark.parametrize('encoding', [Encoding.V1_JSON, Encoding.V2_JSON])
-def test_service_span(encoding):
-    """Tests that zipkin_attrs can be passed in"""
+def test_span_for_intermediate_service_overrides(encoding):
+    """Tests that service overrides (zipkin_attrs can be passed in)
+       passed by an intermediate service are working
+    """
     mock_transport_handler, mock_logs = mock_logger()
     zipkin_attrs = ZipkinAttrs(
         trace_id='0',
@@ -311,52 +313,6 @@ def test_service_span_report_timestamp_override():
     span = json.loads(mock_logs[0])[0]
     assert 'timestamp' in span
     assert 'duration' in span
-
-
-@pytest.mark.parametrize('encoding', [Encoding.V1_JSON, Encoding.V2_JSON])
-def test_service_span_that_is_independently_sampled(encoding):
-    """Tests that sample_rate has can turn on sampling for a trace.
-
-    This is the same case as an intermediate service wanting to have an higher
-    sampling rate.
-    """
-    mock_transport_handler, mock_logs = mock_logger()
-    mock_firehose_handler, mock_firehose_logs = mock_logger()
-    zipkin_attrs = ZipkinAttrs(
-        trace_id='0',
-        span_id='1',
-        parent_span_id='2',
-        flags='0',
-        is_sampled=False,
-    )
-    with zipkin.zipkin_span(
-        service_name='test_service_name',
-        span_name='service_span',
-        zipkin_attrs=zipkin_attrs,
-        transport_handler=mock_transport_handler,
-        port=45,
-        firehose_handler=mock_firehose_handler,
-        encoding=encoding,
-    ):
-        pass
-
-    def check_span(span):
-        assert span['traceId'] == '0'
-        assert span['name'] == 'service_span'
-        assert 'parentId' not in span
-        # Spans that are part of an unsampled trace which start their own sampling
-        # should report timestamp/duration, as they're acting as root spans.
-        assert 'timestamp' in span
-        assert 'duration' in span
-        if encoding == Encoding.V2_JSON:
-            # BUG: this should fail in the firehose trace since there was already
-            # an ongoing trace and we have a parent. However we emit the exact
-            # same span for both the normal transport and firehose, so this is not
-            # something we can handle right now.
-            assert 'shared' not in span
-
-    check_span(json.loads(mock_logs[0])[0])
-    check_span(json.loads(mock_firehose_logs[0])[0])
 
 
 def test_zipkin_trace_with_no_sampling_no_firehose():
