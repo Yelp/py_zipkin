@@ -214,7 +214,7 @@ class TestZipkinSpan(object):
                 pass
 
     def test_error_when_sample_rate_and_attrs_override(self):
-        try:
+        with pytest.raises(ZipkinError) as e:
             with zipkin.zipkin_span(
                     service_name='some_service_name',
                     span_name='span_name',
@@ -222,10 +222,8 @@ class TestZipkinSpan(object):
                     transport_handler=MockTransportHandler(),
                     zipkin_attrs=zipkin.create_attrs_for_span(),
             ):
-                pytest.fail("Raise exception when sample rate \
-                    set with zipkin_attrs")
-        except ZipkinError as e:
-            assert str(e) == "sample_rate should not be set \
+                pass
+            assert str(e.value) == "sample_rate should not be set \
                 when zipkin_attrs are provided"
 
     def test_initinvalid_sample_rate(self):
