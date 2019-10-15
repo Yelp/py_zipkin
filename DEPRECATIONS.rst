@@ -1,6 +1,37 @@
 Deprecations: how to migrate
 ============================
 
+Overriding zipkin attrs and setting sample rate
+-----------------------------------------------
+
+The following usage is deprecated when zipkin_attrs are provided and
+sample_rate is additionally specified. This is removed since zipkin_attrs
+create_attrs_for_span(trace_id=trace_id) sets the sample_rate to 100.0
+
+.. code-block:: python
+
+    with zipkin_span(
+        zipkin_attrs=create_attrs_for_span(trace_id=trace_id),
+        service_name=SERVICE_NAME,
+        span_name=span_name,
+        transport_handler=zipkin_scribe_handler,
+        firehose_handler=firehose_handler,
+        sample_rate=sample_rate,
+    ):
+
+To specify a sample_rate explicity specify it while building the zipkin_attrs
+
+.. code-block:: python
+
+    with zipkin_span(
+        zipkin_attrs=create_attrs_for_span(trace_id=trace_id, sample_rate=50.0),
+        service_name=SERVICE_NAME,
+        span_name=span_name,
+        transport_handler=zipkin_scribe_handler,
+        firehose_handler=firehose_handler,
+        sample_rate=sample_rate,
+    ):
+
 New Tracer interface
 --------------------
 
