@@ -1,3 +1,7 @@
+0.18.7 (2020-01-15)
+-------------------
+- Expose encoding.create_endpoint helper
+
 0.18.6 (2019-09-23)
 -------------------
 - Ensure tags are strings when using V2_JSON encoding
