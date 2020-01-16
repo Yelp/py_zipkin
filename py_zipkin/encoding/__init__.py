@@ -5,6 +5,7 @@ import six
 
 from py_zipkin.encoding._decoders import get_decoder
 from py_zipkin.encoding._encoders import get_encoder
+from py_zipkin.encoding._helpers import create_endpoint  # noqa: F401
 from py_zipkin.encoding._helpers import Endpoint  # noqa: F401
 from py_zipkin.encoding._helpers import Span  # noqa: F401
 from py_zipkin.encoding._types import Encoding
