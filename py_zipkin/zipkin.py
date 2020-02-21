@@ -560,7 +560,7 @@ class zipkin_span(object):
             self.annotations[value] = timestamp
         else:
             # Otherwise, we're in the context of the root span, so just update
-            # the binary annotations for the logging context directly.
+            # the annotations for the logging context directly.
             self.logging_context.annotations[value] = timestamp
 
     def add_sa_binary_annotation(
