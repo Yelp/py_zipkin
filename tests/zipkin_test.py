@@ -844,6 +844,48 @@ class TestZipkinSpan(object):
             assert span.span_name == 'new_name'
             assert span.logging_context.span_name == 'new_name'
 
+    def test_create_http_headers_for_my_span_no_zipkin_attrs(self):
+        with zipkin.zipkin_client_span(
+                service_name='test_service',
+                span_name='test_span',
+                transport_handler=MockTransportHandler(),
+                sample_rate=100.0,
+        ) as span:
+            # Not sure how this could ever happen in real life, but if it
+            # did...
+            span.zipkin_attrs = None
+            assert {} == span.create_http_headers_for_my_span()
+
+    def test_create_http_headers_for_my_span_is_sampled(self):
+        with zipkin.zipkin_client_span(
+                service_name='test_service',
+                span_name='test_span',
+                transport_handler=MockTransportHandler(),
+                sample_rate=100.0,
+        ) as span:
+            assert {
+                'X-B3-TraceId': span.zipkin_attrs.trace_id,
+                'X-B3-SpanId': span.zipkin_attrs.span_id,
+                'X-B3-ParentSpanId': span.zipkin_attrs.parent_span_id,
+                'X-B3-Flags': '0',
+                'X-B3-Sampled': '1',
+            } == span.create_http_headers_for_my_span()
+
+    def test_create_http_headers_for_my_span_is_NOT_sampled(self):
+        with zipkin.zipkin_client_span(
+                service_name='test_service',
+                span_name='test_span',
+                transport_handler=MockTransportHandler(),
+                sample_rate=0.0,
+        ) as span:
+            assert {
+                'X-B3-TraceId': span.zipkin_attrs.trace_id,
+                'X-B3-SpanId': span.zipkin_attrs.span_id,
+                'X-B3-ParentSpanId': span.zipkin_attrs.parent_span_id,
+                'X-B3-Flags': '0',
+                'X-B3-Sampled': '0',
+            } == span.create_http_headers_for_my_span()
+
 
 def test_zipkin_client_span():
     context = zipkin.zipkin_client_span('test_service', 'test_span')

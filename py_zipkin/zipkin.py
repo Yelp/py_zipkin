@@ -617,6 +617,29 @@ class zipkin_span(object):
         if self.logging_context:
             self.logging_context.span_name = name
 
+    def create_http_headers_for_my_span(self):
+        """
+        Generate the headers for sharing this context object's zipkin_attrs
+        with a shared span on another host.
+
+        If this instance doesn't have zipkin_attrs set, for some reason, an
+        empty dict is returned.
+
+        :returns: dict containing (X-B3-TraceId, X-B3-SpanId, X-B3-ParentSpanId,
+                    X-B3-Flags and X-B3-Sampled) or an empty dict.
+        """
+        zipkin_attrs = self.zipkin_attrs
+        if not zipkin_attrs:
+            return {}
+
+        return {
+            'X-B3-TraceId': zipkin_attrs.trace_id,
+            'X-B3-SpanId': zipkin_attrs.span_id,
+            'X-B3-ParentSpanId': zipkin_attrs.parent_span_id,
+            'X-B3-Flags': '0',
+            'X-B3-Sampled': '1' if zipkin_attrs.is_sampled else '0',
+        }
+
 
 def _validate_args(kwargs):
     if 'kind' in kwargs:
