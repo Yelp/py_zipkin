@@ -457,6 +457,7 @@ class zipkin_span(object):
                 max_span_batch_size=self.max_span_batch_size,
                 firehose_handler=self.firehose_handler,
                 encoding=self.encoding,
+                annotations=self.annotations,
             )
             self.logging_context.start()
             self.get_tracer().set_transport_configured(configured=True)
@@ -541,6 +542,26 @@ class zipkin_span(object):
             # Otherwise, we're in the context of the root span, so just update
             # the binary annotations for the logging context directly.
             self.logging_context.tags.update(extra_annotations)
+
+    def add_annotation(self, annotation_val, timestamp=None):
+        """Add an annotation for the current span
+
+        The timestamp defaults to "now", but may be specified.
+
+        :param annotation_val: The annotation string
+        :type annotation_val: str
+        :param timestamp: Timestamp for the annotation
+        :type timestamp: float
+        """
+        timestamp = timestamp or time.time()
+        if not self.logging_context:
+            # This is not the root span, so annotations will be added
+            # to the log handler when this span context exits.
+            self.annotations[annotation_val] = timestamp
+        else:
+            # Otherwise, we're in the context of the root span, so just update
+            # the binary annotations for the logging context directly.
+            self.logging_context.annotations[annotation_val] = timestamp
 
     def add_sa_binary_annotation(
         self,

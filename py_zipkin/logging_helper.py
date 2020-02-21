@@ -37,6 +37,7 @@ class ZipkinLoggingContext(object):
         max_span_batch_size=None,
         firehose_handler=None,
         encoding=None,
+        annotations=None,
     ):
         self.zipkin_attrs = zipkin_attrs
         self.endpoint = endpoint
@@ -51,6 +52,7 @@ class ZipkinLoggingContext(object):
         self.client_context = client_context
         self.max_span_batch_size = max_span_batch_size
         self.firehose_handler = firehose_handler
+        self.annotations = annotations or {}
 
         self.remote_endpoint = None
         self.encoder = get_encoder(encoding)
@@ -108,10 +110,8 @@ class ZipkinLoggingContext(object):
 
                 span_sender.add_span(span)
 
-            annotations = {}
-
             if self.add_logging_annotation:
-                annotations[LOGGING_END_KEY] = time.time()
+                self.annotations[LOGGING_END_KEY] = time.time()
 
             span_sender.add_span(Span(
                 trace_id=self.zipkin_attrs.trace_id,
@@ -124,7 +124,7 @@ class ZipkinLoggingContext(object):
                 local_endpoint=self.endpoint,
                 remote_endpoint=self.remote_endpoint,
                 shared=not self.report_root_timestamp,
-                annotations=annotations,
+                annotations=self.annotations,
                 tags=self.tags,
             ))
 
