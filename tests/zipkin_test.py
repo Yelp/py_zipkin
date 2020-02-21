@@ -470,6 +470,7 @@ class TestZipkinSpan(object):
             max_span_batch_size=50,
             firehose_handler=firehose,
             encoding=Encoding.V2_JSON,
+            annotations={},
         )
         assert mock_log_ctx.return_value.start.call_count == 1
         assert tracer.is_transport_configured() is True
@@ -727,6 +728,69 @@ class TestZipkinSpan(object):
             assert span.binary_annotations == {
                 'region': 'uswest-1',
                 'status': '200',
+            }
+
+    def test_add_annotation_root(self):
+        with zipkin.zipkin_span(
+            service_name='test_service',
+            span_name='test_span',
+            transport_handler=MockTransportHandler(),
+            sample_rate=100.0,
+            annotations={'abc': 123},
+            add_logging_annotation=True,
+        ) as span:
+            span.add_annotation('def', 345)
+            span.add_annotation('ghi', timestamp=678)
+            with mock.patch('py_zipkin.zipkin.time.time') as mock_time:
+                mock_time.return_value = 91011
+                span.add_annotation('jkl')
+
+            assert span.logging_context.annotations == {
+                'abc': 123,
+                'def': 345,
+                'ghi': 678,
+                'jkl': 91011,
+            }
+
+    def test_add_annotation_non_root(self):
+        context = zipkin.zipkin_span(
+            service_name='test_service',
+            span_name='test_span',
+            annotations={'abc': 123},
+        )
+        context.get_tracer()._context_stack.push(zipkin.create_attrs_for_span())
+        with context as span:
+            span.add_annotation('def', 345)
+            span.add_annotation('ghi', timestamp=678)
+            with mock.patch('py_zipkin.zipkin.time.time') as mock_time:
+                mock_time.return_value = 91011
+                span.add_annotation('jkl')
+
+            assert span.annotations == {
+                'abc': 123,
+                'def': 345,
+                'ghi': 678,
+                'jkl': 91011,
+            }
+
+    def test_add_annotation_non_root_not_traced(self):
+        # nothing happens if the request is not traced
+        with zipkin.zipkin_span(
+            service_name='test_service',
+            span_name='test_span',
+            annotations={'abc': 123},
+        ) as span:
+            span.add_annotation('def', 345)
+            span.add_annotation('ghi', timestamp=678)
+            with mock.patch('py_zipkin.zipkin.time.time') as mock_time:
+                mock_time.return_value = 91011
+                span.add_annotation('jkl')
+
+            assert span.annotations == {
+                'abc': 123,
+                'def': 345,
+                'ghi': 678,
+                'jkl': 91011,
             }
 
     def test_add_sa_binary_annotation_non_client(self):
