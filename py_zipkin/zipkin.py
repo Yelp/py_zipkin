@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import functools
 import logging
-import random
 import time
 from collections import namedtuple
 
@@ -13,6 +12,7 @@ from py_zipkin.encoding._helpers import Span
 from py_zipkin.exception import ZipkinError
 from py_zipkin.logging_helper import ZipkinLoggingContext
 from py_zipkin.storage import get_default_tracer
+from py_zipkin.util import _should_sample
 from py_zipkin.util import generate_random_128bit_string
 from py_zipkin.util import generate_random_64bit_string
 
@@ -668,7 +668,11 @@ class zipkin_server_span(zipkin_span):
 
 
 def create_attrs_for_span(
-    sample_rate=100.0, trace_id=None, span_id=None, use_128bit_trace_id=False,
+    sample_rate=100.0,
+    trace_id=None,
+    span_id=None,
+    use_128bit_trace_id=False,
+    flags=None,
 ):
     """Creates a set of zipkin attributes for a span.
 
@@ -691,16 +695,13 @@ def create_attrs_for_span(
             trace_id = generate_random_64bit_string()
     if span_id is None:
         span_id = generate_random_64bit_string()
-    if sample_rate == 0.0:
-        is_sampled = False
-    else:
-        is_sampled = (random.random() * 100) < sample_rate
+    is_sampled = _should_sample(sample_rate)
 
     return ZipkinAttrs(
         trace_id=trace_id,
         span_id=span_id,
         parent_span_id=None,
-        flags="0",
+        flags=flags or "0",
         is_sampled=is_sampled,
     )
 

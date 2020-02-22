@@ -58,3 +58,11 @@ def signed_int_to_unsigned_hex(signed_int):
     if hex_string.endswith("L"):
         return hex_string[:-1]
     return hex_string
+
+
+def _should_sample(sample_rate):
+    if sample_rate == 0.0:
+        return False  # save a die roll
+    elif sample_rate == 100.0:
+        return True  # ditto
+    return (random.random() * 100) < sample_rate
