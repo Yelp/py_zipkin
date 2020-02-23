@@ -98,6 +98,17 @@ class Tracer(object):
         kwargs["_tracer"] = self
         return zipkin_span(*argv, **kwargs)
 
+    def copy(self):
+        """Return a copy of this instance, but with a deep-copied
+        _context_stack.  The use-case is for passing a copy of a Tracer into
+        a new thread context.
+        """
+        the_copy = self.__class__()
+        the_copy._is_transport_configured = self._is_transport_configured
+        the_copy._span_storage = self._span_storage
+        the_copy._context_stack = self._context_stack.copy()
+        return the_copy
+
 
 class Stack(object):
     """
@@ -128,6 +139,12 @@ class Stack(object):
     def get(self):
         if self._storage:
             return self._storage[-1]
+
+    def copy(self):
+        # Return a new Stack() instance with a deep copy of our stack contents
+        the_copy = self.__class__()
+        the_copy._storage = self._storage[:]
+        return the_copy
 
 
 class ThreadLocalStack(Stack):
@@ -171,6 +188,20 @@ def default_span_storage():
         "details on how to migrate to using Tracer."
     )
     return get_default_tracer()._span_storage
+
+
+def has_default_tracer():
+    """Is there a default tracer created already?
+
+    :returns: Is there a default tracer created already?
+    :rtype: boolean
+    """
+    try:
+        if _contextvars_tracer and _contextvars_tracer.get():
+            return True
+    except LookupError:
+        pass
+    return hasattr(_thread_local_tracer, "tracer")
 
 
 def get_default_tracer():

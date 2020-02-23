@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import threading
 import time
 
 import mock
@@ -8,6 +9,7 @@ from py_zipkin import Kind
 from py_zipkin import thrift
 from py_zipkin import zipkin
 from py_zipkin.encoding._encoders import IEncoder
+from py_zipkin.instrumentations import python_threads
 from py_zipkin.storage import Tracer
 from py_zipkin.testing import MockTransportHandler
 from py_zipkin.thrift import zipkin_core
@@ -108,3 +110,17 @@ def generate_single_thrift_span():
     )
 
     return thrift.span_to_bytes(span)
+
+
+class TracingThread(threading.Thread):
+    """A tracing-aware Thread subclass.
+
+    This just helps us test the two pieces of Thread monkey patching.
+    """
+
+    def start(self):
+        python_threads._Thread_pre_start(self)
+        super(TracingThread, self).start()
+
+    def run(self):
+        python_threads._Thread_wrap_run(self, super(TracingThread, self).run)
