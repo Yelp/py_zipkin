@@ -26,7 +26,7 @@ def get_encoder(encoding):
         return _V2JSONEncoder()
     if encoding == Encoding.V2_PROTO3:
         return _V2ProtobufEncoder()
-    raise ZipkinError('Unknown encoding: {}'.format(encoding))
+    raise ZipkinError("Unknown encoding: {}".format(encoding))
 
 
 class IEncoder(object):
@@ -92,12 +92,14 @@ class _V1ThriftEncoder(IEncoder):
         elif kind == Kind.SERVER:
             key = thrift.zipkin_core.CLIENT_ADDR
 
-        binary_annotations.append(thrift.create_binary_annotation(
-            key=key,
-            value=thrift.SERVER_ADDR_VAL,
-            annotation_type=thrift.zipkin_core.AnnotationType.BOOL,
-            host=thrift_remote_endpoint,
-        ))
+        binary_annotations.append(
+            thrift.create_binary_annotation(
+                key=key,
+                value=thrift.SERVER_ADDR_VAL,
+                annotation_type=thrift.zipkin_core.AnnotationType.BOOL,
+                host=thrift_remote_endpoint,
+            )
+        )
 
     def encode_span(self, v2_span):
         """Encodes the current span to thrift."""
@@ -111,21 +113,17 @@ class _V1ThriftEncoder(IEncoder):
         )
 
         thrift_annotations = thrift.annotation_list_builder(
-            span.annotations,
-            thrift_endpoint,
+            span.annotations, thrift_endpoint,
         )
 
         thrift_binary_annotations = thrift.binary_annotation_list_builder(
-            span.binary_annotations,
-            thrift_endpoint,
+            span.binary_annotations, thrift_endpoint,
         )
 
         # Add sa/ca binary annotations
         if v2_span.remote_endpoint:
             self.encode_remote_endpoint(
-                v2_span.remote_endpoint,
-                v2_span.kind,
-                thrift_binary_annotations,
+                v2_span.remote_endpoint, v2_span.kind, thrift_binary_annotations,
             )
 
         thrift_span = thrift.create_span(
@@ -173,22 +171,22 @@ class _BaseJSONEncoder(IEncoder):
         json_endpoint = {}
 
         if endpoint.service_name:
-            json_endpoint['serviceName'] = endpoint.service_name
+            json_endpoint["serviceName"] = endpoint.service_name
         elif is_v1:
             # serviceName is mandatory in v1
-            json_endpoint['serviceName'] = ""
+            json_endpoint["serviceName"] = ""
         if endpoint.port and endpoint.port != 0:
-            json_endpoint['port'] = endpoint.port
+            json_endpoint["port"] = endpoint.port
         if endpoint.ipv4 is not None:
-            json_endpoint['ipv4'] = endpoint.ipv4
+            json_endpoint["ipv4"] = endpoint.ipv4
         if endpoint.ipv6 is not None:
-            json_endpoint['ipv6'] = endpoint.ipv6
+            json_endpoint["ipv6"] = endpoint.ipv6
 
         return json_endpoint
 
     def encode_queue(self, queue):
         """Concatenates the list to a JSON list"""
-        return '[' + ','.join(queue) + ']'
+        return "[" + ",".join(queue) + "]"
 
 
 class _V1JSONEncoder(_BaseJSONEncoder):
@@ -197,57 +195,53 @@ class _V1JSONEncoder(_BaseJSONEncoder):
     def encode_remote_endpoint(self, remote_endpoint, kind, binary_annotations):
         json_remote_endpoint = self._create_json_endpoint(remote_endpoint, True)
         if kind == Kind.CLIENT:
-            key = 'sa'
+            key = "sa"
         elif kind == Kind.SERVER:
-            key = 'ca'
+            key = "ca"
 
-        binary_annotations.append({
-            'key': key,
-            'value': True,
-            'endpoint': json_remote_endpoint,
-        })
+        binary_annotations.append(
+            {"key": key, "value": True, "endpoint": json_remote_endpoint}
+        )
 
     def encode_span(self, v2_span):
         """Encodes a single span to JSON."""
         span = v2_span.build_v1_span()
 
         json_span = {
-            'traceId': span.trace_id,
-            'name': span.name,
-            'id': span.id,
-            'annotations': [],
-            'binaryAnnotations': [],
+            "traceId": span.trace_id,
+            "name": span.name,
+            "id": span.id,
+            "annotations": [],
+            "binaryAnnotations": [],
         }
 
         if span.parent_id:
-            json_span['parentId'] = span.parent_id
+            json_span["parentId"] = span.parent_id
         if span.timestamp:
-            json_span['timestamp'] = int(span.timestamp * 1000000)
+            json_span["timestamp"] = int(span.timestamp * 1000000)
         if span.duration:
-            json_span['duration'] = int(span.duration * 1000000)
+            json_span["duration"] = int(span.duration * 1000000)
 
         v1_endpoint = self._create_json_endpoint(span.endpoint, True)
 
         for key, timestamp in span.annotations.items():
-            json_span['annotations'].append({
-                'endpoint': v1_endpoint,
-                'timestamp': int(timestamp * 1000000),
-                'value': key,
-            })
+            json_span["annotations"].append(
+                {
+                    "endpoint": v1_endpoint,
+                    "timestamp": int(timestamp * 1000000),
+                    "value": key,
+                }
+            )
 
         for key, value in span.binary_annotations.items():
-            json_span['binaryAnnotations'].append({
-                'key': key,
-                'value': value,
-                'endpoint': v1_endpoint,
-            })
+            json_span["binaryAnnotations"].append(
+                {"key": key, "value": value, "endpoint": v1_endpoint}
+            )
 
         # Add sa/ca binary annotations
         if v2_span.remote_endpoint:
             self.encode_remote_endpoint(
-                v2_span.remote_endpoint,
-                v2_span.kind,
-                json_span['binaryAnnotations'],
+                v2_span.remote_endpoint, v2_span.kind, json_span["binaryAnnotations"],
             )
 
         encoded_span = json.dumps(json_span)
@@ -262,44 +256,39 @@ class _V2JSONEncoder(_BaseJSONEncoder):
         """Encodes a single span to JSON."""
 
         json_span = {
-            'traceId': span.trace_id,
-            'id': span.span_id,
+            "traceId": span.trace_id,
+            "id": span.span_id,
         }
 
         if span.name:
-            json_span['name'] = span.name
+            json_span["name"] = span.name
         if span.parent_id:
-            json_span['parentId'] = span.parent_id
+            json_span["parentId"] = span.parent_id
         if span.timestamp:
-            json_span['timestamp'] = int(span.timestamp * 1000000)
+            json_span["timestamp"] = int(span.timestamp * 1000000)
         if span.duration:
-            json_span['duration'] = int(span.duration * 1000000)
+            json_span["duration"] = int(span.duration * 1000000)
         if span.shared is True:
-            json_span['shared'] = True
+            json_span["shared"] = True
         if span.kind and span.kind.value is not None:
-            json_span['kind'] = span.kind.value
+            json_span["kind"] = span.kind.value
         if span.local_endpoint:
-            json_span['localEndpoint'] = self._create_json_endpoint(
-                span.local_endpoint,
-                False,
+            json_span["localEndpoint"] = self._create_json_endpoint(
+                span.local_endpoint, False,
             )
         if span.remote_endpoint:
-            json_span['remoteEndpoint'] = self._create_json_endpoint(
-                span.remote_endpoint,
-                False,
+            json_span["remoteEndpoint"] = self._create_json_endpoint(
+                span.remote_endpoint, False,
             )
         if span.tags and len(span.tags) > 0:
             # Ensure that tags are all strings
-            json_span['tags'] = {
+            json_span["tags"] = {
                 str(key): str(value) for key, value in six.iteritems(span.tags)
             }
 
         if span.annotations:
-            json_span['annotations'] = [
-                {
-                    'timestamp': int(timestamp * 1000000),
-                    'value': key,
-                }
+            json_span["annotations"] = [
+                {"timestamp": int(timestamp * 1000000), "value": key}
                 for key, timestamp in span.annotations.items()
             ]
 
@@ -319,8 +308,8 @@ class _V2ProtobufEncoder(IEncoder):
         """Encodes a single span to protobuf."""
         if not protobuf.installed():
             raise ZipkinError(
-                'protobuf encoding requires installing the protobuf\'s extra '
-                'requirements. Use py-zipkin[protobuf] in your requirements.txt.'
+                "protobuf encoding requires installing the protobuf's extra "
+                "requirements. Use py-zipkin[protobuf] in your requirements.txt."
             )
 
         pb_span = protobuf.create_protobuf_span(span)
@@ -328,4 +317,4 @@ class _V2ProtobufEncoder(IEncoder):
 
     def encode_queue(self, queue):
         """Concatenates the list to a protobuf list and encodes it to bytes"""
-        return b''.join(queue)
+        return b"".join(queue)

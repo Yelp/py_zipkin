@@ -3,7 +3,7 @@ import logging
 
 from py_zipkin.storage import get_default_tracer
 
-log = logging.getLogger('py_zipkin.thread_local')
+log = logging.getLogger("py_zipkin.thread_local")
 
 
 def get_thread_local_zipkin_attrs():
@@ -19,8 +19,10 @@ def get_thread_local_zipkin_attrs():
     :returns: list that may contain zipkin attribute tuples
     :rtype: list
     """
-    log.warning('get_thread_local_zipkin_attrs is deprecated. See DEPRECATIONS.rst'
-                ' for details on how to migrate to using Tracer.')
+    log.warning(
+        "get_thread_local_zipkin_attrs is deprecated. See DEPRECATIONS.rst"
+        " for details on how to migrate to using Tracer."
+    )
     return get_default_tracer()._context_stack._storage
 
 
@@ -38,8 +40,10 @@ def get_thread_local_span_storage():
     :returns: SpanStore object containing all non-root spans.
     :rtype: py_zipkin.storage.SpanStore
     """
-    log.warning('get_thread_local_span_storage is deprecated. See DEPRECATIONS.rst'
-                ' for details on how to migrate to using Tracer.')
+    log.warning(
+        "get_thread_local_span_storage is deprecated. See DEPRECATIONS.rst"
+        " for details on how to migrate to using Tracer."
+    )
     return get_default_tracer()._span_storage
 
 
@@ -54,8 +58,11 @@ def get_zipkin_attrs():
     :rtype: :class:`zipkin.ZipkinAttrs`
     """
     from py_zipkin.storage import ThreadLocalStack
-    log.warning('get_zipkin_attrs is deprecated. See DEPRECATIONS.rst for'
-                'details on how to migrate to using Tracer.')
+
+    log.warning(
+        "get_zipkin_attrs is deprecated. See DEPRECATIONS.rst for"
+        "details on how to migrate to using Tracer."
+    )
     return ThreadLocalStack().get()
 
 
@@ -70,8 +77,11 @@ def pop_zipkin_attrs():
     :rtype: :class:`zipkin.ZipkinAttrs`
     """
     from py_zipkin.storage import ThreadLocalStack
-    log.warning('pop_zipkin_attrs is deprecated. See DEPRECATIONS.rst for'
-                'details on how to migrate to using Tracer.')
+
+    log.warning(
+        "pop_zipkin_attrs is deprecated. See DEPRECATIONS.rst for"
+        "details on how to migrate to using Tracer."
+    )
     return ThreadLocalStack().pop()
 
 
@@ -86,6 +96,9 @@ def push_zipkin_attrs(zipkin_attr):
     :type zipkin_attr: :class:`zipkin.ZipkinAttrs`
     """
     from py_zipkin.storage import ThreadLocalStack
-    log.warning('push_zipkin_attrs is deprecated. See DEPRECATIONS.rst for'
-                'details on how to migrate to using Tracer.')
+
+    log.warning(
+        "push_zipkin_attrs is deprecated. See DEPRECATIONS.rst for"
+        "details on how to migrate to using Tracer."
+    )
     return ThreadLocalStack().push(zipkin_attr)

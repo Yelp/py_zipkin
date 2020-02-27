@@ -7,7 +7,6 @@ from py_zipkin.encoding import Encoding
 
 
 class BaseTransportHandler(object):
-
     def get_max_payload_bytes(self):  # pragma: no cover
         """Returns the maximum payload size for this transport.
 
@@ -21,14 +20,14 @@ class BaseTransportHandler(object):
 
         :returns: max payload size in bytes or None.
         """
-        raise NotImplementedError('get_max_payload_bytes is not implemented')
+        raise NotImplementedError("get_max_payload_bytes is not implemented")
 
     def send(self, payload):  # pragma: no cover
         """Sends the encoded payload over the transport.
 
         :argument payload: encoded list of spans.
         """
-        raise NotImplementedError('send is not implemented')
+        raise NotImplementedError("send is not implemented")
 
     def __call__(self, payload):
         """Internal wrapper around `send`. Do not override.
@@ -43,7 +42,6 @@ class BaseTransportHandler(object):
 
 
 class SimpleHTTPTransport(BaseTransportHandler):
-
     def __init__(self, address, port):
         """A simple HTTP transport for zipkin.
 
@@ -84,19 +82,19 @@ class SimpleHTTPTransport(BaseTransportHandler):
         encoding = detect_span_version_and_encoding(payload)
 
         if encoding == Encoding.V1_JSON:
-            return '/api/v1/spans', 'application/json'
+            return "/api/v1/spans", "application/json"
         elif encoding == Encoding.V1_THRIFT:
-            return '/api/v1/spans', 'application/x-thrift'
+            return "/api/v1/spans", "application/x-thrift"
         elif encoding == Encoding.V2_JSON:
-            return '/api/v2/spans', 'application/json'
+            return "/api/v2/spans", "application/json"
         elif encoding == Encoding.V2_PROTO3:
-            return '/api/v2/spans', 'application/x-protobuf'
+            return "/api/v2/spans", "application/x-protobuf"
 
     def send(self, payload):
         path, content_type = self._get_path_content_type(payload)
-        url = 'http://{}:{}{}'.format(self.address, self.port, path)
+        url = "http://{}:{}{}".format(self.address, self.port, path)
 
-        req = Request(url, payload, {'Content-Type': content_type})
+        req = Request(url, payload, {"Content-Type": content_type})
         response = urlopen(req)
 
         assert response.getcode() == 202

@@ -10,7 +10,7 @@ from py_zipkin.exception import ZipkinError
 from py_zipkin.transport import BaseTransportHandler
 
 
-LOGGING_END_KEY = 'py_zipkin.logging_end'
+LOGGING_END_KEY = "py_zipkin.logging_end"
 
 
 class ZipkinLoggingContext(object):
@@ -81,18 +81,18 @@ class ZipkinLoggingContext(object):
         if self.firehose_handler:
             # FIXME: We need to allow different batching settings per handler
             self._emit_spans_with_span_sender(
-                ZipkinBatchSender(self.firehose_handler,
-                                  self.max_span_batch_size,
-                                  self.encoder)
+                ZipkinBatchSender(
+                    self.firehose_handler, self.max_span_batch_size, self.encoder
+                )
             )
 
         if not self.zipkin_attrs.is_sampled:
             self._get_tracer().clear()
             return
 
-        span_sender = ZipkinBatchSender(self.transport_handler,
-                                        self.max_span_batch_size,
-                                        self.encoder)
+        span_sender = ZipkinBatchSender(
+            self.transport_handler, self.max_span_batch_size, self.encoder
+        )
 
         self._emit_spans_with_span_sender(span_sender)
         self._get_tracer().clear()
@@ -104,8 +104,7 @@ class ZipkinLoggingContext(object):
             # Collect, annotate, and log client spans from the logging handler
             for span in self._get_tracer()._span_storage:
                 span.local_endpoint = copy_endpoint_with_new_service_name(
-                    self.endpoint,
-                    span.local_endpoint.service_name,
+                    self.endpoint, span.local_endpoint.service_name,
                 )
 
                 span_sender.add_span(span)
@@ -113,20 +112,22 @@ class ZipkinLoggingContext(object):
             if self.add_logging_annotation:
                 self.annotations[LOGGING_END_KEY] = time.time()
 
-            span_sender.add_span(Span(
-                trace_id=self.zipkin_attrs.trace_id,
-                name=self.span_name,
-                parent_id=self.zipkin_attrs.parent_span_id,
-                span_id=self.zipkin_attrs.span_id,
-                kind=Kind.CLIENT if self.client_context else Kind.SERVER,
-                timestamp=self.start_timestamp,
-                duration=end_timestamp - self.start_timestamp,
-                local_endpoint=self.endpoint,
-                remote_endpoint=self.remote_endpoint,
-                shared=not self.report_root_timestamp,
-                annotations=self.annotations,
-                tags=self.tags,
-            ))
+            span_sender.add_span(
+                Span(
+                    trace_id=self.zipkin_attrs.trace_id,
+                    name=self.span_name,
+                    parent_id=self.zipkin_attrs.parent_span_id,
+                    span_id=self.zipkin_attrs.span_id,
+                    kind=Kind.CLIENT if self.client_context else Kind.SERVER,
+                    timestamp=self.start_timestamp,
+                    duration=end_timestamp - self.start_timestamp,
+                    local_endpoint=self.endpoint,
+                    remote_endpoint=self.remote_endpoint,
+                    shared=not self.report_root_timestamp,
+                    annotations=self.annotations,
+                    tags=self.tags,
+                )
+            )
 
 
 class ZipkinBatchSender(object):
@@ -150,11 +151,8 @@ class ZipkinBatchSender(object):
     def __exit__(self, _exc_type, _exc_value, _exc_traceback):
         if any((_exc_type, _exc_value, _exc_traceback)):
             filename = os.path.split(_exc_traceback.tb_frame.f_code.co_filename)[1]
-            error = '({0}:{1}) {2}: {3}'.format(
-                filename,
-                _exc_traceback.tb_lineno,
-                _exc_type.__name__,
-                _exc_value,
+            error = "({0}:{1}) {2}: {3}".format(
+                filename, _exc_traceback.tb_lineno, _exc_type.__name__, _exc_value,
             )
             raise ZipkinError(error)
         else:
@@ -171,8 +169,8 @@ class ZipkinBatchSender(object):
         # fit in max_payload_bytes, send what we've collected until now and
         # start a new batch.
         is_over_size_limit = (
-            self.max_payload_bytes is not None and
-            not self.encoder.fits(
+            self.max_payload_bytes is not None
+            and not self.encoder.fits(
                 current_count=len(self.queue),
                 current_size=self.current_size,
                 max_size=self.max_payload_bytes,

@@ -17,9 +17,9 @@ from py_zipkin.exception import ZipkinError
 from py_zipkin.thrift import zipkin_core
 
 _HEX_DIGITS = "0123456789abcdef"
-_DROP_ANNOTATIONS = {'cs', 'sr', 'ss', 'cr'}
+_DROP_ANNOTATIONS = {"cs", "sr", "ss", "cr"}
 
-log = logging.getLogger('py_zipkin.encoding')
+log = logging.getLogger("py_zipkin.encoding")
 
 
 def get_decoder(encoding):
@@ -33,12 +33,10 @@ def get_decoder(encoding):
     if encoding == Encoding.V1_THRIFT:
         return _V1ThriftDecoder()
     if encoding == Encoding.V1_JSON:
-        raise NotImplementedError(
-            '{} decoding not yet implemented'.format(encoding))
+        raise NotImplementedError("{} decoding not yet implemented".format(encoding))
     if encoding == Encoding.V2_JSON:
-        raise NotImplementedError(
-            '{} decoding not yet implemented'.format(encoding))
-    raise ZipkinError('Unknown encoding: {}'.format(encoding))
+        raise NotImplementedError("{} decoding not yet implemented".format(encoding))
+    raise ZipkinError("Unknown encoding: {}".format(encoding))
 
 
 class IDecoder(object):
@@ -56,7 +54,6 @@ class IDecoder(object):
 
 
 class _V1ThriftDecoder(IDecoder):
-
     def decode_spans(self, spans):
         """Decodes an encoded list of spans.
 
@@ -89,22 +86,18 @@ class _V1ThriftDecoder(IDecoder):
         """
         ipv4 = None
         ipv6 = None
-        port = struct.unpack('H', struct.pack('h', thrift_endpoint.port))[0]
+        port = struct.unpack("H", struct.pack("h", thrift_endpoint.port))[0]
 
         if thrift_endpoint.ipv4 != 0:
             ipv4 = socket.inet_ntop(
-                socket.AF_INET,
-                struct.pack('!i', thrift_endpoint.ipv4),
+                socket.AF_INET, struct.pack("!i", thrift_endpoint.ipv4),
             )
 
         if thrift_endpoint.ipv6:
             ipv6 = socket.inet_ntop(socket.AF_INET6, thrift_endpoint.ipv6)
 
         return Endpoint(
-            service_name=thrift_endpoint.service_name,
-            ipv4=ipv4,
-            ipv6=ipv6,
-            port=port,
+            service_name=thrift_endpoint.service_name, ipv4=ipv4, ipv6=ipv6, port=port,
         )
 
     def _decode_thrift_annotations(self, thrift_annotations):
@@ -127,17 +120,18 @@ class _V1ThriftDecoder(IDecoder):
                     thrift_annotation.host,
                 )
 
-        if 'cs' in all_annotations and 'sr' not in all_annotations:
+        if "cs" in all_annotations and "sr" not in all_annotations:
             kind = Kind.CLIENT
-            timestamp = all_annotations['cs']
-            duration = all_annotations['cr'] - all_annotations['cs']
-        elif 'cs' not in all_annotations and 'sr' in all_annotations:
+            timestamp = all_annotations["cs"]
+            duration = all_annotations["cr"] - all_annotations["cs"]
+        elif "cs" not in all_annotations and "sr" in all_annotations:
             kind = Kind.SERVER
-            timestamp = all_annotations['sr']
-            duration = all_annotations['ss'] - all_annotations['sr']
+            timestamp = all_annotations["sr"]
+            duration = all_annotations["ss"] - all_annotations["sr"]
 
         annotations = {
-            name: self.seconds(ts) for name, ts in all_annotations.items()
+            name: self.seconds(ts)
+            for name, ts in all_annotations.items()
             if name not in _DROP_ANNOTATIONS
         }
 
@@ -152,7 +146,7 @@ class _V1ThriftDecoder(IDecoder):
         remote_endpoint = None
 
         for binary_annotation in thrift_binary_annotations:
-            if binary_annotation.key == 'sa':
+            if binary_annotation.key == "sa":
                 remote_endpoint = self._convert_from_thrift_endpoint(
                     thrift_endpoint=binary_annotation.host,
                 )
@@ -167,8 +161,10 @@ class _V1ThriftDecoder(IDecoder):
                 elif annotation_type == zipkin_core.AnnotationType.STRING:
                     tags[key] = value
                 else:
-                    log.warning('Only STRING and BOOL binary annotations are '
-                                'supported right now and can be properly decoded.')
+                    log.warning(
+                        "Only STRING and BOOL binary annotations are "
+                        "supported right now and can be properly decoded."
+                    )
 
                 if binary_annotation.host:
                     local_endpoint = self._convert_from_thrift_endpoint(
@@ -200,23 +196,28 @@ class _V1ThriftDecoder(IDecoder):
         duration = None
 
         if thrift_span.parent_id:
-            parent_id = self._convert_unsigned_long_to_lower_hex(
-                thrift_span.parent_id,
-            )
+            parent_id = self._convert_unsigned_long_to_lower_hex(thrift_span.parent_id)
 
         if thrift_span.annotations:
-            annotations, local_endpoint, kind, timestamp, duration = \
-                self._decode_thrift_annotations(thrift_span.annotations)
+            (
+                annotations,
+                local_endpoint,
+                kind,
+                timestamp,
+                duration,
+            ) = self._decode_thrift_annotations(thrift_span.annotations)
 
         if thrift_span.binary_annotations:
-            tags, local_endpoint, remote_endpoint = \
-                self._convert_from_thrift_binary_annotations(
-                    thrift_span.binary_annotations,
-                )
+            (
+                tags,
+                local_endpoint,
+                remote_endpoint,
+            ) = self._convert_from_thrift_binary_annotations(
+                thrift_span.binary_annotations,
+            )
 
         trace_id = self._convert_trace_id_to_string(
-            thrift_span.trace_id,
-            thrift_span.trace_id_high,
+            thrift_span.trace_id, thrift_span.trace_id_high,
         )
 
         return Span(
@@ -278,15 +279,15 @@ class _V1ThriftDecoder(IDecoder):
         :param value: the value to write
         :type value: unsigned long
         """
-        self._write_hex_byte(data, pos + 0, (value >> 56) & 0xff)
-        self._write_hex_byte(data, pos + 2, (value >> 48) & 0xff)
-        self._write_hex_byte(data, pos + 4, (value >> 40) & 0xff)
-        self._write_hex_byte(data, pos + 6, (value >> 32) & 0xff)
-        self._write_hex_byte(data, pos + 8, (value >> 24) & 0xff)
-        self._write_hex_byte(data, pos + 10, (value >> 16) & 0xff)
-        self._write_hex_byte(data, pos + 12, (value >> 8) & 0xff)
-        self._write_hex_byte(data, pos + 14, (value & 0xff))
+        self._write_hex_byte(data, pos + 0, (value >> 56) & 0xFF)
+        self._write_hex_byte(data, pos + 2, (value >> 48) & 0xFF)
+        self._write_hex_byte(data, pos + 4, (value >> 40) & 0xFF)
+        self._write_hex_byte(data, pos + 6, (value >> 32) & 0xFF)
+        self._write_hex_byte(data, pos + 8, (value >> 24) & 0xFF)
+        self._write_hex_byte(data, pos + 10, (value >> 16) & 0xFF)
+        self._write_hex_byte(data, pos + 12, (value >> 8) & 0xFF)
+        self._write_hex_byte(data, pos + 14, (value & 0xFF))
 
     def _write_hex_byte(self, data, pos, byte):
-        data[pos + 0] = ord(_HEX_DIGITS[int((byte >> 4) & 0xf)])
-        data[pos + 1] = ord(_HEX_DIGITS[int(byte & 0xf)])
+        data[pos + 0] = ord(_HEX_DIGITS[int((byte >> 4) & 0xF)])
+        data[pos + 1] = ord(_HEX_DIGITS[int(byte & 0xF)])

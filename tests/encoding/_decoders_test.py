@@ -24,7 +24,7 @@ USEC = 1000 * 1000
 
 @pytest.fixture
 def thrift_endpoint():
-    return thrift.create_endpoint(8888, 'test_service', '10.0.0.1', None)
+    return thrift.create_endpoint(8888, "test_service", "10.0.0.1", None)
 
 
 def test_get_decoder():
@@ -40,15 +40,14 @@ def test_get_decoder():
 def test_idecoder_throws_not_implemented_errors():
     encoder = IDecoder()
     with pytest.raises(NotImplementedError):
-        encoder.decode_spans(b'[]')
+        encoder.decode_spans(b"[]")
 
 
 class TestV1ThriftDecoder(object):
-
     def test_decode_spans_list(self):
         spans, _, _, _ = generate_list_of_spans(Encoding.V1_THRIFT)
         decoder = _V1ThriftDecoder()
-        with mock.patch.object(decoder, '_decode_thrift_span') as mock_decode:
+        with mock.patch.object(decoder, "_decode_thrift_span") as mock_decode:
             decoder.decode_spans(spans)
             assert mock_decode.call_count == 2
 
@@ -62,7 +61,7 @@ class TestV1ThriftDecoder(object):
         """
         span = generate_single_thrift_span()
         decoder = _V1ThriftDecoder()
-        with mock.patch.object(decoder, '_decode_thrift_span') as mock_decode:
+        with mock.patch.object(decoder, "_decode_thrift_span") as mock_decode:
             decoder.decode_spans(span)
             assert mock_decode.call_count == 1
 
@@ -70,30 +69,25 @@ class TestV1ThriftDecoder(object):
         decoder = _V1ThriftDecoder()
 
         ipv4_endpoint = decoder._convert_from_thrift_endpoint(thrift_endpoint)
-        assert ipv4_endpoint == Endpoint('test_service', '10.0.0.1', None, 8888)
+        assert ipv4_endpoint == Endpoint("test_service", "10.0.0.1", None, 8888)
 
-        ipv6_thrift_endpoint = \
-            thrift.create_endpoint(8888, 'test_service', None, '::1')
+        ipv6_thrift_endpoint = thrift.create_endpoint(8888, "test_service", None, "::1")
         ipv6_endpoint = decoder._convert_from_thrift_endpoint(ipv6_thrift_endpoint)
-        assert ipv6_endpoint == Endpoint('test_service', None, '::1', 8888)
+        assert ipv6_endpoint == Endpoint("test_service", None, "::1", 8888)
 
     def test__decode_thrift_annotations(self, thrift_endpoint):
         timestamp = 1.0
         decoder = _V1ThriftDecoder()
         thrift_annotations = thrift.annotation_list_builder(
-            {
-                'cs': timestamp,
-                'cr': timestamp + 10,
-                'my_annotation': timestamp + 15,
-            },
+            {"cs": timestamp, "cr": timestamp + 10, "my_annotation": timestamp + 15},
             thrift_endpoint,
         )
 
         annotations, end, kind, ts, dur = decoder._decode_thrift_annotations(
             thrift_annotations,
         )
-        assert annotations == {'my_annotation': 16.0}
-        assert end == Endpoint('test_service', '10.0.0.1', None, 8888)
+        assert annotations == {"my_annotation": 16.0}
+        assert end == Endpoint("test_service", "10.0.0.1", None, 8888)
         assert kind == Kind.CLIENT
         assert ts == timestamp * USEC
         assert dur == 10 * USEC
@@ -102,18 +96,14 @@ class TestV1ThriftDecoder(object):
         timestamp = 1.0
         decoder = _V1ThriftDecoder()
         thrift_annotations = thrift.annotation_list_builder(
-            {
-                'sr': timestamp,
-                'ss': timestamp + 10,
-            },
-            thrift_endpoint,
+            {"sr": timestamp, "ss": timestamp + 10}, thrift_endpoint,
         )
 
         annotations, end, kind, ts, dur = decoder._decode_thrift_annotations(
             thrift_annotations,
         )
         assert annotations == {}
-        assert end == Endpoint('test_service', '10.0.0.1', None, 8888)
+        assert end == Endpoint("test_service", "10.0.0.1", None, 8888)
         assert kind == Kind.SERVER
         assert ts == timestamp * USEC
         assert dur == 10 * USEC
@@ -123,10 +113,10 @@ class TestV1ThriftDecoder(object):
         decoder = _V1ThriftDecoder()
         thrift_annotations = thrift.annotation_list_builder(
             {
-                'cs': timestamp,
-                'sr': timestamp,
-                'ss': timestamp + 10,
-                'cr': timestamp + 10,
+                "cs": timestamp,
+                "sr": timestamp,
+                "ss": timestamp + 10,
+                "cr": timestamp + 10,
             },
             thrift_endpoint,
         )
@@ -135,7 +125,7 @@ class TestV1ThriftDecoder(object):
             thrift_annotations,
         )
         assert annotations == {}
-        assert end == Endpoint('test_service', '10.0.0.1', None, 8888)
+        assert end == Endpoint("test_service", "10.0.0.1", None, 8888)
         assert kind == Kind.LOCAL
         # ts and dur are not computed for a local span since those always have
         # timestamp and duration set as span arguments.
@@ -144,62 +134,64 @@ class TestV1ThriftDecoder(object):
 
     def test__convert_from_thrift_binary_annotations(self):
         decoder = _V1ThriftDecoder()
-        local_host = thrift.create_endpoint(8888, 'test_service', '10.0.0.1', None)
-        remote_host = thrift.create_endpoint(9999, 'rem_service', '10.0.0.2', None)
+        local_host = thrift.create_endpoint(8888, "test_service", "10.0.0.1", None)
+        remote_host = thrift.create_endpoint(9999, "rem_service", "10.0.0.2", None)
         ann_type = zipkin_core.AnnotationType
         thrift_binary_annotations = [
-            create_binary_annotation('key1', True, ann_type.BOOL, local_host),
-            create_binary_annotation('key2', 'val2', ann_type.STRING, local_host),
-            create_binary_annotation('key3', False, ann_type.BOOL, local_host),
-            create_binary_annotation('key4', b'04', ann_type.I16, local_host),
-            create_binary_annotation('key5', b'0004', ann_type.I32, local_host),
-            create_binary_annotation('sa', True, ann_type.BOOL, remote_host),
+            create_binary_annotation("key1", True, ann_type.BOOL, local_host),
+            create_binary_annotation("key2", "val2", ann_type.STRING, local_host),
+            create_binary_annotation("key3", False, ann_type.BOOL, local_host),
+            create_binary_annotation("key4", b"04", ann_type.I16, local_host),
+            create_binary_annotation("key5", b"0004", ann_type.I32, local_host),
+            create_binary_annotation("sa", True, ann_type.BOOL, remote_host),
         ]
 
-        tags, local_endpoint, remote_endpoint = \
-            decoder._convert_from_thrift_binary_annotations(
-                thrift_binary_annotations,
-            )
+        (
+            tags,
+            local_endpoint,
+            remote_endpoint,
+        ) = decoder._convert_from_thrift_binary_annotations(thrift_binary_annotations)
 
         assert tags == {
-            'key1': 'true',
-            'key2': 'val2',
-            'key3': 'false',
+            "key1": "true",
+            "key2": "val2",
+            "key3": "false",
         }
-        assert local_endpoint == Endpoint('test_service', '10.0.0.1', None, 8888)
-        assert remote_endpoint == Endpoint('rem_service', '10.0.0.2', None, 9999)
+        assert local_endpoint == Endpoint("test_service", "10.0.0.1", None, 8888)
+        assert remote_endpoint == Endpoint("rem_service", "10.0.0.2", None, 9999)
 
     def test__convert_from_thrift_binary_annotations_unicode(self):
         decoder = _V1ThriftDecoder()
-        local_host = thrift.create_endpoint(8888, 'test_service', '10.0.0.1', None)
+        local_host = thrift.create_endpoint(8888, "test_service", "10.0.0.1", None)
         ann_type = zipkin_core.AnnotationType
         thrift_binary_annotations = [
-            create_binary_annotation('key1', u'再见', ann_type.STRING, local_host),
-            create_binary_annotation('key2', 'val2', ann_type.STRING, local_host),
-            create_binary_annotation('key3', '再见', ann_type.STRING, local_host),
+            create_binary_annotation("key1", u"再见", ann_type.STRING, local_host),
+            create_binary_annotation("key2", "val2", ann_type.STRING, local_host),
+            create_binary_annotation("key3", "再见", ann_type.STRING, local_host),
         ]
 
-        tags, local_endpoint, remote_endpoint = \
-            decoder._convert_from_thrift_binary_annotations(
-                thrift_binary_annotations,
-            )
+        (
+            tags,
+            local_endpoint,
+            remote_endpoint,
+        ) = decoder._convert_from_thrift_binary_annotations(thrift_binary_annotations)
 
         assert tags == {
-            'key1': u'再见',
-            'key2': 'val2',
-            'key3': '再见',
+            "key1": u"再见",
+            "key2": "val2",
+            "key3": "再见",
         }
-        assert local_endpoint == Endpoint('test_service', '10.0.0.1', None, 8888)
+        assert local_endpoint == Endpoint("test_service", "10.0.0.1", None, 8888)
 
     def test_seconds_doesnt_crash_with_none(self):
         decoder = _V1ThriftDecoder()
         assert decoder.seconds(6000000) == 6.0
         assert decoder.seconds(None) is None
 
-    @pytest.mark.parametrize('trace_id_generator', [
-        (generate_random_64bit_string),
-        (generate_random_128bit_string),
-    ])
+    @pytest.mark.parametrize(
+        "trace_id_generator",
+        [(generate_random_64bit_string), (generate_random_128bit_string)],
+    )
     def test__convert_trace_id_to_string(self, trace_id_generator):
         decoder = _V1ThriftDecoder()
         trace_id = trace_id_generator()
@@ -207,16 +199,16 @@ class TestV1ThriftDecoder(object):
             generate_random_64bit_string(),
             None,
             trace_id,
-            'test_span',
+            "test_span",
             [],
             [],
             None,
             None,
         )
-        assert decoder._convert_trace_id_to_string(
-            span.trace_id,
-            span.trace_id_high,
-        ) == trace_id
+        assert (
+            decoder._convert_trace_id_to_string(span.trace_id, span.trace_id_high)
+            == trace_id
+        )
 
     def test__convert_unsigned_long_to_lower_hex(self):
         decoder = _V1ThriftDecoder()
@@ -225,7 +217,7 @@ class TestV1ThriftDecoder(object):
             span_id,
             None,
             generate_random_64bit_string(),
-            'test_span',
+            "test_span",
             [],
             [],
             None,

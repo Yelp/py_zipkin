@@ -4,6 +4,7 @@ import struct
 
 from py_zipkin.encoding._types import Kind
 from py_zipkin.util import unsigned_hex_to_signed_int
+
 try:
     from py_zipkin.encoding.protobuf import zipkin_pb2
 except ImportError:  # pragma: no cover
@@ -47,41 +48,41 @@ def create_protobuf_span(span):
     # Instead we just create the kwargs and pass them in to the Span constructor.
     pb_kwargs = {}
 
-    pb_kwargs['trace_id'] = _hex_to_bytes(span.trace_id)
+    pb_kwargs["trace_id"] = _hex_to_bytes(span.trace_id)
 
     if span.parent_id:
-        pb_kwargs['parent_id'] = _hex_to_bytes(span.parent_id)
+        pb_kwargs["parent_id"] = _hex_to_bytes(span.parent_id)
 
-    pb_kwargs['id'] = _hex_to_bytes(span.span_id)
+    pb_kwargs["id"] = _hex_to_bytes(span.span_id)
 
     pb_kind = _get_protobuf_kind(span.kind)
     if pb_kind:
-        pb_kwargs['kind'] = pb_kind
+        pb_kwargs["kind"] = pb_kind
 
     if span.name:
-        pb_kwargs['name'] = span.name
+        pb_kwargs["name"] = span.name
     if span.timestamp:
-        pb_kwargs['timestamp'] = int(span.timestamp * 1000 * 1000)
+        pb_kwargs["timestamp"] = int(span.timestamp * 1000 * 1000)
     if span.duration:
-        pb_kwargs['duration'] = int(span.duration * 1000 * 1000)
+        pb_kwargs["duration"] = int(span.duration * 1000 * 1000)
 
     if span.local_endpoint:
-        pb_kwargs['local_endpoint'] = _convert_endpoint(span.local_endpoint)
+        pb_kwargs["local_endpoint"] = _convert_endpoint(span.local_endpoint)
 
     if span.remote_endpoint:
-        pb_kwargs['remote_endpoint'] = _convert_endpoint(span.remote_endpoint)
+        pb_kwargs["remote_endpoint"] = _convert_endpoint(span.remote_endpoint)
 
     if len(span.annotations) > 0:
-        pb_kwargs['annotations'] = _convert_annotations(span.annotations)
+        pb_kwargs["annotations"] = _convert_annotations(span.annotations)
 
     if len(span.tags) > 0:
-        pb_kwargs['tags'] = span.tags
+        pb_kwargs["tags"] = span.tags
 
     if span.debug:
-        pb_kwargs['debug'] = span.debug
+        pb_kwargs["debug"] = span.debug
 
     if span.shared:
-        pb_kwargs['shared'] = span.shared
+        pb_kwargs["shared"] = span.shared
 
     return zipkin_pb2.Span(**pb_kwargs)
 
@@ -96,7 +97,7 @@ def _hex_to_bytes(hex_id):
     """
     if len(hex_id) <= 16:
         int_id = unsigned_hex_to_signed_int(hex_id)
-        return struct.pack('>q', int_id)
+        return struct.pack(">q", int_id)
     else:
         # There's no 16-bytes encoding in Python's struct. So we convert the
         # id as 2 64 bit ids and then concatenate the result.
@@ -104,10 +105,10 @@ def _hex_to_bytes(hex_id):
         # NOTE: we count 16 chars from the right (:-16) rather than the left so
         # that ids with less than 32 chars will be correctly pre-padded with 0s.
         high_id = unsigned_hex_to_signed_int(hex_id[:-16])
-        high_bin = struct.pack('>q', high_id)
+        high_bin = struct.pack(">q", high_id)
 
         low_id = unsigned_hex_to_signed_int(hex_id[-16:])
-        low_bin = struct.pack('>q', low_id)
+        low_bin = struct.pack(">q", low_id)
 
         return high_bin + low_bin
 
@@ -163,8 +164,7 @@ def _convert_annotations(annotations):
     """
     pb_annotations = []
     for value, ts in annotations.items():
-        pb_annotations.append(zipkin_pb2.Annotation(
-            timestamp=int(ts * 1000 * 1000),
-            value=value,
-        ))
+        pb_annotations.append(
+            zipkin_pb2.Annotation(timestamp=int(ts * 1000 * 1000), value=value)
+        )
     return pb_annotations

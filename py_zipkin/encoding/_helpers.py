@@ -7,22 +7,29 @@ from py_zipkin.encoding._types import Kind
 from py_zipkin.exception import ZipkinError
 
 
-Endpoint = namedtuple(
-    'Endpoint',
-    ['service_name', 'ipv4', 'ipv6', 'port'],
-)
+Endpoint = namedtuple("Endpoint", ["service_name", "ipv4", "ipv6", "port"])
 
 
 _V1Span = namedtuple(
-    'V1Span',
-    ['trace_id', 'name', 'parent_id', 'id', 'timestamp', 'duration', 'endpoint',
-     'annotations', 'binary_annotations', 'remote_endpoint'],
+    "V1Span",
+    [
+        "trace_id",
+        "name",
+        "parent_id",
+        "id",
+        "timestamp",
+        "duration",
+        "endpoint",
+        "annotations",
+        "binary_annotations",
+        "remote_endpoint",
+    ],
 )
 
 
 _DROP_ANNOTATIONS_BY_KIND = {
-    Kind.CLIENT: {'ss', 'sr'},
-    Kind.SERVER: {'cs', 'cr'},
+    Kind.CLIENT: {"ss", "sr"},
+    Kind.SERVER: {"cs", "cr"},
 }
 
 
@@ -92,15 +99,16 @@ class Span(object):
 
         if not isinstance(kind, Kind):
             raise ZipkinError(
-                'Invalid kind value {}. Must be of type Kind.'.format(kind))
+                "Invalid kind value {}. Must be of type Kind.".format(kind)
+            )
 
         if local_endpoint and not isinstance(local_endpoint, Endpoint):
-            raise ZipkinError(
-                'Invalid local_endpoint value. Must be of type Endpoint.')
+            raise ZipkinError("Invalid local_endpoint value. Must be of type Endpoint.")
 
         if remote_endpoint and not isinstance(remote_endpoint, Endpoint):
             raise ZipkinError(
-                'Invalid remote_endpoint value. Must be of type Endpoint.')
+                "Invalid remote_endpoint value. Must be of type Endpoint."
+            )
 
     def __eq__(self, other):  # pragma: no cover
         """Compare function to help assert span1 == span2 in py3"""
@@ -121,12 +129,14 @@ class Span(object):
         :rtype: _V1Span
         """
         # We are simulating a full two-part span locally, so set cs=sr and ss=cr
-        full_annotations = OrderedDict([
-            ('cs', self.timestamp),
-            ('sr', self.timestamp),
-            ('ss', self.timestamp + self.duration),
-            ('cr', self.timestamp + self.duration),
-        ])
+        full_annotations = OrderedDict(
+            [
+                ("cs", self.timestamp),
+                ("sr", self.timestamp),
+                ("ss", self.timestamp + self.duration),
+                ("cr", self.timestamp + self.duration),
+            ]
+        )
 
         if self.kind != Kind.LOCAL:
             # If kind is not LOCAL, then we only want client or
@@ -171,12 +181,12 @@ def create_endpoint(port=None, service_name=None, host=None, use_defaults=True):
         if port is None:
             port = 0
         if service_name is None:
-            service_name = 'unknown'
+            service_name = "unknown"
         if host is None:
             try:
                 host = socket.gethostbyname(socket.gethostname())
             except socket.gaierror:
-                host = '127.0.0.1'
+                host = "127.0.0.1"
 
     ipv4 = None
     ipv6 = None
@@ -195,12 +205,7 @@ def create_endpoint(port=None, service_name=None, host=None, use_defaults=True):
                 # If it's neither ipv4 or ipv6, leave both ip addresses unset.
                 pass
 
-    return Endpoint(
-        ipv4=ipv4,
-        ipv6=ipv6,
-        port=port,
-        service_name=service_name,
-    )
+    return Endpoint(ipv4=ipv4, ipv6=ipv6, port=port, service_name=service_name)
 
 
 def copy_endpoint_with_new_service_name(endpoint, new_service_name):

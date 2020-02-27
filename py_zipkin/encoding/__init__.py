@@ -33,7 +33,7 @@ def detect_span_version_and_encoding(message):
         if six.PY2:
             message = six.b(message)  # pragma: no cover
         else:
-            message = message.encode('utf-8')  # pragma: no cover
+            message = message.encode("utf-8")  # pragma: no cover
 
     if len(message) < 2:
         raise ZipkinError("Invalid span format. Message too short.")
@@ -44,10 +44,10 @@ def detect_span_version_and_encoding(message):
             return Encoding.V2_PROTO3
         return Encoding.V1_THRIFT
 
-    str_msg = message.decode('utf-8')
+    str_msg = message.decode("utf-8")
 
     # JSON case for list of spans
-    if str_msg[0] == '[':
+    if str_msg[0] == "[":
         span_list = json.loads(str_msg)
         if len(span_list) > 0:
             # Assumption: All spans in a list are the same version
@@ -57,12 +57,8 @@ def detect_span_version_and_encoding(message):
             for span in span_list:
                 if any(word in span for word in _V2_ATTRIBUTES):
                     return Encoding.V2_JSON
-                elif (
-                    'binaryAnnotations' in span or
-                    (
-                        'annotations' in span and
-                        'endpoint' in span['annotations']
-                    )
+                elif "binaryAnnotations" in span or (
+                    "annotations" in span and "endpoint" in span["annotations"]
                 ):
                     return Encoding.V1_JSON
             return Encoding.V2_JSON

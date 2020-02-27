@@ -4,8 +4,8 @@ from py_zipkin import storage
 from tests.test_helpers import MockTracer
 
 
-@mock.patch.object(storage, '_thread_local_tracer')
-@mock.patch.object(storage, 'Tracer')
+@mock.patch.object(storage, "_thread_local_tracer")
+@mock.patch.object(storage, "Tracer")
 def test_get_thread_local_tracer_no_tracer(mock_tracer, mock_tl):
     del mock_tl.tracer
     tracer = storage._get_thread_local_tracer()
@@ -14,7 +14,7 @@ def test_get_thread_local_tracer_no_tracer(mock_tracer, mock_tl):
     assert tracer == mock_tracer.return_value
 
 
-@mock.patch.object(storage, '_thread_local_tracer')
+@mock.patch.object(storage, "_thread_local_tracer")
 def test_set_thread_local_tracer(mock_tl):
     tracer = MockTracer()
     storage._set_thread_local_tracer(tracer)
@@ -22,8 +22,8 @@ def test_set_thread_local_tracer(mock_tl):
     assert storage._get_thread_local_tracer() == tracer
 
 
-@mock.patch.object(storage, '_thread_local_tracer')
-@mock.patch.object(storage, 'Tracer')
+@mock.patch.object(storage, "_thread_local_tracer")
+@mock.patch.object(storage, "Tracer")
 def test_get_thread_local_tracer_existing_tracer(mock_tracer, mock_tl):
     tracer = storage._get_thread_local_tracer()
 
@@ -32,12 +32,12 @@ def test_get_thread_local_tracer_existing_tracer(mock_tracer, mock_tl):
 
 
 def test_default_span_storage_warns():
-    with mock.patch.object(storage.log, 'warning') as mock_log:
+    with mock.patch.object(storage.log, "warning") as mock_log:
         storage.default_span_storage()
         assert mock_log.call_count == 1
 
 
-@mock.patch.object(storage, '_contextvars_tracer')
+@mock.patch.object(storage, "_contextvars_tracer")
 def test_get_default_tracer(mock_contextvar):
     # We're in python 3.7+
     assert storage.get_default_tracer() == storage._contextvars_tracer.get()
@@ -45,11 +45,10 @@ def test_get_default_tracer(mock_contextvar):
     storage._contextvars_tracer = None
 
     # We're in python 2.7 to 3.6
-    assert storage.get_default_tracer() == \
-        storage._thread_local_tracer.tracer
+    assert storage.get_default_tracer() == storage._thread_local_tracer.tracer
 
 
-@mock.patch.object(storage, '_contextvars_tracer')
+@mock.patch.object(storage, "_contextvars_tracer")
 def test_set_default_tracer(mock_contextvar):
     tracer = MockTracer()
     # We're in python 3.7+

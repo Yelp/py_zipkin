@@ -11,7 +11,7 @@ def generate_random_64bit_string():
 
     :returns: random 16-character string
     """
-    return '{:016x}'.format(random.getrandbits(64))
+    return "{:016x}".format(random.getrandbits(64))
 
 
 def generate_random_128bit_string():
@@ -26,7 +26,7 @@ def generate_random_128bit_string():
     """
     t = int(time.time())
     lower_96 = random.getrandbits(96)
-    return '{:032x}'.format((t << 96) | lower_96)
+    return "{:032x}".format((t << 96) | lower_96)
 
 
 def unsigned_hex_to_signed_int(hex_string):
@@ -41,7 +41,7 @@ def unsigned_hex_to_signed_int(hex_string):
     :param hex_string: the string representation of a zipkin ID
     :returns: signed int representation
     """
-    return struct.unpack('q', struct.pack('Q', int(hex_string, 16)))[0]
+    return struct.unpack("q", struct.pack("Q", int(hex_string, 16)))[0]
 
 
 def signed_int_to_unsigned_hex(signed_int):
@@ -54,7 +54,7 @@ def signed_int_to_unsigned_hex(signed_int):
     :param signed_int: an int to convert
     :returns: unsigned hex string
     """
-    hex_string = hex(struct.unpack('Q', struct.pack('q', signed_int))[0])[2:]
-    if hex_string.endswith('L'):
+    hex_string = hex(struct.unpack("Q", struct.pack("q", signed_int))[0])[2:]
+    if hex_string.endswith("L"):
         return hex_string[:-1]
     return hex_string

@@ -12,10 +12,10 @@ from thriftpy2.transport import TMemoryBuffer
 from py_zipkin.util import unsigned_hex_to_signed_int
 
 
-thrift_filepath = os.path.join(os.path.dirname(__file__), 'zipkinCore.thrift')
+thrift_filepath = os.path.join(os.path.dirname(__file__), "zipkinCore.thrift")
 zipkin_core = thriftpy2.load(thrift_filepath, module_name="zipkinCore_thrift")
 
-SERVER_ADDR_VAL = '\x01'
+SERVER_ADDR_VAL = "\x01"
 LIST_HEADER_SIZE = 5  # size in bytes of the encoded list header
 
 dummy_endpoint = zipkin_core.Endpoint()
@@ -46,14 +46,11 @@ def create_binary_annotation(key, value, annotation_type, host):
     :returns: zipkin binary annotation object
     """
     return zipkin_core.BinaryAnnotation(
-        key=key,
-        value=value,
-        annotation_type=annotation_type,
-        host=host,
+        key=key, value=value, annotation_type=annotation_type, host=host,
     )
 
 
-def create_endpoint(port=0, service_name='unknown', ipv4=None, ipv6=None):
+def create_endpoint(port=0, service_name="unknown", ipv4=None, ipv6=None):
     """Create a zipkin Endpoint object.
 
     An Endpoint object holds information about the network context of a span.
@@ -69,19 +66,16 @@ def create_endpoint(port=0, service_name='unknown', ipv4=None, ipv6=None):
 
     # Convert ip address to network byte order
     if ipv4:
-        ipv4_int = struct.unpack('!i', socket.inet_pton(socket.AF_INET, ipv4))[0]
+        ipv4_int = struct.unpack("!i", socket.inet_pton(socket.AF_INET, ipv4))[0]
 
     if ipv6:
         ipv6_binary = socket.inet_pton(socket.AF_INET6, ipv6)
 
     # Zipkin passes unsigned values in signed types because Thrift has no
     # unsigned types, so we have to convert the value.
-    port = struct.unpack('h', struct.pack('H', port))[0]
+    port = struct.unpack("h", struct.pack("H", port))[0]
     return zipkin_core.Endpoint(
-        ipv4=ipv4_int,
-        ipv6=ipv6_binary,
-        port=port,
-        service_name=service_name,
+        ipv4=ipv4_int, ipv6=ipv6_binary, port=port, service_name=service_name,
     )
 
 
@@ -94,9 +88,7 @@ def copy_endpoint_with_new_service_name(endpoint, service_name):
     :returns: zipkin Endpoint object
     """
     return zipkin_core.Endpoint(
-        ipv4=endpoint.ipv4,
-        port=endpoint.port,
-        service_name=service_name,
+        ipv4=endpoint.ipv4, port=endpoint.port, service_name=service_name,
     )
 
 
@@ -160,17 +152,17 @@ def create_span(
         trace_id_high = unsigned_hex_to_signed_int(trace_id_high)
 
     span_dict = {
-        'trace_id': unsigned_hex_to_signed_int(trace_id),
-        'name': span_name,
-        'id': unsigned_hex_to_signed_int(span_id),
-        'annotations': annotations,
-        'binary_annotations': binary_annotations,
-        'timestamp': int(timestamp_s * 1000000) if timestamp_s else None,
-        'duration': int(duration_s * 1000000) if duration_s else None,
-        'trace_id_high': trace_id_high,
+        "trace_id": unsigned_hex_to_signed_int(trace_id),
+        "name": span_name,
+        "id": unsigned_hex_to_signed_int(span_id),
+        "annotations": annotations,
+        "binary_annotations": binary_annotations,
+        "timestamp": int(timestamp_s * 1000000) if timestamp_s else None,
+        "duration": int(duration_s * 1000000) if duration_s else None,
+        "trace_id_high": trace_id_high,
     }
     if parent_span_id:
-        span_dict['parent_id'] = unsigned_hex_to_signed_int(parent_span_id)
+        span_dict["parent_id"] = unsigned_hex_to_signed_int(parent_span_id)
     return zipkin_core.Span(**span_dict)
 
 

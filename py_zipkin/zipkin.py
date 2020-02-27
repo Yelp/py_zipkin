@@ -28,11 +28,10 @@ Holds the basic attributes needed to log a zipkin trace
 :param is_sampled: pre-computed boolean whether the trace should be logged
 """
 ZipkinAttrs = namedtuple(
-    'ZipkinAttrs',
-    ['trace_id', 'span_id', 'parent_span_id', 'flags', 'is_sampled'],
+    "ZipkinAttrs", ["trace_id", "span_id", "parent_span_id", "flags", "is_sampled"],
 )
 
-ERROR_KEY = 'error'
+ERROR_KEY = "error"
 
 
 class zipkin_span(object):
@@ -95,7 +94,7 @@ class zipkin_span(object):
     def __init__(
         self,
         service_name,
-        span_name='span',
+        span_name="span",
         zipkin_attrs=None,
         transport_handler=None,
         max_span_batch_size=None,
@@ -226,16 +225,16 @@ class zipkin_span(object):
         # same way.
         # This doesn't fit well with v2 spans since those annotations are gone, so
         # we also log a deprecation warning.
-        if 'sr' in self.annotations and 'ss' in self.annotations:
-            self.duration = self.annotations['ss'] - self.annotations['sr']
-            self.timestamp = self.annotations['sr']
+        if "sr" in self.annotations and "ss" in self.annotations:
+            self.duration = self.annotations["ss"] - self.annotations["sr"]
+            self.timestamp = self.annotations["sr"]
             log.warning(
                 "Manually setting 'sr'/'ss' annotations is deprecated. Please "
                 "use the timestamp and duration parameters."
             )
-        if 'cr' in self.annotations and 'cs' in self.annotations:
-            self.duration = self.annotations['cr'] - self.annotations['cs']
-            self.timestamp = self.annotations['cs']
+        if "cr" in self.annotations and "cs" in self.annotations:
+            self.duration = self.annotations["cr"] - self.annotations["cs"]
+            self.timestamp = self.annotations["cs"]
             log.warning(
                 "Manually setting 'cr'/'cs' annotations is deprecated. Please "
                 "use the timestamp and duration parameters."
@@ -246,8 +245,7 @@ class zipkin_span(object):
         if self.zipkin_attrs_override or self.sample_rate is not None:
             # transport_handler is mandatory for root spans
             if self.transport_handler is None:
-                raise ZipkinError(
-                    'Root spans require a transport handler to be given')
+                raise ZipkinError("Root spans require a transport handler to be given")
 
             self._is_local_root_span = True
 
@@ -256,19 +254,21 @@ class zipkin_span(object):
             self._is_local_root_span = True
 
         if self.sample_rate is not None and not (0.0 <= self.sample_rate <= 100.0):
-            raise ZipkinError('Sample rate must be between 0.0 and 100.0')
+            raise ZipkinError("Sample rate must be between 0.0 and 100.0")
 
-        if self._span_storage is not None and \
-                not isinstance(self._span_storage, storage.SpanStorage):
-            raise ZipkinError('span_storage should be an instance '
-                              'of py_zipkin.storage.SpanStorage')
+        if self._span_storage is not None and not isinstance(
+            self._span_storage, storage.SpanStorage
+        ):
+            raise ZipkinError(
+                "span_storage should be an instance of py_zipkin.storage.SpanStorage"
+            )
 
         if self._span_storage is not None:
-            log.warning('span_storage is deprecated. Set local_storage instead.')
+            log.warning("span_storage is deprecated. Set local_storage instead.")
             self.get_tracer()._span_storage = self._span_storage
 
         if self._context_stack is not None:
-            log.warning('context_stack is deprecated. Set local_storage instead.')
+            log.warning("context_stack is deprecated. Set local_storage instead.")
             self.get_tracer()._context_stack = self._context_stack
 
     def __call__(self, f):
@@ -299,6 +299,7 @@ class zipkin_span(object):
                 _tracer=self._tracer,
             ):
                 return f(*args, **kwargs)
+
         return decorated
 
     def get_tracer(self):
@@ -322,12 +323,10 @@ class zipkin_span(object):
                 # than it's a client or server span respectively.
                 # If neither or both are present, then it's a local span
                 # which is represented by kind = None.
-                log.warning(
-                    'The include argument is deprecated. Please use kind.'
-                )
-                if 'client' in include and 'server' not in include:
+                log.warning("The include argument is deprecated. Please use kind.")
+                if "client" in include and "server" not in include:
                     return Kind.CLIENT
-                elif 'client' not in include and 'server' in include:
+                elif "client" not in include and "server" in include:
                     return Kind.SERVER
                 else:
                     return Kind.LOCAL
@@ -359,30 +358,40 @@ class zipkin_span(object):
             if self.sample_rate is not None:
 
                 # If this trace is not sampled, we re-roll the dice.
-                if self.zipkin_attrs_override and \
-                        not self.zipkin_attrs_override.is_sampled:
+                if (
+                    self.zipkin_attrs_override
+                    and not self.zipkin_attrs_override.is_sampled
+                ):
                     # This will be the root span of the trace, so we should
                     # set timestamp and duration.
-                    return True, create_attrs_for_span(
-                        sample_rate=self.sample_rate,
-                        trace_id=self.zipkin_attrs_override.trace_id,
+                    return (
+                        True,
+                        create_attrs_for_span(
+                            sample_rate=self.sample_rate,
+                            trace_id=self.zipkin_attrs_override.trace_id,
+                        ),
                     )
 
                 # If zipkin_attrs_override was not passed in, we simply generate
                 # new zipkin_attrs to start a new trace.
                 elif not self.zipkin_attrs_override:
-                    return True, create_attrs_for_span(
-                        sample_rate=self.sample_rate,
-                        use_128bit_trace_id=self.use_128bit_trace_id,
+                    return (
+                        True,
+                        create_attrs_for_span(
+                            sample_rate=self.sample_rate,
+                            use_128bit_trace_id=self.use_128bit_trace_id,
+                        ),
                     )
 
             if self.firehose_handler and not self.zipkin_attrs_override:
                 # If it has gotten here, the only thing that is
                 # causing a trace is the firehose. So we force a trace
                 # with sample rate of 0
-                return True, create_attrs_for_span(
-                    sample_rate=0.0,
-                    use_128bit_trace_id=self.use_128bit_trace_id,
+                return (
+                    True,
+                    create_attrs_for_span(
+                        sample_rate=0.0, use_128bit_trace_id=self.use_128bit_trace_id,
+                    ),
                 )
 
             # If we arrive here it means the sample_rate was not set while
@@ -395,12 +404,15 @@ class zipkin_span(object):
             # If there's an existing context, let's create new zipkin_attrs
             # with that context as parent.
             if existing_zipkin_attrs:
-                return False, ZipkinAttrs(
-                    trace_id=existing_zipkin_attrs.trace_id,
-                    span_id=generate_random_64bit_string(),
-                    parent_span_id=existing_zipkin_attrs.span_id,
-                    flags=existing_zipkin_attrs.flags,
-                    is_sampled=existing_zipkin_attrs.is_sampled,
+                return (
+                    False,
+                    ZipkinAttrs(
+                        trace_id=existing_zipkin_attrs.trace_id,
+                        span_id=generate_random_64bit_string(),
+                        parent_span_id=existing_zipkin_attrs.span_id,
+                        flags=existing_zipkin_attrs.flags,
+                        is_sampled=existing_zipkin_attrs.is_sampled,
+                    ),
                 )
 
         return False, None
@@ -439,8 +451,10 @@ class zipkin_span(object):
             # cause all previously recorded spans to never be emitted as exiting
             # the inner logging context will reset transport_configured to False.
             if self.get_tracer().is_transport_configured():
-                log.info('Transport was already configured, ignoring override'
-                         'from span {}'.format(self.span_name))
+                log.info(
+                    "Transport was already configured, ignoring override "
+                    "from span {}".format(self.span_name)
+                )
                 return self
             endpoint = create_endpoint(self.port, self.service_name, self.host)
             self.logging_context = ZipkinLoggingContext(
@@ -485,10 +499,8 @@ class zipkin_span(object):
 
         # Add the error annotation if an exception occurred
         if any((_exc_type, _exc_value, _exc_traceback)):
-            error_msg = u'{0}: {1}'.format(_exc_type.__name__, _exc_value)
-            self.update_binary_annotations({
-                ERROR_KEY: error_msg,
-            })
+            error_msg = u"{0}: {1}".format(_exc_type.__name__, _exc_value)
+            self.update_binary_annotations({ERROR_KEY: error_msg})
 
         # Logging context is only initialized for "root" spans of the local
         # process (i.e. this zipkin_span not inside of any other local
@@ -497,9 +509,7 @@ class zipkin_span(object):
             try:
                 self.logging_context.stop()
             except Exception as ex:
-                err_msg = 'Error emitting zipkin trace. {}'.format(
-                    repr(ex),
-                )
+                err_msg = "Error emitting zipkin trace. {}".format(repr(ex))
                 log.error(err_msg)
             finally:
                 self.logging_context = None
@@ -518,19 +528,21 @@ class zipkin_span(object):
             duration = end_timestamp - self.start_timestamp
 
         endpoint = create_endpoint(self.port, self.service_name, self.host)
-        self.get_tracer().add_span(Span(
-            trace_id=self.zipkin_attrs.trace_id,
-            name=self.span_name,
-            parent_id=self.zipkin_attrs.parent_span_id,
-            span_id=self.zipkin_attrs.span_id,
-            kind=self.kind,
-            timestamp=self.timestamp if self.timestamp else self.start_timestamp,
-            duration=duration,
-            annotations=self.annotations,
-            local_endpoint=endpoint,
-            remote_endpoint=self.remote_endpoint,
-            tags=self.binary_annotations,
-        ))
+        self.get_tracer().add_span(
+            Span(
+                trace_id=self.zipkin_attrs.trace_id,
+                name=self.span_name,
+                parent_id=self.zipkin_attrs.parent_span_id,
+                span_id=self.zipkin_attrs.span_id,
+                kind=self.kind,
+                timestamp=self.timestamp if self.timestamp else self.start_timestamp,
+                duration=duration,
+                annotations=self.annotations,
+                local_endpoint=endpoint,
+                remote_endpoint=self.remote_endpoint,
+                tags=self.binary_annotations,
+            )
+        )
 
     def update_binary_annotations(self, extra_annotations):
         """Updates the binary annotations for the current span."""
@@ -564,10 +576,7 @@ class zipkin_span(object):
             self.logging_context.annotations[value] = timestamp
 
     def add_sa_binary_annotation(
-        self,
-        port=0,
-        service_name='unknown',
-        host='127.0.0.1',
+        self, port=0, service_name="unknown", host="127.0.0.1",
     ):
         """Adds a 'sa' binary annotation to the current span.
 
@@ -589,17 +598,15 @@ class zipkin_span(object):
             return
 
         remote_endpoint = create_endpoint(
-            port=port,
-            service_name=service_name,
-            host=host,
+            port=port, service_name=service_name, host=host,
         )
         if not self.logging_context:
             if self.remote_endpoint is not None:
-                raise ValueError('SA annotation already set.')
+                raise ValueError("SA annotation already set.")
             self.remote_endpoint = remote_endpoint
         else:
             if self.logging_context.remote_endpoint is not None:
-                raise ValueError('SA annotation already set.')
+                raise ValueError("SA annotation already set.")
             self.logging_context.remote_endpoint = remote_endpoint
 
     def override_span_name(self, name):
@@ -619,10 +626,10 @@ class zipkin_span(object):
 
 
 def _validate_args(kwargs):
-    if 'kind' in kwargs:
+    if "kind" in kwargs:
         raise ValueError(
             '"kind" is not valid in this context. '
-            'You probably want to use zipkin_span()'
+            "You probably want to use zipkin_span()"
         )
 
 
@@ -639,7 +646,7 @@ class zipkin_client_span(zipkin_span):
         """
         _validate_args(kwargs)
 
-        kwargs['kind'] = Kind.CLIENT
+        kwargs["kind"] = Kind.CLIENT
         super(zipkin_client_span, self).__init__(*args, **kwargs)
 
 
@@ -656,15 +663,12 @@ class zipkin_server_span(zipkin_span):
         """
         _validate_args(kwargs)
 
-        kwargs['kind'] = Kind.SERVER
+        kwargs["kind"] = Kind.SERVER
         super(zipkin_server_span, self).__init__(*args, **kwargs)
 
 
 def create_attrs_for_span(
-    sample_rate=100.0,
-    trace_id=None,
-    span_id=None,
-    use_128bit_trace_id=False,
+    sample_rate=100.0, trace_id=None, span_id=None, use_128bit_trace_id=False,
 ):
     """Creates a set of zipkin attributes for a span.
 
@@ -696,7 +700,7 @@ def create_attrs_for_span(
         trace_id=trace_id,
         span_id=span_id,
         parent_span_id=None,
-        flags='0',
+        flags="0",
         is_sampled=is_sampled,
     )
 
@@ -724,9 +728,9 @@ def create_http_headers_for_new_span(context_stack=None, tracer=None):
         return {}
 
     return {
-        'X-B3-TraceId': zipkin_attrs.trace_id,
-        'X-B3-SpanId': generate_random_64bit_string(),
-        'X-B3-ParentSpanId': zipkin_attrs.span_id,
-        'X-B3-Flags': '0',
-        'X-B3-Sampled': '1' if zipkin_attrs.is_sampled else '0',
+        "X-B3-TraceId": zipkin_attrs.trace_id,
+        "X-B3-SpanId": generate_random_64bit_string(),
+        "X-B3-ParentSpanId": zipkin_attrs.span_id,
+        "X-B3-Flags": "0",
+        "X-B3-Sampled": "1" if zipkin_attrs.is_sampled else "0",
     }
