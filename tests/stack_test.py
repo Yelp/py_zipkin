@@ -75,3 +75,17 @@ def test_push_zipkin_attrs_with_context_adds_new_zipkin_attrs_to_list():
     assert "foo" == stack.get()
     stack.push("bar")
     assert "bar" == stack.get()
+
+
+def test_stack_copy():
+    stack = py_zipkin.storage.Stack()
+    stack.push("a")
+    stack.push("b")
+
+    the_copy = stack.copy()
+    the_copy.push("c")
+
+    stack.push("d")
+
+    assert ["a", "b", "c"] == the_copy._storage
+    assert ["a", "b", "d"] == stack._storage
