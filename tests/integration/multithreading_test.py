@@ -10,9 +10,9 @@ from tests.test_helpers import MockTransportHandler
 tracer = get_default_tracer()
 
 
-@zipkin_span(service_name='service1', span_name='service1_do_stuff')
+@zipkin_span(service_name="service1", span_name="service1_do_stuff")
 def do_stuff():
-    return 'OK'
+    return "OK"
 
 
 def run_inside_another_thread(transport):
@@ -24,8 +24,8 @@ def run_inside_another_thread(transport):
     :type transport: MockTransportHandler
     """
     with get_default_tracer().zipkin_span(
-        service_name='webapp',
-        span_name='index',
+        service_name="webapp",
+        span_name="index",
         transport_handler=transport,
         sample_rate=100.0,
         encoding=Encoding.V2_JSON,
@@ -48,5 +48,5 @@ def test_decorator_works_in_a_new_thread():
 
     spans = json.loads(output[0])
     assert len(spans) == 2
-    assert spans[0]['name'] == 'service1_do_stuff'
-    assert spans[1]['name'] == 'index'
+    assert spans[0]["name"] == "service1_do_stuff"
+    assert spans[1]["name"] == "index"

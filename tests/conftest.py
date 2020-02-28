@@ -6,10 +6,10 @@ from py_zipkin.zipkin import ZipkinAttrs
 @pytest.fixture
 def zipkin_attributes():
     return {
-        'trace_id': '17133d482ba4f605',
-        'span_id': '27133d482ba4f605',
-        'parent_span_id': '37133d482ba4f605',
-        'flags': '45',
+        "trace_id": "17133d482ba4f605",
+        "span_id": "27133d482ba4f605",
+        "parent_span_id": "37133d482ba4f605",
+        "flags": "45",
     }
 
 

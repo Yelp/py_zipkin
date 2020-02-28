@@ -8,12 +8,10 @@ from py_zipkin.exception import ZipkinError
 from tests.test_helpers import generate_list_of_spans
 
 
-@pytest.mark.parametrize('encoding', [
-    Encoding.V1_THRIFT,
-    Encoding.V1_JSON,
-    Encoding.V2_JSON,
-    Encoding.V2_PROTO3,
-])
+@pytest.mark.parametrize(
+    "encoding",
+    [Encoding.V1_THRIFT, Encoding.V1_JSON, Encoding.V2_JSON, Encoding.V2_PROTO3],
+)
 def test_detect_span_version_and_encoding(encoding):
     spans, _, _, _ = generate_list_of_spans(encoding)
     old_type = type(spans)
@@ -28,19 +26,20 @@ def test_detect_span_version_and_encoding(encoding):
 
 def test_detect_span_version_and_encoding_incomplete_message():
     with pytest.raises(ZipkinError):
-        detect_span_version_and_encoding('[')
+        detect_span_version_and_encoding("[")
 
 
 def test_detect_span_version_and_encoding_ambiguous_json():
     """JSON spans that don't have any v1 or v2 keyword default to V2"""
-    assert detect_span_version_and_encoding(
-        '[{"traceId": "aaa", "id": "bbb"}]',
-    ) == Encoding.V2_JSON
+    assert (
+        detect_span_version_and_encoding('[{"traceId": "aaa", "id": "bbb"}]')
+        == Encoding.V2_JSON
+    )
 
 
 def test_detect_span_version_and_encoding_unknown_encoding():
     with pytest.raises(ZipkinError):
-        detect_span_version_and_encoding('foobar')
+        detect_span_version_and_encoding("foobar")
 
 
 def test_convert_spans_thrift_to_v2_json():

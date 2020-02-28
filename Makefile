@@ -26,3 +26,7 @@ clean:
 
 update-protobuf:
 	$(MAKE) -C py_zipkin/encoding/protobuf update-protobuf
+
+.PHONY: black
+black:
+	tox -e black

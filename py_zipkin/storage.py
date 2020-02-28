@@ -7,14 +7,15 @@ try:  # pragma: no cover
     # Since python 3.7 threadlocal is deprecated in favor of contextvars
     # which also work in asyncio.
     import contextvars
-    _contextvars_tracer = contextvars.ContextVar('py_zipkin.Tracer object')
+
+    _contextvars_tracer = contextvars.ContextVar("py_zipkin.Tracer object")
 except ImportError:  # pragma: no cover
     # The contextvars module was added in python 3.7
     _contextvars_tracer = None
 _thread_local_tracer = threading.local()
 
 
-log = logging.getLogger('py_zipkin.storage')
+log = logging.getLogger("py_zipkin.storage")
 
 
 def _get_thread_local_tracer():
@@ -24,7 +25,7 @@ def _get_thread_local_tracer():
     :returns: current tracer.
     :rtype: Tracer
     """
-    if not hasattr(_thread_local_tracer, 'tracer'):
+    if not hasattr(_thread_local_tracer, "tracer"):
         _thread_local_tracer.tracer = Tracer()
     return _thread_local_tracer.tracer
 
@@ -62,7 +63,6 @@ def _set_contextvars_tracer(tracer):  # pragma: no cover
 
 
 class Tracer(object):
-
     def __init__(self):
         self._is_transport_configured = False
         self._span_storage = SpanStorage()
@@ -94,7 +94,8 @@ class Tracer(object):
 
     def zipkin_span(self, *argv, **kwargs):
         from py_zipkin.zipkin import zipkin_span
-        kwargs['_tracer'] = self
+
+        kwargs["_tracer"] = self
         return zipkin_span(*argv, **kwargs)
 
 
@@ -112,7 +113,7 @@ class Stack(object):
 
     def __init__(self, storage=None):
         if storage is not None:
-            log.warning('Passing a storage object to Stack is deprecated.')
+            log.warning("Passing a storage object to Stack is deprecated.")
             self._storage = storage
         else:
             self._storage = []
@@ -143,8 +144,10 @@ class ThreadLocalStack(Stack):
     """
 
     def __init__(self):
-        log.warning('ThreadLocalStack is deprecated. See DEPRECATIONS.rst for'
-                    'details on how to migrate to using Tracer.')
+        log.warning(
+            "ThreadLocalStack is deprecated. See DEPRECATIONS.rst for"
+            "details on how to migrate to using Tracer."
+        )
 
     @property
     def _storage(self):
@@ -158,12 +161,15 @@ class SpanStorage(deque):
        Use the Tracer interface which offers better multi-threading support.
        SpanStorage will be removed in version 1.0.
     """
+
     pass
 
 
 def default_span_storage():
-    log.warning('default_span_storage is deprecated. See DEPRECATIONS.rst for'
-                'details on how to migrate to using Tracer.')
+    log.warning(
+        "default_span_storage is deprecated. See DEPRECATIONS.rst for"
+        "details on how to migrate to using Tracer."
+    )
     return get_default_tracer()._span_storage
 
 
