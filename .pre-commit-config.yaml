@@ -11,7 +11,6 @@ repos:
     -   id: debug-statements
     -   id: name-tests-test
         exclude: tests/test_helpers.py
-    -   id: flake8
     -   id: requirements-txt-fixer
 -   repo: https://github.com/asottile/reorder_python_imports.git
     rev: v1.9.0
@@ -25,3 +24,7 @@ repos:
         language_version: python3.7
         exclude: setup.py
         args: [--target-version, py27]
+-   repo: https://gitlab.com/pycqa/flake8
+    rev: 3.7.9
+    hooks:
+    -   id: flake8
