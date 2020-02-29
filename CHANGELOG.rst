@@ -1,3 +1,10 @@
+0.19.0 (2020-02-28)
+-------------------
+- Add zipkin_span.add_annotation() method
+- Add autoinstrumentation for python Threads
+- Allow creating a copy of Tracer
+- Add extract_zipkin_attrs_from_headers() helper
+
 0.18.7 (2020-01-15)
 -------------------
 - Expose encoding.create_endpoint helper
