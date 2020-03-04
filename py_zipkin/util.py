@@ -2,6 +2,21 @@
 import random
 import struct
 import time
+from collections import namedtuple
+
+
+"""
+Holds the basic attributes needed to log a zipkin trace
+
+:param trace_id: Unique trace id
+:param span_id: Span Id of the current request span
+:param parent_span_id: Parent span Id of the current request span
+:param flags: stores flags header. Currently unused
+:param is_sampled: pre-computed bool whether the trace should be logged
+"""
+ZipkinAttrs = namedtuple(
+    "ZipkinAttrs", ["trace_id", "span_id", "parent_span_id", "flags", "is_sampled"],
+)
 
 
 def generate_random_64bit_string():
@@ -66,3 +81,42 @@ def _should_sample(sample_rate):
     elif sample_rate == 100.0:
         return True  # ditto
     return (random.random() * 100) < sample_rate
+
+
+def create_attrs_for_span(
+    sample_rate=100.0,
+    trace_id=None,
+    span_id=None,
+    use_128bit_trace_id=False,
+    flags=None,
+):
+    """Creates a set of zipkin attributes for a span.
+
+    :param sample_rate: Float between 0.0 and 100.0 to determine sampling rate
+    :type sample_rate: float
+    :param trace_id: Optional 16-character hex string representing a trace_id.
+                    If this is None, a random trace_id will be generated.
+    :type trace_id: str
+    :param span_id: Optional 16-character hex string representing a span_id.
+                    If this is None, a random span_id will be generated.
+    :type span_id: str
+    :param use_128bit_trace_id: If true, generate 128-bit trace_ids
+    :type use_128bit_trace_id: bool
+    """
+    # Calculate if this trace is sampled based on the sample rate
+    if trace_id is None:
+        if use_128bit_trace_id:
+            trace_id = generate_random_128bit_string()
+        else:
+            trace_id = generate_random_64bit_string()
+    if span_id is None:
+        span_id = generate_random_64bit_string()
+    is_sampled = _should_sample(sample_rate)
+
+    return ZipkinAttrs(
+        trace_id=trace_id,
+        span_id=span_id,
+        parent_span_id=None,
+        flags=flags or "0",
+        is_sampled=is_sampled,
+    )

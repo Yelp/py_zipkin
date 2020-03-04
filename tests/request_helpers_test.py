@@ -4,6 +4,7 @@ import pytest
 
 from py_zipkin import request_helpers
 from py_zipkin.request_helpers import ZipkinAttrs
+from tests.test_helpers import MockTracer
 
 
 def test_extract_zipkin_attrs_from_headers_single_sample_only():
@@ -387,3 +388,78 @@ def test_extract_zipkin_attrs_from_headers_single(mock_random, yes_trace_str):
         {"b3": "-".join((trace_id, span_id, yes_trace_str, parent_span_id))},
         sample_rate=88.2,
     )
+
+
+def test_create_http_headers_context_stack():
+    mock_context_stack = mock.Mock()
+    mock_context_stack.get.return_value = ZipkinAttrs(
+        trace_id="17133d482ba4f605",
+        span_id="37133d482ba4f605",
+        is_sampled=True,
+        parent_span_id="27133d482ba4f605",
+        flags=None,
+    )
+    expected = {
+        "X-B3-TraceId": "17133d482ba4f605",
+        "X-B3-SpanId": "37133d482ba4f605",
+        "X-B3-ParentSpanId": "27133d482ba4f605",
+        "X-B3-Flags": "0",
+        "X-B3-Sampled": "1",
+    }
+    assert expected == request_helpers.create_http_headers(
+        context_stack=mock_context_stack,
+    )
+
+
+def test_create_http_headers_custom_tracer():
+    tracer = MockTracer()
+    tracer.push_zipkin_attrs(
+        ZipkinAttrs(
+            trace_id="17133d482ba4f605",
+            span_id="37133d482ba4f605",
+            is_sampled=True,
+            parent_span_id="27133d482ba4f605",
+            flags=None,
+        )
+    )
+    expected = {
+        "X-B3-TraceId": "17133d482ba4f605",
+        "X-B3-SpanId": "37133d482ba4f605",
+        "X-B3-ParentSpanId": "27133d482ba4f605",
+        "X-B3-Flags": "0",
+        "X-B3-Sampled": "1",
+    }
+    assert expected == request_helpers.create_http_headers(tracer=tracer)
+
+
+@mock.patch("py_zipkin.request_helpers.generate_random_64bit_string", autospec=True)
+def test_create_http_headers_new_span_id(gen_mock):
+    tracer = MockTracer()
+    tracer.push_zipkin_attrs(
+        ZipkinAttrs(
+            trace_id="17133d482ba4f605",
+            span_id="37133d482ba4f605",
+            is_sampled=True,
+            parent_span_id="27133d482ba4f605",
+            flags=None,
+        )
+    )
+    gen_mock.return_value = "47133d482ba4f605"
+
+    # if new_span_id = True we generate a new span id
+    assert request_helpers.create_http_headers(tracer=tracer, new_span_id=True) == {
+        "X-B3-TraceId": "17133d482ba4f605",
+        "X-B3-SpanId": "47133d482ba4f605",
+        "X-B3-ParentSpanId": "37133d482ba4f605",
+        "X-B3-Flags": "0",
+        "X-B3-Sampled": "1",
+    }
+
+    # by default we keep the same span id as the current span
+    assert request_helpers.create_http_headers(tracer=tracer) == {
+        "X-B3-TraceId": "17133d482ba4f605",
+        "X-B3-SpanId": "37133d482ba4f605",
+        "X-B3-ParentSpanId": "27133d482ba4f605",
+        "X-B3-Flags": "0",
+        "X-B3-Sampled": "1",
+    }
