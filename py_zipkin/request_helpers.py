@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 import logging
 
+from py_zipkin.storage import get_default_tracer
 from py_zipkin.util import _should_sample
-from py_zipkin.zipkin import create_attrs_for_span
-from py_zipkin.zipkin import ZipkinAttrs
+from py_zipkin.util import create_attrs_for_span
+from py_zipkin.util import generate_random_64bit_string
+from py_zipkin.util import ZipkinAttrs
 
 log = logging.getLogger(__name__)
 
@@ -148,3 +150,44 @@ def extract_zipkin_attrs_from_headers(
         "1" if parsed["sampled_str"] == "d" else "0",
         is_sampled,
     )
+
+
+def create_http_headers(
+    context_stack=None, tracer=None, new_span_id=False,
+):
+    """
+    Generate the headers for a new zipkin span.
+
+    .. note::
+
+        If the method is not called from within a zipkin_trace context,
+        empty dict will be returned back.
+
+    :returns: dict containing (X-B3-TraceId, X-B3-SpanId, X-B3-ParentSpanId,
+                X-B3-Flags and X-B3-Sampled) keys OR an empty dict.
+    """
+    if tracer:
+        zipkin_attrs = tracer.get_zipkin_attrs()
+    elif context_stack:
+        zipkin_attrs = context_stack.get()
+    else:
+        zipkin_attrs = get_default_tracer().get_zipkin_attrs()
+
+    # If zipkin_attrs is still not set then we're not in a trace context
+    if not zipkin_attrs:
+        return {}
+
+    if new_span_id:
+        span_id = generate_random_64bit_string()
+        parent_span_id = zipkin_attrs.span_id
+    else:
+        span_id = zipkin_attrs.span_id
+        parent_span_id = zipkin_attrs.parent_span_id
+
+    return {
+        "X-B3-TraceId": zipkin_attrs.trace_id,
+        "X-B3-SpanId": span_id,
+        "X-B3-ParentSpanId": parent_span_id,
+        "X-B3-Flags": "0",
+        "X-B3-Sampled": "1" if zipkin_attrs.is_sampled else "0",
+    }

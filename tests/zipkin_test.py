@@ -842,81 +842,17 @@ def test_zipkin_server_span():
         zipkin.zipkin_server_span("test_service", "test_span", kind=Kind.LOCAL)
 
 
-@mock.patch("py_zipkin.zipkin.generate_random_128bit_string", autospec=True)
-@mock.patch("py_zipkin.zipkin.generate_random_64bit_string", autospec=True)
-def test_create_attrs_for_span(random_64bit_mock, random_128bit_mock):
-    random_64bit_mock.return_value = "0000000000000042"
-    expected_attrs = ZipkinAttrs(
-        trace_id="0000000000000042",
-        span_id="0000000000000042",
-        parent_span_id=None,
-        flags="0",
-        is_sampled=True,
-    )
-    assert expected_attrs == zipkin.create_attrs_for_span()
-
-    # Test overrides
-    expected_attrs = ZipkinAttrs(
-        trace_id="0000000000000045",
-        span_id="0000000000000046",
-        parent_span_id=None,
-        flags="0",
-        is_sampled=False,
-    )
-    assert expected_attrs == zipkin.create_attrs_for_span(
-        sample_rate=0.0, trace_id="0000000000000045", span_id="0000000000000046",
-    )
-
-    random_128bit_mock.return_value = "00000000000000420000000000000042"
-    expected_attrs = ZipkinAttrs(
-        trace_id="00000000000000420000000000000042",
-        span_id="0000000000000042",
-        parent_span_id=None,
-        flags="0",
-        is_sampled=True,
-    )
-    assert expected_attrs == zipkin.create_attrs_for_span(use_128bit_trace_id=True)
-
-
 def test_create_headers_for_new_span_empty_if_no_active_request():
     with mock.patch.object(get_default_tracer(), "get_zipkin_attrs") as mock_ctx:
         mock_ctx.return_value = None
         assert {} == zipkin.create_http_headers_for_new_span()
 
 
-@mock.patch("py_zipkin.zipkin.generate_random_64bit_string", autospec=True)
-def test_create_headers_for_new_span_returns_header_if_active_request(gen_mock):
-    mock_context_stack = mock.Mock()
-    mock_context_stack.get.return_value = mock.Mock(
-        trace_id="27133d482ba4f605", span_id="37133d482ba4f605", is_sampled=True,
-    )
-    gen_mock.return_value = "17133d482ba4f605"
-    expected = {
-        "X-B3-TraceId": "27133d482ba4f605",
-        "X-B3-SpanId": "17133d482ba4f605",
-        "X-B3-ParentSpanId": "37133d482ba4f605",
-        "X-B3-Flags": "0",
-        "X-B3-Sampled": "1",
-    }
-    assert expected == zipkin.create_http_headers_for_new_span(
-        context_stack=mock_context_stack,
-    )
-
-
-@mock.patch("py_zipkin.zipkin.generate_random_64bit_string", autospec=True)
-def test_create_headers_for_new_span_custom_tracer(gen_mock):
+@mock.patch("py_zipkin.zipkin.create_http_headers", autospec=True)
+def test_create_headers_for_new_span(mock_create_http_headers):
     tracer = MockTracer()
-    tracer.push_zipkin_attrs(
-        mock.Mock(
-            trace_id="27133d482ba4f605", span_id="37133d482ba4f605", is_sampled=True,
-        )
-    )
-    gen_mock.return_value = "17133d482ba4f605"
-    expected = {
-        "X-B3-TraceId": "27133d482ba4f605",
-        "X-B3-SpanId": "17133d482ba4f605",
-        "X-B3-ParentSpanId": "37133d482ba4f605",
-        "X-B3-Flags": "0",
-        "X-B3-Sampled": "1",
-    }
-    assert expected == zipkin.create_http_headers_for_new_span(tracer=tracer)
+    context_stack = Stack()
+    zipkin.create_http_headers_for_new_span(context_stack, tracer)
+
+    assert mock_create_http_headers.call_count == 1
+    assert mock_create_http_headers.call_args == mock.call(context_stack, tracer, True,)

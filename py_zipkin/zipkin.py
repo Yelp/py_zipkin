@@ -2,7 +2,6 @@
 import functools
 import logging
 import time
-from collections import namedtuple
 
 from py_zipkin import Encoding
 from py_zipkin import Kind
@@ -11,25 +10,13 @@ from py_zipkin.encoding._helpers import create_endpoint
 from py_zipkin.encoding._helpers import Span
 from py_zipkin.exception import ZipkinError
 from py_zipkin.logging_helper import ZipkinLoggingContext
+from py_zipkin.request_helpers import create_http_headers
 from py_zipkin.storage import get_default_tracer
-from py_zipkin.util import _should_sample
-from py_zipkin.util import generate_random_128bit_string
+from py_zipkin.util import create_attrs_for_span
 from py_zipkin.util import generate_random_64bit_string
+from py_zipkin.util import ZipkinAttrs
 
 log = logging.getLogger(__name__)
-
-"""
-Holds the basic attributes needed to log a zipkin trace
-
-:param trace_id: Unique trace id
-:param span_id: Span Id of the current request span
-:param parent_span_id: Parent span Id of the current request span
-:param flags: stores flags header. Currently unused
-:param is_sampled: pre-computed boolean whether the trace should be logged
-"""
-ZipkinAttrs = namedtuple(
-    "ZipkinAttrs", ["trace_id", "span_id", "parent_span_id", "flags", "is_sampled"],
-)
 
 ERROR_KEY = "error"
 
@@ -667,45 +654,6 @@ class zipkin_server_span(zipkin_span):
         super(zipkin_server_span, self).__init__(*args, **kwargs)
 
 
-def create_attrs_for_span(
-    sample_rate=100.0,
-    trace_id=None,
-    span_id=None,
-    use_128bit_trace_id=False,
-    flags=None,
-):
-    """Creates a set of zipkin attributes for a span.
-
-    :param sample_rate: Float between 0.0 and 100.0 to determine sampling rate
-    :type sample_rate: float
-    :param trace_id: Optional 16-character hex string representing a trace_id.
-                    If this is None, a random trace_id will be generated.
-    :type trace_id: str
-    :param span_id: Optional 16-character hex string representing a span_id.
-                    If this is None, a random span_id will be generated.
-    :type span_id: str
-    :param use_128bit_trace_id: If true, generate 128-bit trace_ids
-    :type use_128bit_trace_id: boolean
-    """
-    # Calculate if this trace is sampled based on the sample rate
-    if trace_id is None:
-        if use_128bit_trace_id:
-            trace_id = generate_random_128bit_string()
-        else:
-            trace_id = generate_random_64bit_string()
-    if span_id is None:
-        span_id = generate_random_64bit_string()
-    is_sampled = _should_sample(sample_rate)
-
-    return ZipkinAttrs(
-        trace_id=trace_id,
-        span_id=span_id,
-        parent_span_id=None,
-        flags=flags or "0",
-        is_sampled=is_sampled,
-    )
-
-
 def create_http_headers_for_new_span(context_stack=None, tracer=None):
     """
     Generate the headers for a new zipkin span.
@@ -718,20 +666,4 @@ def create_http_headers_for_new_span(context_stack=None, tracer=None):
     :returns: dict containing (X-B3-TraceId, X-B3-SpanId, X-B3-ParentSpanId,
                 X-B3-Flags and X-B3-Sampled) keys OR an empty dict.
     """
-    if tracer:
-        zipkin_attrs = tracer.get_zipkin_attrs()
-    elif context_stack:
-        zipkin_attrs = context_stack.get()
-    else:
-        zipkin_attrs = get_default_tracer().get_zipkin_attrs()
-
-    if not zipkin_attrs:
-        return {}
-
-    return {
-        "X-B3-TraceId": zipkin_attrs.trace_id,
-        "X-B3-SpanId": generate_random_64bit_string(),
-        "X-B3-ParentSpanId": zipkin_attrs.span_id,
-        "X-B3-Flags": "0",
-        "X-B3-Sampled": "1" if zipkin_attrs.is_sampled else "0",
-    }
+    return create_http_headers(context_stack, tracer, True)
