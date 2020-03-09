@@ -1,3 +1,7 @@
+0.20.0 (2020-03-09)
+-------------------
+- Add create_http_headers helper
+
 0.19.0 (2020-02-28)
 -------------------
 - Add zipkin_span.add_annotation() method
