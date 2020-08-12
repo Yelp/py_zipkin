@@ -15,6 +15,7 @@ install-hooks:
 	tox -e pre-commit -- install -f --install-hooks
 
 test:
+	echo $(TOXENV)
 	tox
 
 tests: test
