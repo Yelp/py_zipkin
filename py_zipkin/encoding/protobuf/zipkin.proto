@@ -1,16 +1,16 @@
-// Copyright 2018 The OpenZipkin Authors
 //
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+// Copyright 2018-2019 The OpenZipkin Authors
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+// Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+// in compliance with the License. You may obtain a copy of the License at
 //
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software distributed under the License
+// is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+// or implied. See the License for the specific language governing permissions and limitations under
+// the License.
+//
 
 syntax = "proto3";
 
@@ -211,4 +211,23 @@ message Annotation {
 // aka Swagger specification. https://zipkin.io/zipkin-api/#/default/post_spans
 message ListOfSpans {
   repeated Span spans = 1;
+}
+
+// Response for SpanService/Report RPC. This response currently does not return
+// any information beyond indicating that the request has finished. That said,
+// it may be extended in the future.
+message ReportResponse {
+}
+
+// SpanService allows reporting spans using gRPC, as opposed to HTTP POST 
+// reporting. Implementations are asynchronous and may drop spans for reasons 
+// of sampling or storage availability. While this is primarily used to store 
+// spans, other operations may take place such as aggregation of service 
+// dependencies or data cleaning.
+service SpanService {
+
+  // Report the provided spans to the collector. Analogous to the HTTP POST 
+  // /api/v2/spans endpoint. Spans are not required to be complete or belonging 
+  // to the same trace.
+  rpc Report(ListOfSpans) returns (ReportResponse) {}
 }

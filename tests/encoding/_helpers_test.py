@@ -1,4 +1,5 @@
 import socket
+from collections import OrderedDict
 
 import mock
 import pytest
@@ -106,3 +107,30 @@ def test_malformed_host():
     assert endpoint.port == 8080
     assert endpoint.ipv4 is None
     assert endpoint.ipv6 is None
+
+
+class TestSpan(object):
+    @pytest.mark.parametrize(
+        ["kind", "annotations"],
+        [
+            (Kind.CLIENT, OrderedDict([("cs", 26.0), ("cr", 30.0)])),
+            (Kind.SERVER, OrderedDict([("sr", 26.0), ("ss", 30.0)])),
+            (Kind.PRODUCER, OrderedDict([("ms", 26.0)])),
+            (Kind.CONSUMER, OrderedDict([("mr", 26.0)])),
+        ],
+    )
+    def test_v1_span(self, kind, annotations):
+        endpoint = create_endpoint(port=8080, service_name="foo", host="80")
+        span = Span(
+            trace_id=generate_random_64bit_string(),
+            name="test span",
+            parent_id=generate_random_64bit_string(),
+            span_id=generate_random_64bit_string(),
+            kind=kind,
+            timestamp=26.0,
+            duration=4.0,
+            local_endpoint=endpoint,
+        )
+        v1_span = span.build_v1_span()
+
+        assert v1_span.annotations == annotations

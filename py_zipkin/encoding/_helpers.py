@@ -27,12 +27,6 @@ _V1Span = namedtuple(
 )
 
 
-_DROP_ANNOTATIONS_BY_KIND = {
-    Kind.CLIENT: {"ss", "sr"},
-    Kind.SERVER: {"cs", "cr"},
-}
-
-
 class Span(object):
     """Internal V2 Span representation."""
 
@@ -128,26 +122,22 @@ class Span(object):
         :return: newly generated _V1Span
         :rtype: _V1Span
         """
-        # We are simulating a full two-part span locally, so set cs=sr and ss=cr
-        full_annotations = OrderedDict(
-            [
-                ("cs", self.timestamp),
-                ("sr", self.timestamp),
-                ("ss", self.timestamp + self.duration),
-                ("cr", self.timestamp + self.duration),
-            ]
-        )
+        annotations = OrderedDict([])
+        if self.kind == Kind.CLIENT:
+            annotations["cs"] = self.timestamp
+            annotations["cr"] = self.timestamp + self.duration
+        elif self.kind == Kind.SERVER:
+            annotations["sr"] = self.timestamp
+            annotations["ss"] = self.timestamp + self.duration
+        elif self.kind == Kind.PRODUCER:
+            annotations["ms"] = self.timestamp
+        elif self.kind == Kind.CONSUMER:
+            annotations["mr"] = self.timestamp
 
-        if self.kind != Kind.LOCAL:
-            # If kind is not LOCAL, then we only want client or
-            # server side annotations.
-            for ann in _DROP_ANNOTATIONS_BY_KIND[self.kind]:
-                del full_annotations[ann]
-
-        # Add user-defined annotations. We write them in full_annotations
+        # Add user-defined annotations. We write them in annotations
         # instead of the opposite so that user annotations will override
         # any automatically generated annotation.
-        full_annotations.update(self.annotations)
+        annotations.update(self.annotations)
 
         return _V1Span(
             trace_id=self.trace_id,
@@ -157,7 +147,7 @@ class Span(object):
             timestamp=self.timestamp if self.shared is False else None,
             duration=self.duration if self.shared is False else None,
             endpoint=self.local_endpoint,
-            annotations=full_annotations,
+            annotations=annotations,
             binary_annotations=self.tags,
             remote_endpoint=self.remote_endpoint,
         )

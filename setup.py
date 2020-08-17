@@ -31,7 +31,7 @@ setup(
     ],
     extras_require={
         ':python_version=="2.7"': ['enum34'],
-        'protobuf': 'protobuf',
+        'protobuf': 'protobuf >= 3.12.4',
     },
     classifiers=[
         "Development Status :: 3 - Alpha",
