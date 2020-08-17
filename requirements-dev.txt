@@ -1,7 +1,7 @@
 # coveragepy==5.0 fails with `Safety level may not be changed inside a transaction`
 # on python 3.6.0 (xenial)
 coverage<5
-mock
+mock<4  # mock 4.x dropped support for python 2.7
 ordereddict
 pytest
 pytest-benchmark[histogram]
