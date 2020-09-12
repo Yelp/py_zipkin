@@ -195,8 +195,8 @@ class KafkaTransport(BaseTransportHandler):
         producer.send_messages('kafka_topic_name', message)
 ```
 
-Using in multithreading evironments
------------------------------------
+Using in multithreading environments
+------------------------------------
 
 If you want to use py_zipkin in a cooperative multithreading environment,
 e.g. asyncio, you need to explicitly pass an instance of `py_zipkin.storage.Stack`
