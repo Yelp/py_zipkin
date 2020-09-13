@@ -219,15 +219,15 @@ message ListOfSpans {
 message ReportResponse {
 }
 
-// SpanService allows reporting spans using gRPC, as opposed to HTTP POST 
-// reporting. Implementations are asynchronous and may drop spans for reasons 
-// of sampling or storage availability. While this is primarily used to store 
-// spans, other operations may take place such as aggregation of service 
+// SpanService allows reporting spans using gRPC, as opposed to HTTP POST
+// reporting. Implementations are asynchronous and may drop spans for reasons
+// of sampling or storage availability. While this is primarily used to store
+// spans, other operations may take place such as aggregation of service
 // dependencies or data cleaning.
 service SpanService {
 
-  // Report the provided spans to the collector. Analogous to the HTTP POST 
-  // /api/v2/spans endpoint. Spans are not required to be complete or belonging 
+  // Report the provided spans to the collector. Analogous to the HTTP POST
+  // /api/v2/spans endpoint. Spans are not required to be complete or belonging
   // to the same trace.
   rpc Report(ListOfSpans) returns (ReportResponse) {}
 }
