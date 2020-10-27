@@ -144,6 +144,7 @@ def test_annotation_override():
         with zipkin.zipkin_span(
             service_name="nested_service",
             span_name="nested_span",
+            kind=Kind.CLIENT,
             annotations={"nested_annotation": 43, "cs": 100, "cr": 300},
             binary_annotations={"nested_key": "nested_value"},
         ):
@@ -162,9 +163,9 @@ def test_annotation_override():
         # Local nested spans report timestamp and duration
         assert nested_span["timestamp"] is not None
         assert nested_span["duration"] is not None
-        assert len(nested_span["annotations"]) == 5
+        assert len(nested_span["annotations"]) == 3
         assert sorted([ann["value"] for ann in nested_span["annotations"]]) == sorted(
-            ["ss", "sr", "cs", "cr", "nested_annotation"]
+            ["cs", "cr", "nested_annotation"]
         )
         for ann in nested_span["annotations"]:
             if ann["value"] == "nested_annotation":
@@ -533,13 +534,7 @@ def test_include_still_works(encoding):
             "sr",
             "ss",
         ]
-        assert len(local_span["annotations"]) == 4
-        assert sorted([ann["value"] for ann in local_span["annotations"]]) == [
-            "cr",
-            "cs",
-            "sr",
-            "ss",
-        ]
+        assert len(local_span["annotations"]) == 0
     elif encoding == Encoding.V2_JSON:
         assert client_span["kind"] == "CLIENT"
         assert server_span["kind"] == "SERVER"
