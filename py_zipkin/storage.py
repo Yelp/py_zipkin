@@ -9,13 +9,34 @@ try:  # pragma: no cover
     import contextvars
 
     _contextvars_tracer = contextvars.ContextVar("py_zipkin.Tracer object")
+    _contextvars_zipkin_tags = contextvars.ContextVar("zipkin_tags", dict())
+
 except ImportError:  # pragma: no cover
     # The contextvars module was added in python 3.7
     _contextvars_tracer = None
+    _contextvars_zipkin_tags = None
 _thread_local_tracer = threading.local()
+_thread_local_zipkin_tags = threading.local()
 
 
 log = logging.getLogger("py_zipkin.storage")
+
+
+def get_zipkin_tags():
+    if _contextvars_zipkin_tags:
+        return _contextvars_zipkin_tags.get()
+    else:
+        return _thread_local_zipkin_tags.tags
+
+
+def add_zipkin_tags(key, value):
+    if _contextvars_zipkin_tags:
+        assigned_tags = _contextvars_zipkin_tags.get()
+        assigned_tags[key] = value
+   else:
+        if not hasattr(_thread_local_zipkin_tags, "tags"):
+            _thread_local_zipkin_tags.tags = dict()
+        _thread_local_zipkin_tags.tags[key] = value
 
 
 def _get_thread_local_tracer():
