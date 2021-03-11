@@ -559,6 +559,38 @@ class TestZipkinSpan(object):
             )
             assert len(span_storage) == 0
 
+    def test_stop_with_bad_error_that_cannot_be_stringified(self):
+        class BadExceptionThatCannotBeStringified(Exception):
+            def __str__(self):
+                # Returning a non-str will cause a TypeError.
+                return 42
+
+            __unicode__ = __str__
+
+        # Transport is not setup, exit immediately
+        transport = MockTransportHandler()
+        span_storage = SpanStorage()
+        context = zipkin.zipkin_span(
+            service_name="test_service",
+            span_name="test_span",
+            transport_handler=transport,
+            sample_rate=100.0,
+            span_storage=span_storage,
+        )
+
+        with mock.patch.object(context, "update_binary_annotations") as mock_upd:
+            context.start()
+            context.stop(
+                BadExceptionThatCannotBeStringified,
+                BadExceptionThatCannotBeStringified(),
+            )
+            assert mock_upd.call_args == mock.call(
+                {
+                    zipkin.ERROR_KEY: "BadExceptionThatCannotBeStringified: BadExceptionThatCannotBeStringified()"  # noqa
+                }
+            )
+            assert len(span_storage) == 0
+
     def test_error_stopping_log_context(self):
         """Tests if exception is raised while emitting traces that
            1. tracer is cleared
