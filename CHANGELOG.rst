@@ -1,3 +1,12 @@
+0.21.0 (2021-03-11)
+-------------------
+- The default encoding is now V2 JSON. If you want to keep the old
+  V1 thrift encoding you'll need to specify it.
+
+0.20.2 (2021-03-11)
+-------------------
+- Don't crash when annotating exceptions that cannot be str()'d
+
 0.20.1 (2020-10-27)
 -------------------
 - Support PRODUCER and CONSUMER spans

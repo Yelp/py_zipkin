@@ -100,7 +100,7 @@ class zipkin_span(object):
         kind=None,
         timestamp=None,
         duration=None,
-        encoding=Encoding.V1_THRIFT,
+        encoding=Encoding.V2_JSON,
         _tracer=None,
     ):
         """Logs a zipkin span. If this is the root span, then a zipkin
