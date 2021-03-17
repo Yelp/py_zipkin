@@ -1,4 +1,4 @@
-0.21.0 (2021-03-11)
+0.21.0 (2021-03-17)
 -------------------
 - The default encoding is now V2 JSON. If you want to keep the old
   V1 thrift encoding you'll need to specify it.
