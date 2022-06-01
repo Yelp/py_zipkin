@@ -7,7 +7,7 @@ from py_zipkin.util import unsigned_hex_to_signed_int
 
 try:
     from py_zipkin.encoding.protobuf import zipkin_pb2
-except ImportError:  # pragma: no cover
+except (ImportError, TypeError):  # pragma: no cover
     zipkin_pb2 = None
 
 
