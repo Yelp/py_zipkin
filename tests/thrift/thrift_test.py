@@ -1,5 +1,5 @@
-# -*- coding: utf-8 -*-
-import mock
+from unittest import mock
+
 import pytest
 
 from py_zipkin import thrift
@@ -117,7 +117,8 @@ def test_annotation_list_builder(ann_mock):
 
 
 @pytest.mark.parametrize(
-    "value", [(b"binary", u"unicøde")],
+    "value",
+    [(b"binary", "unicøde")],
 )
 def test_create_binary_annotation(value):
     bann = thrift.create_binary_annotation("foo", value, "baz", "bla")

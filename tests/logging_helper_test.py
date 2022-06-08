@@ -1,4 +1,5 @@
-import mock
+from unittest import mock
+
 import pytest
 
 from py_zipkin import Encoding
@@ -363,7 +364,9 @@ def test_batch_sender_add_span(fake_endpoint):
 
 def test_batch_sender_with_error_on_exit():
     sender = logging_helper.ZipkinBatchSender(
-        MockTransportHandler(), None, MockEncoder(),
+        MockTransportHandler(),
+        None,
+        MockEncoder(),
     )
     with pytest.raises(ZipkinError):
         with sender:
@@ -409,7 +412,9 @@ def test_batch_sender_add_span_too_big(fake_endpoint):
     mock_transport_handler = mock.Mock(spec=MockTransportHandler)
     mock_transport_handler.get_max_payload_bytes = lambda: 1000
     sender = logging_helper.ZipkinBatchSender(
-        mock_transport_handler, 100, get_encoder(Encoding.V1_THRIFT),
+        mock_transport_handler,
+        100,
+        get_encoder(Encoding.V1_THRIFT),
     )
     with sender:
         for _ in range(201):
@@ -446,7 +451,9 @@ def test_batch_sender_flush_calls_transport_handler_with_correct_params(fake_end
     transport_handler.get_max_payload_bytes = lambda: None
     encoder = MockEncoder(encoded_queue="foobar")
     sender = logging_helper.ZipkinBatchSender(
-        transport_handler=transport_handler, max_portion_size=None, encoder=encoder,
+        transport_handler=transport_handler,
+        max_portion_size=None,
+        encoder=encoder,
     )
     with sender:
         sender.add_span(
@@ -471,7 +478,9 @@ def test_batch_sender_defensive_about_transport_handler(fake_endpoint):
     None."""
     encoder = MockEncoder()
     sender = logging_helper.ZipkinBatchSender(
-        transport_handler=None, max_portion_size=None, encoder=encoder,
+        transport_handler=None,
+        max_portion_size=None,
+        encoder=encoder,
     )
     with sender:
         sender.add_span(

@@ -1,5 +1,5 @@
-# -*- coding: utf-8 -*-
-import mock
+from unittest import mock
+
 import pytest
 
 from py_zipkin import request_helpers
@@ -143,7 +143,8 @@ def test_extract_zipkin_attrs_from_headers_invalids():
 
         print("bad_headers: %r" % bad_headers)
         assert None is request_helpers.extract_zipkin_attrs_from_headers(
-            bad_headers, sample_rate=88.2,
+            bad_headers,
+            sample_rate=88.2,
         )
 
     # I'm pretty sure a provided X-B3-Sampled with empty-string "value" should
@@ -181,7 +182,11 @@ def test_extract_zipkin_attrs_from_headers_multi(
     # Just 2 bits is a sample-rate defer; die-roll is "no":
     mock_random.return_value = 0.883
     assert ZipkinAttrs(
-        trace_id, span_id, None, "0", False,
+        trace_id,
+        span_id,
+        None,
+        "0",
+        False,
     ) == request_helpers.extract_zipkin_attrs_from_headers(
         {"X-B3-TraceId": trace_id, "X-B3-SpanId": span_id}, sample_rate=88.2
     )
@@ -189,7 +194,11 @@ def test_extract_zipkin_attrs_from_headers_multi(
     # Just 2 bits is a sample-rate defer; die-roll is "yes":
     mock_random.return_value = 0.881
     assert ZipkinAttrs(
-        trace_id, span_id, None, "0", True,
+        trace_id,
+        span_id,
+        None,
+        "0",
+        True,
     ) == request_helpers.extract_zipkin_attrs_from_headers(
         {"X-B3-TraceId": trace_id, "X-B3-SpanId": span_id}, sample_rate=88.2
     )
@@ -197,7 +206,11 @@ def test_extract_zipkin_attrs_from_headers_multi(
     # defer with a parent span; die-roll is "no":
     mock_random.return_value = 0.883
     assert ZipkinAttrs(
-        trace_id, span_id, parent_span_id, "0", False,
+        trace_id,
+        span_id,
+        parent_span_id,
+        "0",
+        False,
     ) == request_helpers.extract_zipkin_attrs_from_headers(
         {
             "X-B3-TraceId": trace_id,
@@ -210,7 +223,11 @@ def test_extract_zipkin_attrs_from_headers_multi(
     # defer with a parent span; die-roll is "yes":
     mock_random.return_value = 0.881
     assert ZipkinAttrs(
-        trace_id, span_id, parent_span_id, "0", True,
+        trace_id,
+        span_id,
+        parent_span_id,
+        "0",
+        True,
     ) == request_helpers.extract_zipkin_attrs_from_headers(
         {
             "X-B3-TraceId": trace_id,
@@ -223,7 +240,11 @@ def test_extract_zipkin_attrs_from_headers_multi(
     # non-defer no-trace, no parent span
     mock_random.return_value = 0.881  # a "yes" if it were used
     assert ZipkinAttrs(
-        trace_id, span_id, None, "0", False,
+        trace_id,
+        span_id,
+        None,
+        "0",
+        False,
     ) == request_helpers.extract_zipkin_attrs_from_headers(
         {
             "X-B3-TraceId": trace_id,
@@ -236,7 +257,11 @@ def test_extract_zipkin_attrs_from_headers_multi(
     # non-defer yes-trace, no parent span
     mock_random.return_value = 0.883  # a "no" if it were used
     assert ZipkinAttrs(
-        trace_id, span_id, None, "0", True,
+        trace_id,
+        span_id,
+        None,
+        "0",
+        True,
     ) == request_helpers.extract_zipkin_attrs_from_headers(
         {
             "X-B3-TraceId": trace_id,
@@ -249,7 +274,11 @@ def test_extract_zipkin_attrs_from_headers_multi(
     # non-defer debug-trace, no parent span
     mock_random.return_value = 0.883  # a "no" if it were used
     assert ZipkinAttrs(
-        trace_id, span_id, None, "1", True,
+        trace_id,
+        span_id,
+        None,
+        "1",
+        True,
     ) == request_helpers.extract_zipkin_attrs_from_headers(
         {"X-B3-TraceId": trace_id, "X-B3-SpanId": span_id, "X-B3-Flags": "1"},
         sample_rate=88.2,
@@ -258,7 +287,11 @@ def test_extract_zipkin_attrs_from_headers_multi(
     # non-defer no-trace, yes parent span
     mock_random.return_value = 0.881  # a "yes" if it were used
     assert ZipkinAttrs(
-        trace_id, span_id, parent_span_id, "0", False,
+        trace_id,
+        span_id,
+        parent_span_id,
+        "0",
+        False,
     ) == request_helpers.extract_zipkin_attrs_from_headers(
         {
             "X-B3-TraceId": trace_id,
@@ -272,7 +305,11 @@ def test_extract_zipkin_attrs_from_headers_multi(
     # non-defer yes-trace, yes parent span
     mock_random.return_value = 0.883  # a "no" if it were used
     assert ZipkinAttrs(
-        trace_id, span_id, parent_span_id, "0", True,
+        trace_id,
+        span_id,
+        parent_span_id,
+        "0",
+        True,
     ) == request_helpers.extract_zipkin_attrs_from_headers(
         {
             "X-B3-TraceId": trace_id,
@@ -286,7 +323,11 @@ def test_extract_zipkin_attrs_from_headers_multi(
     # non-defer debug-trace, yes parent span
     mock_random.return_value = 0.883  # a "no" if it were used
     assert ZipkinAttrs(
-        trace_id, span_id, parent_span_id, "1", True,
+        trace_id,
+        span_id,
+        parent_span_id,
+        "1",
+        True,
     ) == request_helpers.extract_zipkin_attrs_from_headers(
         {
             "X-B3-TraceId": trace_id,
@@ -300,7 +341,11 @@ def test_extract_zipkin_attrs_from_headers_multi(
     # flags (debug) trump Sampled, if they conflict--another edge case
     mock_random.return_value = 0.883  # a "no" if it were used
     assert ZipkinAttrs(
-        trace_id, span_id, parent_span_id, "1", True,
+        trace_id,
+        span_id,
+        parent_span_id,
+        "1",
+        True,
     ) == request_helpers.extract_zipkin_attrs_from_headers(
         {
             "X-B3-TraceId": trace_id,
@@ -327,7 +372,11 @@ def test_extract_zipkin_attrs_from_headers_single(mock_random, yes_trace_str):
     # Just 2 bits is a sample-rate defer; die-roll is "no":
     mock_random.return_value = 0.883
     assert ZipkinAttrs(
-        trace_id, span_id, None, "0", False,
+        trace_id,
+        span_id,
+        None,
+        "0",
+        False,
     ) == request_helpers.extract_zipkin_attrs_from_headers(
         {"b3": "-".join((trace_id, span_id))}, sample_rate=88.2
     )
@@ -335,7 +384,11 @@ def test_extract_zipkin_attrs_from_headers_single(mock_random, yes_trace_str):
     # Just 2 bits is a sample-rate defer; die-roll is "yes":
     mock_random.return_value = 0.881
     assert ZipkinAttrs(
-        trace_id, span_id, None, "0", True,
+        trace_id,
+        span_id,
+        None,
+        "0",
+        True,
     ) == request_helpers.extract_zipkin_attrs_from_headers(
         {"b3": "-".join((trace_id, span_id))}, sample_rate=88.2
     )
@@ -343,7 +396,11 @@ def test_extract_zipkin_attrs_from_headers_single(mock_random, yes_trace_str):
     # defer with a parent span; die-roll is "no":
     mock_random.return_value = 0.883
     assert ZipkinAttrs(
-        trace_id, span_id, parent_span_id, "0", False,
+        trace_id,
+        span_id,
+        parent_span_id,
+        "0",
+        False,
     ) == request_helpers.extract_zipkin_attrs_from_headers(
         {"b3": "-".join((trace_id, span_id, "", parent_span_id))}, sample_rate=88.2
     )
@@ -351,7 +408,11 @@ def test_extract_zipkin_attrs_from_headers_single(mock_random, yes_trace_str):
     # defer with a parent span; die-roll is "yes":
     mock_random.return_value = 0.881
     assert ZipkinAttrs(
-        trace_id, span_id, parent_span_id, "0", True,
+        trace_id,
+        span_id,
+        parent_span_id,
+        "0",
+        True,
     ) == request_helpers.extract_zipkin_attrs_from_headers(
         {"b3": "-".join((trace_id, span_id, "", parent_span_id))}, sample_rate=88.2
     )
@@ -359,7 +420,11 @@ def test_extract_zipkin_attrs_from_headers_single(mock_random, yes_trace_str):
     # non-defer no-trace, no parent span
     mock_random.return_value = 0.881  # a "yes" if it were used
     assert ZipkinAttrs(
-        trace_id, span_id, None, "0", False,
+        trace_id,
+        span_id,
+        None,
+        "0",
+        False,
     ) == request_helpers.extract_zipkin_attrs_from_headers(
         {"b3": "-".join((trace_id, span_id, "0"))}, sample_rate=88.2
     )
@@ -367,7 +432,11 @@ def test_extract_zipkin_attrs_from_headers_single(mock_random, yes_trace_str):
     # non-defer yes/debug-trace, no parent span
     mock_random.return_value = 0.883  # a "no" if it were used
     assert ZipkinAttrs(
-        trace_id, span_id, None, "1" if yes_trace_str == "d" else "0", True,
+        trace_id,
+        span_id,
+        None,
+        "1" if yes_trace_str == "d" else "0",
+        True,
     ) == request_helpers.extract_zipkin_attrs_from_headers(
         {"b3": "-".join((trace_id, span_id, yes_trace_str))}, sample_rate=88.2
     )
@@ -375,7 +444,11 @@ def test_extract_zipkin_attrs_from_headers_single(mock_random, yes_trace_str):
     # non-defer no-trace, yes parent span
     mock_random.return_value = 0.881  # a "yes" if it were used
     assert ZipkinAttrs(
-        trace_id, span_id, parent_span_id, "0", False,
+        trace_id,
+        span_id,
+        parent_span_id,
+        "0",
+        False,
     ) == request_helpers.extract_zipkin_attrs_from_headers(
         {"b3": "-".join((trace_id, span_id, "0", parent_span_id))}, sample_rate=88.2
     )
@@ -383,7 +456,11 @@ def test_extract_zipkin_attrs_from_headers_single(mock_random, yes_trace_str):
     # non-defer yes/debug-trace, yes parent span
     mock_random.return_value = 0.883  # a "no" if it were used
     assert ZipkinAttrs(
-        trace_id, span_id, parent_span_id, "1" if yes_trace_str == "d" else "0", True,
+        trace_id,
+        span_id,
+        parent_span_id,
+        "1" if yes_trace_str == "d" else "0",
+        True,
     ) == request_helpers.extract_zipkin_attrs_from_headers(
         {"b3": "-".join((trace_id, span_id, yes_trace_str, parent_span_id))},
         sample_rate=88.2,

@@ -1,4 +1,4 @@
-import mock
+from unittest import mock
 
 from py_zipkin.encoding import protobuf
 from py_zipkin.encoding._helpers import create_endpoint
@@ -82,7 +82,10 @@ def test_get_protobuf_kind():
 def test_convert_endpoint():
     endpoint = create_endpoint(8888, "service1", "127.0.0.1")
     assert protobuf._convert_endpoint(endpoint) == zipkin_pb2.Endpoint(
-        service_name="service1", port=8888, ipv4=b"\177\000\000\001", ipv6=None,
+        service_name="service1",
+        port=8888,
+        ipv4=b"\177\000\000\001",
+        ipv6=None,
     )
 
     ipv6_endpoint = create_endpoint(0, "service1", "fe80::1ff:fe23:4567:890")

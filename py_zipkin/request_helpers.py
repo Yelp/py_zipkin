@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import logging
 
 from py_zipkin.storage import get_default_tracer
@@ -153,7 +152,9 @@ def extract_zipkin_attrs_from_headers(
 
 
 def create_http_headers(
-    context_stack=None, tracer=None, new_span_id=False,
+    context_stack=None,
+    tracer=None,
+    new_span_id=False,
 ):
     """
     Generate the headers for a new zipkin span.

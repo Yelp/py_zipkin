@@ -1,7 +1,4 @@
-# -*- coding: utf-8 -*-
 import json
-
-import six
 
 from py_zipkin.encoding._decoders import get_decoder
 from py_zipkin.encoding._encoders import get_encoder
@@ -27,20 +24,15 @@ def detect_span_version_and_encoding(message):
     """
     # In case message is sent in as non-bytearray format,
     # safeguard convert to bytearray before handling
-    if isinstance(message, six.string_types):
-        # Even six.b is not enough to handle the py2/3 difference since
-        # it uses latin-1 as default encoding and not utf-8.
-        if six.PY2:
-            message = six.b(message)  # pragma: no cover
-        else:
-            message = message.encode("utf-8")  # pragma: no cover
+    if isinstance(message, str):
+        message = message.encode("utf-8")  # pragma: no cover
 
     if len(message) < 2:
         raise ZipkinError("Invalid span format. Message too short.")
 
     # Check for binary format
-    if six.byte2int(message) <= 16:
-        if six.byte2int(message) == 10 and six.byte2int(message[1:2]) != 0:
+    if message[0] <= 16:
+        if message[0] == 10 and message[1:2][0] != 0:
             return Encoding.V2_PROTO3
         return Encoding.V1_THRIFT
 

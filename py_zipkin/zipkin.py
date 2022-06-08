@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import functools
 import logging
 import time
@@ -21,7 +20,7 @@ log = logging.getLogger(__name__)
 ERROR_KEY = "error"
 
 
-class zipkin_span(object):
+class zipkin_span:
     """Context manager/decorator for all of your zipkin tracing needs.
 
     Usage #1: Start a trace with a given sampling rate
@@ -377,7 +376,8 @@ class zipkin_span(object):
                 return (
                     True,
                     create_attrs_for_span(
-                        sample_rate=0.0, use_128bit_trace_id=self.use_128bit_trace_id,
+                        sample_rate=0.0,
+                        use_128bit_trace_id=self.use_128bit_trace_id,
                     ),
                 )
 
@@ -487,11 +487,11 @@ class zipkin_span(object):
         # Add the error annotation if an exception occurred
         if any((_exc_type, _exc_value, _exc_traceback)):
             try:
-                error_msg = u"{0}: {1}".format(_exc_type.__name__, _exc_value)
+                error_msg = "{}: {}".format(_exc_type.__name__, _exc_value)
             except TypeError:
                 # This sometimes happens when an exception raises when calling
                 # __str__ on it.
-                error_msg = u"{0}: {1!r}".format(_exc_type.__name__, _exc_value)
+                error_msg = "{}: {!r}".format(_exc_type.__name__, _exc_value)
             self.update_binary_annotations({ERROR_KEY: error_msg})
 
         # Logging context is only initialized for "root" spans of the local
@@ -568,7 +568,10 @@ class zipkin_span(object):
             self.logging_context.annotations[value] = timestamp
 
     def add_sa_binary_annotation(
-        self, port=0, service_name="unknown", host="127.0.0.1",
+        self,
+        port=0,
+        service_name="unknown",
+        host="127.0.0.1",
     ):
         """Adds a 'sa' binary annotation to the current span.
 
@@ -590,7 +593,9 @@ class zipkin_span(object):
             return
 
         remote_endpoint = create_endpoint(
-            port=port, service_name=service_name, host=host,
+            port=port,
+            service_name=service_name,
+            host=host,
         )
         if not self.logging_context:
             if self.remote_endpoint is not None:
@@ -639,7 +644,7 @@ class zipkin_client_span(zipkin_span):
         _validate_args(kwargs)
 
         kwargs["kind"] = Kind.CLIENT
-        super(zipkin_client_span, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
 
 class zipkin_server_span(zipkin_span):
@@ -656,7 +661,7 @@ class zipkin_server_span(zipkin_span):
         _validate_args(kwargs)
 
         kwargs["kind"] = Kind.SERVER
-        super(zipkin_server_span, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
 
 def create_http_headers_for_new_span(context_stack=None, tracer=None):

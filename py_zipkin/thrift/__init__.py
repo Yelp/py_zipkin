@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import os
 import socket
 import struct
@@ -46,7 +45,10 @@ def create_binary_annotation(key, value, annotation_type, host):
     :returns: zipkin binary annotation object
     """
     return zipkin_core.BinaryAnnotation(
-        key=key, value=value, annotation_type=annotation_type, host=host,
+        key=key,
+        value=value,
+        annotation_type=annotation_type,
+        host=host,
     )
 
 
@@ -75,7 +77,10 @@ def create_endpoint(port=0, service_name="unknown", ipv4=None, ipv6=None):
     # unsigned types, so we have to convert the value.
     port = struct.unpack("h", struct.pack("H", port))[0]
     return zipkin_core.Endpoint(
-        ipv4=ipv4_int, ipv6=ipv6_binary, port=port, service_name=service_name,
+        ipv4=ipv4_int,
+        ipv6=ipv6_binary,
+        port=port,
+        service_name=service_name,
     )
 
 
@@ -88,7 +93,9 @@ def copy_endpoint_with_new_service_name(endpoint, service_name):
     :returns: zipkin Endpoint object
     """
     return zipkin_core.Endpoint(
-        ipv4=endpoint.ipv4, port=endpoint.port, service_name=service_name,
+        ipv4=endpoint.ipv4,
+        port=endpoint.port,
+        service_name=service_name,
     )
 
 

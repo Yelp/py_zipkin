@@ -1,12 +1,11 @@
-# -*- coding: utf-8 -*-
-from six.moves.urllib.request import Request
-from six.moves.urllib.request import urlopen
+from urllib.request import Request
+from urllib.request import urlopen
 
 from py_zipkin.encoding import detect_span_version_and_encoding
 from py_zipkin.encoding import Encoding
 
 
-class BaseTransportHandler(object):
+class BaseTransportHandler:
     def get_max_payload_bytes(self):  # pragma: no cover
         """Returns the maximum payload size for this transport.
 
@@ -64,7 +63,7 @@ class SimpleHTTPTransport(BaseTransportHandler):
         :param port: zipkin server port.
         :type port: int
         """
-        super(SimpleHTTPTransport, self).__init__()
+        super().__init__()
         self.address = address
         self.port = port
 

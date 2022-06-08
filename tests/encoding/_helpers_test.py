@@ -1,7 +1,7 @@
 import socket
 from collections import OrderedDict
+from unittest import mock
 
-import mock
 import pytest
 
 from py_zipkin.encoding._helpers import create_endpoint
@@ -93,7 +93,9 @@ def test_create_endpoint_defaults_localhost(gethostbyname):
 
 def test_create_endpoint_ipv6():
     endpoint = create_endpoint(
-        port=8080, service_name="foo", host="2001:0db8:85a3:0000:0000:8a2e:0370:7334",
+        port=8080,
+        service_name="foo",
+        host="2001:0db8:85a3:0000:0000:8a2e:0370:7334",
     )
     assert endpoint.service_name == "foo"
     assert endpoint.port == 8080
@@ -109,7 +111,7 @@ def test_malformed_host():
     assert endpoint.ipv6 is None
 
 
-class TestSpan(object):
+class TestSpan:
     @pytest.mark.parametrize(
         ["kind", "annotations"],
         [

@@ -1,9 +1,7 @@
-# -*- coding: utf-8 -*-
 import logging
 import socket
 import struct
 
-import six
 from thriftpy2.protocol.binary import read_list_begin
 from thriftpy2.protocol.binary import TBinaryProtocol
 from thriftpy2.thrift import TType
@@ -39,7 +37,7 @@ def get_decoder(encoding):
     raise ZipkinError("Unknown encoding: {}".format(encoding))
 
 
-class IDecoder(object):
+class IDecoder:
     """Decoder interface."""
 
     def decode_spans(self, spans):
@@ -65,7 +63,7 @@ class _V1ThriftDecoder(IDecoder):
         decoded_spans = []
         transport = TMemoryBuffer(spans)
 
-        if six.byte2int(spans) == TType.STRUCT:
+        if spans[0] == TType.STRUCT:
             _, size = read_list_begin(transport)
         else:
             size = 1
@@ -90,14 +88,18 @@ class _V1ThriftDecoder(IDecoder):
 
         if thrift_endpoint.ipv4 != 0:
             ipv4 = socket.inet_ntop(
-                socket.AF_INET, struct.pack("!i", thrift_endpoint.ipv4),
+                socket.AF_INET,
+                struct.pack("!i", thrift_endpoint.ipv4),
             )
 
         if thrift_endpoint.ipv6:
             ipv6 = socket.inet_ntop(socket.AF_INET6, thrift_endpoint.ipv6)
 
         return Endpoint(
-            service_name=thrift_endpoint.service_name, ipv4=ipv4, ipv6=ipv6, port=port,
+            service_name=thrift_endpoint.service_name,
+            ipv4=ipv4,
+            ipv6=ipv6,
+            port=port,
         )
 
     def _decode_thrift_annotations(self, thrift_annotations):
@@ -217,7 +219,8 @@ class _V1ThriftDecoder(IDecoder):
             )
 
         trace_id = self._convert_trace_id_to_string(
-            thrift_span.trace_id, thrift_span.trace_id_high,
+            thrift_span.trace_id,
+            thrift_span.trace_id_high,
         )
 
         return Span(

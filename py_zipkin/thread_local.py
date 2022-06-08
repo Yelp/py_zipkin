@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import logging
 
 from py_zipkin.storage import get_default_tracer

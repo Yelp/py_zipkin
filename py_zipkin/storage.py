@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import logging
 import threading
 from collections import deque
@@ -62,7 +61,7 @@ def _set_contextvars_tracer(tracer):  # pragma: no cover
     _contextvars_tracer.set(tracer)
 
 
-class Tracer(object):
+class Tracer:
     def __init__(self):
         self._is_transport_configured = False
         self._span_storage = SpanStorage()
@@ -110,7 +109,7 @@ class Tracer(object):
         return the_copy
 
 
-class Stack(object):
+class Stack:
     """
     Stack is a simple stack class.
 
