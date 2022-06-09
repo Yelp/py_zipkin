@@ -1,3 +1,8 @@
+1.0.0 (2022-06-09)
+-------------------
+- Droop Python 2.7 support (minimal supported python version is 3.5)
+- Recompile protobuf using version 3.19
+
 0.21.0 (2021-03-17)
 -------------------
 - The default encoding is now V2 JSON. If you want to keep the old
