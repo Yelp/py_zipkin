@@ -1,5 +1,4 @@
 #!/usr/bin/python
-# -*- coding: utf-8 -*-
 import os
 
 from setuptools import find_packages
@@ -25,12 +24,11 @@ setup(
     long_description_content_type="text/markdown",
     packages=find_packages(exclude=('tests*', 'testing*', 'tools*')),
     package_data={'': ['*.thrift']},
+    python_requires='>=3.5',
     install_requires=[
-        'six',
         'thriftpy2>=0.4.0',
     ],
     extras_require={
-        ':python_version=="2.7"': ['enum34'],
         'protobuf': 'protobuf >= 3.12.4',
     },
     classifiers=[
@@ -39,8 +37,6 @@ setup(
         "Topic :: Software Development :: Libraries :: Python Modules",
         "License :: OSI Approved :: Apache Software License",
         "Operating System :: OS Independent",
-        "Programming Language :: Python :: 2.7",
-        "Programming Language :: Python :: 3.4",
         "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",

@@ -1,9 +1,6 @@
-# -*- coding: utf-8 -*-
 import threading
 import time
-
-import mock
-import six
+from unittest import mock
 
 from py_zipkin import Kind
 from py_zipkin import thrift
@@ -28,7 +25,7 @@ class MockEncoder(IEncoder):
         assert isinstance(current_count, int)
         assert isinstance(current_size, int)
         assert isinstance(max_size, int)
-        assert isinstance(new_span, six.string_types)
+        assert isinstance(new_span, str)
 
         return self.fits_bool
 
@@ -71,7 +68,9 @@ def generate_list_of_spans(encoding):
             kind=Kind.CLIENT,
         ) as span:
             with mock.patch.object(
-                zipkin, "generate_random_64bit_string", return_value=inner_span_id,
+                zipkin,
+                "generate_random_64bit_string",
+                return_value=inner_span_id,
             ):
                 with zipkin.zipkin_span(
                     service_name="test_service_name",
@@ -81,7 +80,9 @@ def generate_list_of_spans(encoding):
                     annotations={"ws": ts},
                 ):
                     span.add_sa_binary_annotation(
-                        8888, "sa_service", "2001:0db8:85a3:0000:0000:8a2e:0370:7334",
+                        8888,
+                        "sa_service",
+                        "2001:0db8:85a3:0000:0000:8a2e:0370:7334",
                     )
 
     return transport_handler.get_payloads()[0], zipkin_attrs, inner_span_id, ts
@@ -102,7 +103,10 @@ def generate_single_thrift_span():
         annotations=[thrift.create_annotation(1472470996199000, "cs", host)],
         binary_annotations=[
             thrift.create_binary_annotation(
-                "key", "value", zipkin_core.AnnotationType.STRING, host,
+                "key",
+                "value",
+                zipkin_core.AnnotationType.STRING,
+                host,
             ),
         ],
         timestamp_s=timestamp_s,
@@ -120,7 +124,7 @@ class TracingThread(threading.Thread):
 
     def start(self):
         python_threads._Thread_pre_start(self)
-        super(TracingThread, self).start()
+        super().start()
 
     def run(self):
-        python_threads._Thread_wrap_run(self, super(TracingThread, self).run)
+        python_threads._Thread_wrap_run(self, super().run)

@@ -1,5 +1,5 @@
-# -*- coding: utf-8 -*-
-import mock
+from unittest import mock
+
 import pytest
 
 from py_zipkin.encoding import Encoding
@@ -8,7 +8,7 @@ from py_zipkin.zipkin import zipkin_span
 from tests.test_helpers import MockTransportHandler
 
 
-class TestBaseTransportHandler(object):
+class TestBaseTransportHandler:
     def test_call_calls_send(self):
         with mock.patch.object(MockTransportHandler, "send", autospec=True):
             transport = MockTransportHandler()
@@ -18,7 +18,7 @@ class TestBaseTransportHandler(object):
             assert transport.send.call_args == mock.call(transport, "foobar")
 
 
-class TestSimpleHTTPTransport(object):
+class TestSimpleHTTPTransport:
     def test_get_max_payload_bytes(self):
         transport = SimpleHTTPTransport("localhost", 9411)
         assert transport.get_max_payload_bytes() is None

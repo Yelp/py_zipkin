@@ -1,7 +1,4 @@
-# -*- coding: utf-8 -*-
 import json
-
-import six
 
 from py_zipkin import thrift
 from py_zipkin.encoding import protobuf
@@ -29,7 +26,7 @@ def get_encoder(encoding):
     raise ZipkinError("Unknown encoding: {}".format(encoding))
 
 
-class IEncoder(object):
+class IEncoder:
     """Encoder interface."""
 
     def fits(self, current_count, current_size, max_size, new_span):
@@ -113,17 +110,21 @@ class _V1ThriftEncoder(IEncoder):
         )
 
         thrift_annotations = thrift.annotation_list_builder(
-            span.annotations, thrift_endpoint,
+            span.annotations,
+            thrift_endpoint,
         )
 
         thrift_binary_annotations = thrift.binary_annotation_list_builder(
-            span.binary_annotations, thrift_endpoint,
+            span.binary_annotations,
+            thrift_endpoint,
         )
 
         # Add sa/ca binary annotations
         if v2_span.remote_endpoint:
             self.encode_remote_endpoint(
-                v2_span.remote_endpoint, v2_span.kind, thrift_binary_annotations,
+                v2_span.remote_endpoint,
+                v2_span.kind,
+                thrift_binary_annotations,
             )
 
         thrift_span = thrift.create_span(
@@ -146,7 +147,7 @@ class _V1ThriftEncoder(IEncoder):
 
 
 class _BaseJSONEncoder(IEncoder):
-    """ V1 and V2 JSON encoders need many common helper functions """
+    """V1 and V2 JSON encoders need many common helper functions"""
 
     def fits(self, current_count, current_size, max_size, new_span):
         """Checks if the new span fits in the max payload size.
@@ -241,7 +242,9 @@ class _V1JSONEncoder(_BaseJSONEncoder):
         # Add sa/ca binary annotations
         if v2_span.remote_endpoint:
             self.encode_remote_endpoint(
-                v2_span.remote_endpoint, v2_span.kind, json_span["binaryAnnotations"],
+                v2_span.remote_endpoint,
+                v2_span.kind,
+                json_span["binaryAnnotations"],
             )
 
         encoded_span = json.dumps(json_span)
@@ -274,16 +277,18 @@ class _V2JSONEncoder(_BaseJSONEncoder):
             json_span["kind"] = span.kind.value
         if span.local_endpoint:
             json_span["localEndpoint"] = self._create_json_endpoint(
-                span.local_endpoint, False,
+                span.local_endpoint,
+                False,
             )
         if span.remote_endpoint:
             json_span["remoteEndpoint"] = self._create_json_endpoint(
-                span.remote_endpoint, False,
+                span.remote_endpoint,
+                False,
             )
         if span.tags and len(span.tags) > 0:
             # Ensure that tags are all strings
             json_span["tags"] = {
-                str(key): str(value) for key, value in six.iteritems(span.tags)
+                str(key): str(value) for key, value in span.tags.items()
             }
 
         if span.annotations:

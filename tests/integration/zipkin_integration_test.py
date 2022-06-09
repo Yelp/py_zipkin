@@ -1,7 +1,6 @@
-# -*- coding: utf-8 -*-
 import json
+from unittest import mock
 
-import mock
 import pytest
 
 from py_zipkin import Encoding
@@ -52,9 +51,7 @@ def test_starting_zipkin_trace_with_sampling_rate():
         assert span["timestamp"] is not None
         assert span["duration"] is not None
         assert span["tags"]["some_key"] == "some_value"
-        assert sorted([ann["value"] for ann in span["annotations"]]) == [
-            LOGGING_END_KEY
-        ]
+        assert sorted(ann["value"] for ann in span["annotations"]) == [LOGGING_END_KEY]
 
     check_span(json.loads(mock_logs[0])[0])
     check_span(json.loads(mock_firehose_logs[0])[0])
@@ -118,7 +115,7 @@ def test_span_inside_trace():
     assert nested_span["duration"] is not None
     assert len(nested_span["annotations"]) == 1
     assert "kind" not in nested_span
-    assert sorted([ann["value"] for ann in nested_span["annotations"]]) == sorted(
+    assert sorted(ann["value"] for ann in nested_span["annotations"]) == sorted(
         ["nested_annotation"]
     )
     for ann in nested_span["annotations"]:
@@ -164,7 +161,7 @@ def test_annotation_override():
         assert nested_span["timestamp"] is not None
         assert nested_span["duration"] is not None
         assert len(nested_span["annotations"]) == 3
-        assert sorted([ann["value"] for ann in nested_span["annotations"]]) == sorted(
+        assert sorted(ann["value"] for ann in nested_span["annotations"]) == sorted(
             ["cs", "cr", "nested_annotation"]
         )
         for ann in nested_span["annotations"]:
@@ -228,7 +225,11 @@ def test_service_span(encoding):
     """Tests that zipkin_attrs can be passed in"""
     mock_transport_handler, mock_logs = mock_logger()
     zipkin_attrs = ZipkinAttrs(
-        trace_id="0", span_id="1", parent_span_id="2", flags="0", is_sampled=True,
+        trace_id="0",
+        span_id="1",
+        parent_span_id="2",
+        flags="0",
+        is_sampled=True,
     )
     with zipkin.zipkin_span(
         service_name="test_service_name",
@@ -257,7 +258,7 @@ def test_service_span(encoding):
 @mock.patch.object(log, "error", autospec=True)
 def test_service_exits_on_erroneous_span(log_mock):
     """Tests that for invalid zipkin_attrs exceptions are not thrown
-       Services may not be handling them. Instead log an error
+    Services may not be handling them. Instead log an error
     """
     mock_transport_handler, mock_logs = mock_logger()
     tracer = MockTracer()
@@ -293,7 +294,11 @@ def test_service_span_report_timestamp_override():
     # We need to pass in zipkin_attrs so that py_zipkin doesn't think this is the
     # root span (ts and duration are always set for the root span)
     zipkin_attrs = ZipkinAttrs(
-        trace_id="0", span_id="1", parent_span_id="2", flags="0", is_sampled=True,
+        trace_id="0",
+        span_id="1",
+        parent_span_id="2",
+        flags="0",
+        is_sampled=True,
     )
     with zipkin.zipkin_span(
         service_name="test_service_name",
@@ -320,7 +325,11 @@ def test_service_span_that_is_independently_sampled(encoding):
     mock_transport_handler, mock_logs = mock_logger()
     mock_firehose_handler, mock_firehose_logs = mock_logger()
     zipkin_attrs = ZipkinAttrs(
-        trace_id="0", span_id="1", parent_span_id="2", flags="0", is_sampled=False,
+        trace_id="0",
+        span_id="1",
+        parent_span_id="2",
+        flags="0",
+        is_sampled=False,
     )
     with zipkin.zipkin_span(
         service_name="test_service_name",
@@ -401,7 +410,8 @@ def test_no_sampling_with_inner_span():
         encoding=Encoding.V2_JSON,
     ):
         with zipkin.zipkin_span(
-            service_name="nested_service", span_name="nested_span",
+            service_name="nested_service",
+            span_name="nested_span",
         ):
             pass
 
@@ -437,7 +447,7 @@ def test_client_span(encoding):
 
     assert span["name"] == "test_span_name"
     if encoding == Encoding.V1_JSON:
-        assert sorted([ann["value"] for ann in span["annotations"]]) == ["cr", "cs"]
+        assert sorted(ann["value"] for ann in span["annotations"]) == ["cr", "cs"]
     elif encoding == Encoding.V2_JSON:
         assert span["kind"] == "CLIENT"
 
@@ -453,7 +463,8 @@ def test_server_span(encoding):
         encoding=encoding,
     ):
         with zipkin.zipkin_client_span(
-            service_name="nested_service", span_name="nested_span",
+            service_name="nested_service",
+            span_name="nested_span",
         ):
             pass
 
@@ -470,7 +481,7 @@ def test_server_span(encoding):
     assert "duration" in server_span
     if encoding == Encoding.V1_JSON:
         assert len(server_span["annotations"]) == 2
-        assert sorted([ann["value"] for ann in server_span["annotations"]]) == [
+        assert sorted(ann["value"] for ann in server_span["annotations"]) == [
             "sr",
             "ss",
         ]
@@ -483,7 +494,7 @@ def test_server_span(encoding):
     assert "duration" in client_span
     if encoding == Encoding.V1_JSON:
         assert len(client_span["annotations"]) == 2
-        assert sorted([ann["value"] for ann in client_span["annotations"]]) == [
+        assert sorted(ann["value"] for ann in client_span["annotations"]) == [
             "cr",
             "cs",
         ]
@@ -502,11 +513,15 @@ def test_include_still_works(encoding):
         encoding=encoding,
     ):
         with zipkin.zipkin_span(
-            service_name="nested_service", span_name="nested_span", include={"client"},
+            service_name="nested_service",
+            span_name="nested_span",
+            include={"client"},
         ):
             pass
         with zipkin.zipkin_span(
-            service_name="nested_service", span_name="nested_span", include={"server"},
+            service_name="nested_service",
+            span_name="nested_span",
+            include={"server"},
         ):
             pass
         with zipkin.zipkin_span(
@@ -525,12 +540,12 @@ def test_include_still_works(encoding):
     local_span = spans[2]
     if encoding == Encoding.V1_JSON:
         assert len(client_span["annotations"]) == 2
-        assert sorted([ann["value"] for ann in client_span["annotations"]]) == [
+        assert sorted(ann["value"] for ann in client_span["annotations"]) == [
             "cr",
             "cs",
         ]
         assert len(server_span["annotations"]) == 2
-        assert sorted([ann["value"] for ann in server_span["annotations"]]) == [
+        assert sorted(ann["value"] for ann in server_span["annotations"]) == [
             "sr",
             "ss",
         ]
@@ -552,7 +567,9 @@ def test_can_set_sa_annotation(encoding):
         encoding=encoding,
     ) as span:
         span.add_sa_binary_annotation(
-            port=8888, service_name="sa_service", host="10.0.0.0",
+            port=8888,
+            service_name="sa_service",
+            host="10.0.0.0",
         )
 
     assert len(mock_logs) == 1
@@ -565,7 +582,7 @@ def test_can_set_sa_annotation(encoding):
     elif encoding == Encoding.V2_JSON:
         host = client_span["remoteEndpoint"]
 
-    assert host["serviceName"] == u"sa_service"
+    assert host["serviceName"] == "sa_service"
     assert host["ipv4"] == "10.0.0.0"
     assert "ipv6" not in host
     assert host["port"] == 8888
@@ -585,7 +602,8 @@ def test_memory_leak():
             encoding=Encoding.V2_JSON,
         ):
             with zipkin.zipkin_span(
-                service_name="inner_service_name", span_name="inner_span_name",
+                service_name="inner_service_name",
+                span_name="inner_span_name",
             ):
                 pass
 

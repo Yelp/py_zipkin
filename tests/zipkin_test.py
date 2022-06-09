@@ -1,10 +1,8 @@
-# -*- coding: utf-8 -*-
 import inspect
 import time
+from unittest import mock
 
-import mock
 import pytest
-import six
 
 import py_zipkin.zipkin as zipkin
 from py_zipkin import Encoding
@@ -38,7 +36,7 @@ def clean_thread_local():
     get_default_tracer()._span_storage.clear()
 
 
-class TestZipkinSpan(object):
+class TestZipkinSpan:
     @mock.patch.object(zipkin.zipkin_span, "_generate_kind", autospec=True)
     def test_init(self, mock_generate_kind):
         # Test that all arguments are correctly saved
@@ -91,7 +89,9 @@ class TestZipkinSpan(object):
         assert context.firehose_handler == firehose
         assert mock_generate_kind.call_count == 1
         assert mock_generate_kind.call_args == mock.call(
-            context, Kind.CLIENT, ("cs", "cr"),
+            context,
+            Kind.CLIENT,
+            ("cs", "cr"),
         )
         assert context.timestamp == 1234
         assert context.duration == 10
@@ -107,7 +107,8 @@ class TestZipkinSpan(object):
         # Test that special arguments are properly defaulted
         mock_storage.return_value = SpanStorage()
         context = zipkin.zipkin_span(
-            service_name="test_service", span_name="test_span",
+            service_name="test_service",
+            span_name="test_span",
         )
 
         assert context.service_name == "test_service"
@@ -144,7 +145,8 @@ class TestZipkinSpan(object):
         # Normal spans are not marked as local root since they're not responsible
         # to log the resulting spans
         context = zipkin.zipkin_span(
-            service_name="test_service", span_name="test_span",
+            service_name="test_service",
+            span_name="test_span",
         )
 
         assert context._is_local_root_span is False
@@ -230,10 +232,7 @@ class TestZipkinSpan(object):
         # to the zipkin_span constructor.
 
         # getfullargspec returns the signature of the function
-        if six.PY2:
-            signature = inspect.getargspec(zipkin.zipkin_span.__init__).args
-        else:
-            signature = inspect.getfullargspec(zipkin.zipkin_span).args
+        signature = inspect.getfullargspec(zipkin.zipkin_span).args
 
         @zipkin.zipkin_span("test_service", "test_span")
         def fn():
@@ -265,7 +264,8 @@ class TestZipkinSpan(object):
 
     @mock.patch.object(zipkin, "create_attrs_for_span", autospec=True)
     def test_get_current_context_root_sample_rate_override_not_sampled(
-        self, mock_create_attr,
+        self,
+        mock_create_attr,
     ):
         # Root span, with custom zipkin_attrs, not sampled and sample_rate
         zipkin_attrs = ZipkinAttrs(
@@ -286,14 +286,16 @@ class TestZipkinSpan(object):
         report_root, _ = context._get_current_context()
 
         assert mock_create_attr.call_args == mock.call(
-            sample_rate=100.0, trace_id=zipkin_attrs.trace_id,
+            sample_rate=100.0,
+            trace_id=zipkin_attrs.trace_id,
         )
         # It wasn't sampled before and now it is, so this is the trace root
         assert report_root is True
 
     @mock.patch.object(zipkin, "create_attrs_for_span", autospec=True)
     def test_get_current_context_root_sample_rate_override_sampled(
-        self, mock_create_attr,
+        self,
+        mock_create_attr,
     ):
         # Root span, with custom zipkin_attrs, sampled
         # Just return the custom zipkin_attrs.
@@ -322,7 +324,8 @@ class TestZipkinSpan(object):
 
     @mock.patch.object(zipkin, "create_attrs_for_span", autospec=True)
     def test_get_current_context_root_sample_rate_no_override(
-        self, mock_create_attr,
+        self,
+        mock_create_attr,
     ):
         # Root span, with sample_rate, no override
         # Just generate new zipkin_attrs
@@ -336,14 +339,16 @@ class TestZipkinSpan(object):
         report_root, _ = context._get_current_context()
 
         assert mock_create_attr.call_args == mock.call(
-            sample_rate=100.0, use_128bit_trace_id=False,
+            sample_rate=100.0,
+            use_128bit_trace_id=False,
         )
         # No override, which means this is for sure the trace root
         assert report_root is True
 
     @mock.patch.object(zipkin, "create_attrs_for_span", autospec=True)
     def test_get_current_context_root_no_sample_rate_no_override_firehose(
-        self, mock_create_attr,
+        self,
+        mock_create_attr,
     ):
         # Root span, no sample_rate, no override, firehose set
         # Just generate new zipkin_attrs with sample_rate 0
@@ -356,14 +361,16 @@ class TestZipkinSpan(object):
         report_root, _ = context._get_current_context()
 
         assert mock_create_attr.call_args == mock.call(
-            sample_rate=0.0, use_128bit_trace_id=False,
+            sample_rate=0.0,
+            use_128bit_trace_id=False,
         )
         # No override, which means this is for sure the trace root
         assert report_root is True
 
     @mock.patch.object(zipkin, "create_attrs_for_span", autospec=True)
     def test_get_current_context_non_root_existing(
-        self, mock_create_attr,
+        self,
+        mock_create_attr,
     ):
         # Non root, zipkin_attrs in context stack.
         # Return existing zipkin_attrs with the current one as parent
@@ -376,7 +383,8 @@ class TestZipkinSpan(object):
         )
         tracer = MockTracer()
         context = tracer.zipkin_span(
-            service_name="test_service", span_name="test_span",
+            service_name="test_service",
+            span_name="test_span",
         )
         tracer._context_stack.push(zipkin_attrs)
 
@@ -393,11 +401,13 @@ class TestZipkinSpan(object):
 
     @mock.patch.object(zipkin, "create_attrs_for_span", autospec=True)
     def test_get_current_context_non_root_non_existing(
-        self, mock_create_attr,
+        self,
+        mock_create_attr,
     ):
         # Non root, nothing in the stack
         context = zipkin.zipkin_span(
-            service_name="test_service", span_name="test_span",
+            service_name="test_service",
+            span_name="test_span",
         )
 
         _, current_attrs = context._get_current_context()
@@ -593,8 +603,8 @@ class TestZipkinSpan(object):
 
     def test_error_stopping_log_context(self):
         """Tests if exception is raised while emitting traces that
-           1. tracer is cleared
-           2. excpetion is not passed up
+        1. tracer is cleared
+        2. excpetion is not passed up
         """
         transport = MockTransportHandler()
         tracer = MockTracer()
@@ -641,7 +651,8 @@ class TestZipkinSpan(object):
         tracer.set_transport_configured(configured=True)
         tracer.get_context().push(zipkin.create_attrs_for_span())
         context = tracer.zipkin_span(
-            service_name="test_service", span_name="test_span",
+            service_name="test_service",
+            span_name="test_span",
         )
         context.start()
 
@@ -887,4 +898,8 @@ def test_create_headers_for_new_span(mock_create_http_headers):
     zipkin.create_http_headers_for_new_span(context_stack, tracer)
 
     assert mock_create_http_headers.call_count == 1
-    assert mock_create_http_headers.call_args == mock.call(context_stack, tracer, True,)
+    assert mock_create_http_headers.call_args == mock.call(
+        context_stack,
+        tracer,
+        True,
+    )

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import random
 import struct
 import time
@@ -15,7 +14,8 @@ Holds the basic attributes needed to log a zipkin trace
 :param is_sampled: pre-computed bool whether the trace should be logged
 """
 ZipkinAttrs = namedtuple(
-    "ZipkinAttrs", ["trace_id", "span_id", "parent_span_id", "flags", "is_sampled"],
+    "ZipkinAttrs",
+    ["trace_id", "span_id", "parent_span_id", "flags", "is_sampled"],
 )
 
 

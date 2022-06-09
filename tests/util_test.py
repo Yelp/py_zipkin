@@ -1,6 +1,4 @@
-import sys
-
-import mock
+from unittest import mock
 
 from py_zipkin import util
 from py_zipkin.util import ZipkinAttrs
@@ -38,13 +36,11 @@ def test_signed_int_to_unsigned_hex():
     assert util.signed_int_to_unsigned_hex(1662740067609015813) == "17133d482ba4f605"
     assert util.signed_int_to_unsigned_hex(-5270423489115668655) == "b6dbb1c2b362bf51"
 
-    if sys.version_info > (3,):
-        with mock.patch("builtins.hex") as mock_hex:
-            mock_hex.return_value = "0xb6dbb1c2b362bf51L"
-            assert (
-                util.signed_int_to_unsigned_hex(-5270423489115668655)
-                == "b6dbb1c2b362bf51"
-            )
+    with mock.patch("builtins.hex") as mock_hex:
+        mock_hex.return_value = "0xb6dbb1c2b362bf51L"
+        assert (
+            util.signed_int_to_unsigned_hex(-5270423489115668655) == "b6dbb1c2b362bf51"
+        )
 
 
 @mock.patch("py_zipkin.util.generate_random_128bit_string", autospec=True)
@@ -69,7 +65,9 @@ def test_create_attrs_for_span(random_64bit_mock, random_128bit_mock):
         is_sampled=False,
     )
     assert expected_attrs == util.create_attrs_for_span(
-        sample_rate=0.0, trace_id="0000000000000045", span_id="0000000000000046",
+        sample_rate=0.0,
+        trace_id="0000000000000045",
+        span_id="0000000000000046",
     )
 
     random_128bit_mock.return_value = "00000000000000420000000000000042"

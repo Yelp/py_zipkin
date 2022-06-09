@@ -1,4 +1,4 @@
-import mock
+from unittest import mock
 
 from py_zipkin import storage
 from py_zipkin import thread_local

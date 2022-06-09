@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import os
 import time
 
@@ -13,7 +12,7 @@ from py_zipkin.transport import BaseTransportHandler
 LOGGING_END_KEY = "py_zipkin.logging_end"
 
 
-class ZipkinLoggingContext(object):
+class ZipkinLoggingContext:
     """A logging context specific to a Zipkin trace. If the trace is sampled,
     the logging context sends serialized Zipkin spans to a transport_handler.
     The logging context sends root "server" or "client" span, as well as all
@@ -65,8 +64,7 @@ class ZipkinLoggingContext(object):
         return self
 
     def stop(self):
-        """Actions to be taken post request handling.
-        """
+        """Actions to be taken post request handling."""
 
         self.emit_spans()
 
@@ -104,7 +102,8 @@ class ZipkinLoggingContext(object):
             # Collect, annotate, and log client spans from the logging handler
             for span in self._get_tracer()._span_storage:
                 span.local_endpoint = copy_endpoint_with_new_service_name(
-                    self.endpoint, span.local_endpoint.service_name,
+                    self.endpoint,
+                    span.local_endpoint.service_name,
                 )
 
                 span_sender.add_span(span)
@@ -130,7 +129,7 @@ class ZipkinLoggingContext(object):
             )
 
 
-class ZipkinBatchSender(object):
+class ZipkinBatchSender:
 
     MAX_PORTION_SIZE = 100
 
@@ -151,8 +150,11 @@ class ZipkinBatchSender(object):
     def __exit__(self, _exc_type, _exc_value, _exc_traceback):
         if any((_exc_type, _exc_value, _exc_traceback)):
             filename = os.path.split(_exc_traceback.tb_frame.f_code.co_filename)[1]
-            error = "({0}:{1}) {2}: {3}".format(
-                filename, _exc_traceback.tb_lineno, _exc_type.__name__, _exc_value,
+            error = "({}:{}) {}: {}".format(
+                filename,
+                _exc_traceback.tb_lineno,
+                _exc_type.__name__,
+                _exc_value,
             )
             raise ZipkinError(error)
         else:

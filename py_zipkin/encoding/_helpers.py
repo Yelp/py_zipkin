@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import socket
 from collections import namedtuple
 from collections import OrderedDict
@@ -27,7 +26,7 @@ _V1Span = namedtuple(
 )
 
 
-class Span(object):
+class Span:
     """Internal V2 Span representation."""
 
     def __init__(
@@ -186,12 +185,12 @@ def create_endpoint(port=None, service_name=None, host=None, use_defaults=True):
         try:
             socket.inet_pton(socket.AF_INET, host)
             ipv4 = host
-        except socket.error:
+        except OSError:
             # If it's not an ipv4 address, maybe it's ipv6.
             try:
                 socket.inet_pton(socket.AF_INET6, host)
                 ipv6 = host
-            except socket.error:
+            except OSError:
                 # If it's neither ipv4 or ipv6, leave both ip addresses unset.
                 pass
 

@@ -1,11 +1,9 @@
-# -*- coding: utf-8 -*-
 import json
+import queue
 import random
 import threading
 import time
 from operator import itemgetter
-
-from six.moves import queue
 
 from py_zipkin import Encoding
 from py_zipkin.instrumentations import python_threads

@@ -1,6 +1,6 @@
 import socket
+from unittest import mock
 
-import mock
 import pytest
 
 from py_zipkin import Encoding
@@ -52,7 +52,9 @@ def test_create_endpoint_defaults_localhost(gethostbyname):
 
 def test_create_endpoint_ipv6():
     endpoint = create_endpoint(
-        port=8080, service_name="foo", host="2001:0db8:85a3:0000:0000:8a2e:0370:7334",
+        port=8080,
+        service_name="foo",
+        host="2001:0db8:85a3:0000:0000:8a2e:0370:7334",
     )
     assert endpoint.service_name == "foo"
     assert endpoint.port == 8080
@@ -87,7 +89,7 @@ def test_iencoder_throws_not_implemented_errors():
         encoder.encode_queue([])
 
 
-class TestBaseJSONEncoder(object):
+class TestBaseJSONEncoder:
     @pytest.fixture
     def encoder(self):
         """Test encoder"""
@@ -103,7 +105,9 @@ class TestBaseJSONEncoder(object):
 
     def test_create_json_endpoint(self, encoder):
         ipv4_endpoint = create_endpoint(
-            port=8888, service_name="test_service", host="127.0.0.1",
+            port=8888,
+            service_name="test_service",
+            host="127.0.0.1",
         )
         assert encoder._create_json_endpoint(ipv4_endpoint, False) == {
             "serviceName": "test_service",
@@ -146,7 +150,7 @@ class TestBaseJSONEncoder(object):
         }
 
 
-class TestV1JSONEncoder(object):
+class TestV1JSONEncoder:
     def test_remote_endpoint(self):
         encoder = get_encoder(Encoding.V1_JSON)
         remote_endpoint = create_endpoint(service_name="test_server", host="127.0.0.1")
@@ -154,7 +158,9 @@ class TestV1JSONEncoder(object):
         # For server spans, the remote endpoint is encoded as 'ca'
         binary_annotations = []
         encoder.encode_remote_endpoint(
-            remote_endpoint, Kind.SERVER, binary_annotations,
+            remote_endpoint,
+            Kind.SERVER,
+            binary_annotations,
         )
         assert binary_annotations == [
             {
@@ -167,7 +173,9 @@ class TestV1JSONEncoder(object):
         # For client spans, the remote endpoint is encoded as 'sa'
         binary_annotations = []
         encoder.encode_remote_endpoint(
-            remote_endpoint, Kind.CLIENT, binary_annotations,
+            remote_endpoint,
+            Kind.CLIENT,
+            binary_annotations,
         )
         assert binary_annotations == [
             {
@@ -178,7 +186,7 @@ class TestV1JSONEncoder(object):
         ]
 
 
-class TestV1ThriftEncoder(object):
+class TestV1ThriftEncoder:
     def test_remote_endpoint(self):
         encoder = get_encoder(Encoding.V1_THRIFT)
         remote_endpoint = create_endpoint(service_name="test_server", host="127.0.0.1")
@@ -186,7 +194,9 @@ class TestV1ThriftEncoder(object):
         # For server spans, the remote endpoint is encoded as 'ca'
         binary_annotations = thrift.binary_annotation_list_builder({}, None)
         encoder.encode_remote_endpoint(
-            remote_endpoint, Kind.SERVER, binary_annotations,
+            remote_endpoint,
+            Kind.SERVER,
+            binary_annotations,
         )
         assert binary_annotations == [
             thrift.create_binary_annotation(
@@ -200,7 +210,9 @@ class TestV1ThriftEncoder(object):
         # For client spans, the remote endpoint is encoded as 'sa'
         binary_annotations = thrift.binary_annotation_list_builder({}, None)
         encoder.encode_remote_endpoint(
-            remote_endpoint, Kind.CLIENT, binary_annotations,
+            remote_endpoint,
+            Kind.CLIENT,
+            binary_annotations,
         )
         assert binary_annotations == [
             thrift.create_binary_annotation(
@@ -212,7 +224,7 @@ class TestV1ThriftEncoder(object):
         ]
 
 
-class TestV2ProtobufEncoder(object):
+class TestV2ProtobufEncoder:
     @pytest.fixture
     def encoder(self):
         return get_encoder(Encoding.V2_PROTO3)

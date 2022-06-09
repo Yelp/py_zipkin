@@ -1,10 +1,7 @@
-# -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-
 import json
 from collections import OrderedDict
+from unittest import mock
 
-import mock
 import pytest
 from thriftpy2.protocol.binary import read_list_begin
 from thriftpy2.protocol.binary import TBinaryProtocol
@@ -93,10 +90,13 @@ def check_v1_thrift(obj, zipkin_attrs, inner_span_id, ts):
     inner_span, producer_span, root_span = _decode_binary_thrift_objs(obj)
 
     endpoint = thrift.create_endpoint(
-        port=8080, service_name="test_service_name", ipv4="10.0.0.0",
+        port=8080,
+        service_name="test_service_name",
+        ipv4="10.0.0.0",
     )
     binary_annotations = thrift.binary_annotation_list_builder(
-        {"some_key": "some_value"}, endpoint,
+        {"some_key": "some_value"},
+        endpoint,
     )
     binary_annotations.append(
         thrift.create_binary_annotation(
@@ -117,7 +117,8 @@ def check_v1_thrift(obj, zipkin_attrs, inner_span_id, ts):
         trace_id=zipkin_attrs.trace_id,
         span_name="test_span_name",
         annotations=thrift.annotation_list_builder(
-            OrderedDict([("cs", ts), ("cr", ts + 10)]), endpoint,
+            OrderedDict([("cs", ts), ("cr", ts + 10)]),
+            endpoint,
         ),
         binary_annotations=binary_annotations,
         timestamp_s=None,
@@ -136,7 +137,8 @@ def check_v1_thrift(obj, zipkin_attrs, inner_span_id, ts):
         trace_id=zipkin_attrs.trace_id,
         span_name="inner_span",
         annotations=thrift.annotation_list_builder(
-            OrderedDict([("ws", ts)]), endpoint,
+            OrderedDict([("ws", ts)]),
+            endpoint,
         ),
         binary_annotations=[],
         timestamp_s=ts,
@@ -155,7 +157,8 @@ def check_v1_thrift(obj, zipkin_attrs, inner_span_id, ts):
         trace_id=zipkin_attrs.trace_id,
         span_name="producer_span",
         annotations=thrift.annotation_list_builder(
-            OrderedDict([("ms", ts)]), endpoint,
+            OrderedDict([("ms", ts)]),
+            endpoint,
         ),
         binary_annotations=[],
         timestamp_s=ts,
@@ -268,7 +271,9 @@ def test_encoding(encoding, validate_fn):
             kind=Kind.CLIENT,
         ) as span:
             with mock.patch.object(
-                zipkin, "generate_random_64bit_string", return_value=inner_span_id,
+                zipkin,
+                "generate_random_64bit_string",
+                return_value=inner_span_id,
             ):
                 with zipkin.zipkin_span(
                     service_name="test_service_name",
@@ -278,7 +283,9 @@ def test_encoding(encoding, validate_fn):
                     annotations={"ws": ts},
                 ):
                     span.add_sa_binary_annotation(
-                        8888, "sa_service", "2001:0db8:85a3:0000:0000:8a2e:0370:7334",
+                        8888,
+                        "sa_service",
+                        "2001:0db8:85a3:0000:0000:8a2e:0370:7334",
                     )
                 with zipkin.zipkin_span(
                     service_name="test_service_name",

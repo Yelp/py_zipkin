@@ -1,4 +1,4 @@
-import mock
+from unittest import mock
 
 from py_zipkin import storage
 from tests.test_helpers import MockTracer

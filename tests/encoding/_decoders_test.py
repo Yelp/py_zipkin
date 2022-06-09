@@ -1,7 +1,5 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import
+from unittest import mock
 
-import mock
 import pytest
 
 from py_zipkin import thrift
@@ -43,7 +41,7 @@ def test_idecoder_throws_not_implemented_errors():
         encoder.decode_spans(b"[]")
 
 
-class TestV1ThriftDecoder(object):
+class TestV1ThriftDecoder:
     def test_decode_spans_list(self):
         spans, _, _, _ = generate_list_of_spans(Encoding.V1_THRIFT)
         decoder = _V1ThriftDecoder()
@@ -96,7 +94,8 @@ class TestV1ThriftDecoder(object):
         timestamp = 1.0
         decoder = _V1ThriftDecoder()
         thrift_annotations = thrift.annotation_list_builder(
-            {"sr": timestamp, "ss": timestamp + 10}, thrift_endpoint,
+            {"sr": timestamp, "ss": timestamp + 10},
+            thrift_endpoint,
         )
 
         annotations, end, kind, ts, dur = decoder._decode_thrift_annotations(
@@ -165,7 +164,7 @@ class TestV1ThriftDecoder(object):
         local_host = thrift.create_endpoint(8888, "test_service", "10.0.0.1", None)
         ann_type = zipkin_core.AnnotationType
         thrift_binary_annotations = [
-            create_binary_annotation("key1", u"再见", ann_type.STRING, local_host),
+            create_binary_annotation("key1", "再见", ann_type.STRING, local_host),
             create_binary_annotation("key2", "val2", ann_type.STRING, local_host),
             create_binary_annotation("key3", "再见", ann_type.STRING, local_host),
         ]
@@ -177,7 +176,7 @@ class TestV1ThriftDecoder(object):
         ) = decoder._convert_from_thrift_binary_annotations(thrift_binary_annotations)
 
         assert tags == {
-            "key1": u"再见",
+            "key1": "再见",
             "key2": "val2",
             "key3": "再见",
         }
