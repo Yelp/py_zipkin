@@ -1,22 +1,38 @@
-name: ci
+name: Build and Test
 
 on: [push, pull_request]
 
 jobs:
-  tox:
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/setup-python@v2
+      with:
+        python-version: '3.7'
+        architecture: x64
+
+    - name: Install dependencies
+      run: python -m pip install tox
+
+    - name: Run pre-commit hooks
+      run: tox -e pre-commit
+
+  tests:
     runs-on: ubuntu-18.04
     strategy:
       fail-fast: false
       matrix:
-        tox:
-          - pre-commit
-          - py36
-          - py37
-          - py38
+        python-version: ['3.5', '3.6', '3.7', '3.8']
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
         with:
-          python-version: 3.7
-      - run: pip install tox
-      - run: tox -e ${{ matrix.tox }}
+          python-version: ${{ matrix.python-version }}
+          architecture: x64
+
+      - name: Install dependencies
+        run: python -m pip install tox
+
+      - name: Run ${{ matrix.python-version }} tox
+        run: tox -e py
