@@ -1,3 +1,4 @@
+from typing import Optional
 from urllib.request import Request
 from urllib.request import urlopen
 
@@ -6,7 +7,7 @@ from py_zipkin.encoding import Encoding
 
 
 class BaseTransportHandler:
-    def get_max_payload_bytes(self):  # pragma: no cover
+    def get_max_payload_bytes(self) -> Optional[int]:  # pragma: no cover
         """Returns the maximum payload size for this transport.
 
         Most transports have a maximum packet size that can be sent. For example,
@@ -21,14 +22,14 @@ class BaseTransportHandler:
         """
         raise NotImplementedError("get_max_payload_bytes is not implemented")
 
-    def send(self, payload):  # pragma: no cover
+    def send(self, payload: bytes) -> None:  # pragma: no cover
         """Sends the encoded payload over the transport.
 
         :argument payload: encoded list of spans.
         """
         raise NotImplementedError("send is not implemented")
 
-    def __call__(self, payload):
+    def __call__(self, payload: bytes) -> None:
         """Internal wrapper around `send`. Do not override.
 
         Mostly used to keep backward compatibility with older transports

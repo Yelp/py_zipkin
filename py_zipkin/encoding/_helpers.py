@@ -1,29 +1,31 @@
 import socket
-from collections import namedtuple
 from collections import OrderedDict
+from typing import Dict
+from typing import NamedTuple
+from typing import Optional
 
 from py_zipkin.encoding._types import Kind
 from py_zipkin.exception import ZipkinError
 
 
-Endpoint = namedtuple("Endpoint", ["service_name", "ipv4", "ipv6", "port"])
+class Endpoint(NamedTuple):
+    service_name: str
+    ipv4: Optional[str]
+    ipv6: Optional[str]
+    port: Optional[int]
 
 
-_V1Span = namedtuple(
-    "V1Span",
-    [
-        "trace_id",
-        "name",
-        "parent_id",
-        "id",
-        "timestamp",
-        "duration",
-        "endpoint",
-        "annotations",
-        "binary_annotations",
-        "remote_endpoint",
-    ],
-)
+class _V1Span(NamedTuple):
+    trace_id: str
+    name: str
+    parent_id: str
+    id: str
+    timestamp: float
+    duration: float
+    endpoint: Endpoint
+    annotations: Dict[str, float]
+    binary_annotations: Dict[str, str]
+    remote_endpoint: Endpoint
 
 
 class Span:
@@ -31,19 +33,19 @@ class Span:
 
     def __init__(
         self,
-        trace_id,
-        name,
-        parent_id,
-        span_id,
-        kind,
-        timestamp,
-        duration,
-        local_endpoint=None,
-        remote_endpoint=None,
-        debug=False,
-        shared=False,
-        annotations=None,
-        tags=None,
+        trace_id: str,
+        name: str,
+        parent_id: Optional[str],
+        span_id: str,
+        kind: Kind,
+        timestamp: float,
+        duration: float,
+        local_endpoint: Optional[Endpoint] = None,
+        remote_endpoint: Optional[Endpoint] = None,
+        debug: bool = False,
+        shared: bool = False,
+        annotations: Optional[Dict[str, float]] = None,
+        tags: Optional[Dict[str, str]] = None,
     ):
         """Creates a new Span.
 
@@ -115,7 +117,7 @@ class Span:
         """Compare function to nicely print Span rather than just the pointer"""
         return str(self.__dict__)
 
-    def build_v1_span(self):
+    def build_v1_span(self) -> _V1Span:
         """Builds and returns a V1 Span.
 
         :return: newly generated _V1Span
@@ -152,7 +154,12 @@ class Span:
         )
 
 
-def create_endpoint(port=None, service_name=None, host=None, use_defaults=True):
+def create_endpoint(
+    port: Optional[int] = None,
+    service_name: Optional[str] = None,
+    host: Optional[str] = None,
+    use_defaults: bool = True,
+) -> Endpoint:
     """Creates a new Endpoint object.
 
     :param port: TCP/UDP port. Defaults to 0.
@@ -197,7 +204,9 @@ def create_endpoint(port=None, service_name=None, host=None, use_defaults=True):
     return Endpoint(ipv4=ipv4, ipv6=ipv6, port=port, service_name=service_name)
 
 
-def copy_endpoint_with_new_service_name(endpoint, new_service_name):
+def copy_endpoint_with_new_service_name(
+    endpoint: Endpoint, new_service_name: str
+) -> Endpoint:
     """Creates a copy of a given endpoint with a new service name.
 
     :param endpoint: existing Endpoint object
