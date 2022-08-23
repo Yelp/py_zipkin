@@ -27,6 +27,7 @@ setup(
     python_requires='>=3.5',
     install_requires=[
         'thriftpy2>=0.4.0',
+        'typing-extensions>=3.10.0.0',
     ],
     extras_require={
         'protobuf': 'protobuf >= 3.12.4',

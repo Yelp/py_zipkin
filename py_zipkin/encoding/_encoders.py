@@ -1,13 +1,22 @@
 import json
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import TypedDict
+from typing import Union
+
+from typing_extensions import TypeGuard
 
 from py_zipkin import thrift
 from py_zipkin.encoding import protobuf
+from py_zipkin.encoding._helpers import Endpoint
+from py_zipkin.encoding._helpers import Span
 from py_zipkin.encoding._types import Encoding
 from py_zipkin.encoding._types import Kind
 from py_zipkin.exception import ZipkinError
 
 
-def get_encoder(encoding):
+def get_encoder(encoding: Encoding) -> "IEncoder":
     """Creates encoder object for the given encoding.
 
     :param encoding: desired output encoding protocol.
@@ -29,7 +38,13 @@ def get_encoder(encoding):
 class IEncoder:
     """Encoder interface."""
 
-    def fits(self, current_count, current_size, max_size, new_span):
+    def fits(
+        self,
+        current_count: int,
+        current_size: int,
+        max_size: int,
+        new_span: Union[str, bytes],
+    ) -> bool:
         """Returns whether the new span will fit in the list.
 
         :param current_count: number of spans already in the list.
@@ -45,7 +60,7 @@ class IEncoder:
         """
         raise NotImplementedError()
 
-    def encode_span(self, span):
+    def encode_span(self, span: Span) -> Union[str, bytes]:
         """Encodes a single span.
 
         :param span: Span object representing the span.
@@ -55,7 +70,7 @@ class IEncoder:
         """
         raise NotImplementedError()
 
-    def encode_queue(self, queue):
+    def encode_queue(self, queue: List[Union[str, bytes]]) -> Union[str, bytes]:
         """Encodes a list of pre-encoded spans.
 
         :param queue: list of encoded spans.
@@ -69,7 +84,13 @@ class IEncoder:
 class _V1ThriftEncoder(IEncoder):
     """Thrift encoder for V1 spans."""
 
-    def fits(self, current_count, current_size, max_size, new_span):
+    def fits(
+        self,
+        current_count: int,
+        current_size: int,
+        max_size: int,
+        new_span: Union[str, bytes],
+    ) -> bool:
         """Checks if the new span fits in the max payload size.
 
         Thrift lists have a fixed-size header and no delimiters between elements
@@ -77,7 +98,12 @@ class _V1ThriftEncoder(IEncoder):
         """
         return thrift.LIST_HEADER_SIZE + current_size + len(new_span) <= max_size
 
-    def encode_remote_endpoint(self, remote_endpoint, kind, binary_annotations):
+    def encode_remote_endpoint(
+        self,
+        remote_endpoint: Endpoint,
+        kind: Kind,
+        binary_annotations: List[thrift.Annotation],
+    ) -> None:
         thrift_remote_endpoint = thrift.create_endpoint(
             remote_endpoint.port,
             remote_endpoint.service_name,
@@ -98,10 +124,10 @@ class _V1ThriftEncoder(IEncoder):
             )
         )
 
-    def encode_span(self, v2_span):
+    def encode_span(self, v2_span: Span) -> bytes:
         """Encodes the current span to thrift."""
         span = v2_span.build_v1_span()
-
+        assert span.endpoint is not None
         thrift_endpoint = thrift.create_endpoint(
             span.endpoint.port,
             span.endpoint.service_name,
@@ -141,15 +167,28 @@ class _V1ThriftEncoder(IEncoder):
         encoded_span = thrift.span_to_bytes(thrift_span)
         return encoded_span
 
-    def encode_queue(self, queue):
+    def encode_queue(self, queue: List[Union[str, bytes]]) -> bytes:
         """Converts the queue to a thrift list"""
         return thrift.encode_bytes_list(queue)
+
+
+class JSONEndpoint(TypedDict, total=False):
+    serviceName: Optional[str]
+    port: Optional[int]
+    ipv4: Optional[str]
+    ipv6: Optional[str]
 
 
 class _BaseJSONEncoder(IEncoder):
     """V1 and V2 JSON encoders need many common helper functions"""
 
-    def fits(self, current_count, current_size, max_size, new_span):
+    def fits(
+        self,
+        current_count: int,
+        current_size: int,
+        max_size: int,
+        new_span: Union[str, bytes],
+    ) -> bool:
         """Checks if the new span fits in the max payload size.
 
         Json lists only have a 2 bytes overhead from '[]' plus 1 byte from
@@ -157,7 +196,7 @@ class _BaseJSONEncoder(IEncoder):
         """
         return 2 + current_count + current_size + len(new_span) <= max_size
 
-    def _create_json_endpoint(self, endpoint, is_v1):
+    def _create_json_endpoint(self, endpoint: Endpoint, is_v1: bool) -> JSONEndpoint:
         """Converts an Endpoint to a JSON endpoint dict.
 
         :param endpoint: endpoint object to convert.
@@ -169,7 +208,7 @@ class _BaseJSONEncoder(IEncoder):
         :return: dict representing a JSON endpoint.
         :rtype: dict
         """
-        json_endpoint = {}
+        json_endpoint: JSONEndpoint = {}
 
         if endpoint.service_name:
             json_endpoint["serviceName"] = endpoint.service_name
@@ -190,10 +229,38 @@ class _BaseJSONEncoder(IEncoder):
         return "[" + ",".join(queue) + "]"
 
 
+class JSONv1BinaryAnnotation(TypedDict):
+    key: str
+    value: Union[bool, str]
+    endpoint: JSONEndpoint
+
+
+class JSONv1Annotation(TypedDict):
+    endpoint: JSONEndpoint
+    timestamp: int
+    value: str
+
+
+class JSONv1Span(TypedDict, total=False):
+    traceId: str
+    name: str
+    id: str
+    annotations: List[JSONv1Annotation]
+    binaryAnnotations: List[JSONv1BinaryAnnotation]
+    parentId: str
+    timestamp: int
+    duration: int
+
+
 class _V1JSONEncoder(_BaseJSONEncoder):
     """JSON encoder for V1 spans."""
 
-    def encode_remote_endpoint(self, remote_endpoint, kind, binary_annotations):
+    def encode_remote_endpoint(
+        self,
+        remote_endpoint: Endpoint,
+        kind: Kind,
+        binary_annotations: List[JSONv1BinaryAnnotation],
+    ) -> None:
         json_remote_endpoint = self._create_json_endpoint(remote_endpoint, True)
         if kind == Kind.CLIENT:
             key = "sa"
@@ -204,11 +271,11 @@ class _V1JSONEncoder(_BaseJSONEncoder):
             {"key": key, "value": True, "endpoint": json_remote_endpoint}
         )
 
-    def encode_span(self, v2_span):
+    def encode_span(self, v2_span: Span) -> str:
         """Encodes a single span to JSON."""
         span = v2_span.build_v1_span()
 
-        json_span = {
+        json_span: JSONv1Span = {
             "traceId": span.trace_id,
             "name": span.name,
             "id": span.id,
@@ -223,6 +290,7 @@ class _V1JSONEncoder(_BaseJSONEncoder):
         if span.duration:
             json_span["duration"] = int(span.duration * 1000000)
 
+        assert span.endpoint is not None
         v1_endpoint = self._create_json_endpoint(span.endpoint, True)
 
         for key, timestamp in span.annotations.items():
@@ -252,13 +320,33 @@ class _V1JSONEncoder(_BaseJSONEncoder):
         return encoded_span
 
 
+class JSONv2Annotation(TypedDict):
+    timestamp: int
+    value: str
+
+
+class JSONv2Span(TypedDict, total=False):
+    traceId: str
+    id: str
+    name: str
+    parentId: str
+    timestamp: int
+    duration: int
+    shared: bool
+    kind: str
+    localEndpoint: JSONEndpoint
+    remoteEndpoint: JSONEndpoint
+    tags: Dict[str, str]
+    annotations: List[JSONv2Annotation]
+
+
 class _V2JSONEncoder(_BaseJSONEncoder):
     """JSON encoder for V2 spans."""
 
-    def encode_span(self, span):
+    def encode_span(self, span: Span) -> str:
         """Encodes a single span to JSON."""
 
-        json_span = {
+        json_span: JSONv2Span = {
             "traceId": span.trace_id,
             "id": span.span_id,
         }
@@ -302,14 +390,24 @@ class _V2JSONEncoder(_BaseJSONEncoder):
         return encoded_span
 
 
+def _is_bytes_list(any_str_list: List[Union[str, bytes]]) -> TypeGuard[List[bytes]]:
+    return all(isinstance(element, bytes) for element in any_str_list)
+
+
 class _V2ProtobufEncoder(IEncoder):
     """Protobuf encoder for V2 spans."""
 
-    def fits(self, current_count, current_size, max_size, new_span):
+    def fits(
+        self,
+        current_count: int,
+        current_size: int,
+        max_size: int,
+        new_span: Union[str, bytes],
+    ) -> bool:
         """Checks if the new span fits in the max payload size."""
         return current_size + len(new_span) <= max_size
 
-    def encode_span(self, span):
+    def encode_span(self, span: Span) -> bytes:
         """Encodes a single span to protobuf."""
         if not protobuf.installed():
             raise ZipkinError(
@@ -320,6 +418,7 @@ class _V2ProtobufEncoder(IEncoder):
         pb_span = protobuf.create_protobuf_span(span)
         return protobuf.encode_pb_list([pb_span])
 
-    def encode_queue(self, queue):
+    def encode_queue(self, queue: List[Union[str, bytes]]) -> bytes:
         """Concatenates the list to a protobuf list and encodes it to bytes"""
+        assert _is_bytes_list(queue)
         return b"".join(queue)

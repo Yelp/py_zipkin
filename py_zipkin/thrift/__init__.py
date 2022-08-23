@@ -19,6 +19,8 @@ LIST_HEADER_SIZE = 5  # size in bytes of the encoded list header
 
 dummy_endpoint = zipkin_core.Endpoint()
 
+Annotation = zipkin_core.Annotation
+
 
 def create_annotation(timestamp, value, host):
     """
