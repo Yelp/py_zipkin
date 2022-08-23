@@ -7,13 +7,6 @@ from py_zipkin.encoding._types import Kind
 from py_zipkin.encoding.protobuf import zipkin_pb2
 
 
-def test_installed():
-    with mock.patch.object(protobuf, "zipkin_pb2", None):
-        assert protobuf.installed() is False
-
-    assert protobuf.installed() is True
-
-
 @mock.patch("py_zipkin.encoding.protobuf.zipkin_pb2.ListOfSpans")
 def test_encode_pb_list(mock_list):
     protobuf.encode_pb_list([])
