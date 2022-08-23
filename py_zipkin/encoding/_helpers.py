@@ -9,7 +9,7 @@ from py_zipkin.exception import ZipkinError
 
 
 class Endpoint(NamedTuple):
-    service_name: str
+    service_name: Optional[str]
     ipv4: Optional[str]
     ipv6: Optional[str]
     port: Optional[int]
@@ -18,14 +18,14 @@ class Endpoint(NamedTuple):
 class _V1Span(NamedTuple):
     trace_id: str
     name: str
-    parent_id: str
+    parent_id: Optional[str]
     id: str
-    timestamp: float
-    duration: float
-    endpoint: Endpoint
+    timestamp: Optional[float]
+    duration: Optional[float]
+    endpoint: Optional[Endpoint]
     annotations: Dict[str, float]
     binary_annotations: Dict[str, str]
-    remote_endpoint: Endpoint
+    remote_endpoint: Optional[Endpoint]
 
 
 class Span:
@@ -105,15 +105,15 @@ class Span:
                 "Invalid remote_endpoint value. Must be of type Endpoint."
             )
 
-    def __eq__(self, other):  # pragma: no cover
+    def __eq__(self, other: object):  # pragma: no cover
         """Compare function to help assert span1 == span2 in py3"""
         return self.__dict__ == other.__dict__
 
-    def __cmp__(self, other):  # pragma: no cover
+    def __cmp__(self, other: "Span"):  # pragma: no cover
         """Compare function to help assert span1 == span2 in py2"""
         return self.__dict__ == other.__dict__
 
-    def __str__(self):  # pragma: no cover
+    def __str__(self) -> str:  # pragma: no cover
         """Compare function to nicely print Span rather than just the pointer"""
         return str(self.__dict__)
 
