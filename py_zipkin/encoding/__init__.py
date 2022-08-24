@@ -1,4 +1,7 @@
 import json
+from typing import List
+from typing import Optional
+from typing import Union
 
 from py_zipkin.encoding._decoders import get_decoder
 from py_zipkin.encoding._encoders import get_encoder
@@ -11,7 +14,7 @@ from py_zipkin.exception import ZipkinError
 _V2_ATTRIBUTES = ["tags", "localEndpoint", "remoteEndpoint", "shared", "kind"]
 
 
-def detect_span_version_and_encoding(message):
+def detect_span_version_and_encoding(message: bytes) -> Encoding:
     """Returns the span type and encoding for the message provided.
 
     The logic in this function is a Python port of
@@ -58,7 +61,9 @@ def detect_span_version_and_encoding(message):
     raise ZipkinError("Unknown or unsupported span encoding")
 
 
-def convert_spans(spans, output_encoding, input_encoding=None):
+def convert_spans(
+    spans: bytes, output_encoding: Encoding, input_encoding: Optional[Encoding] = None
+) -> Union[str, bytes]:
     """Converts encoded spans to a different encoding.
 
     param spans: encoded input spans.
@@ -80,7 +85,7 @@ def convert_spans(spans, output_encoding, input_encoding=None):
     decoder = get_decoder(input_encoding)
     encoder = get_encoder(output_encoding)
     decoded_spans = decoder.decode_spans(spans)
-    output_spans = []
+    output_spans: List[Union[str, bytes]] = []
 
     # Encode each indivicual span
     for span in decoded_spans:
