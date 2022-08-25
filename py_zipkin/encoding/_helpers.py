@@ -1,6 +1,7 @@
 import socket
 from collections import OrderedDict
 from typing import Dict
+from typing import MutableMapping
 from typing import NamedTuple
 from typing import Optional
 
@@ -17,14 +18,14 @@ class Endpoint(NamedTuple):
 
 class _V1Span(NamedTuple):
     trace_id: str
-    name: str
+    name: Optional[str]
     parent_id: Optional[str]
     id: str
     timestamp: Optional[float]
     duration: Optional[float]
     endpoint: Optional[Endpoint]
-    annotations: Dict[str, float]
-    binary_annotations: Dict[str, str]
+    annotations: MutableMapping[str, Optional[float]]
+    binary_annotations: Dict[str, Optional[str]]
     remote_endpoint: Optional[Endpoint]
 
 
@@ -34,18 +35,18 @@ class Span:
     def __init__(
         self,
         trace_id: str,
-        name: str,
+        name: Optional[str],
         parent_id: Optional[str],
         span_id: str,
         kind: Kind,
-        timestamp: float,
-        duration: float,
+        timestamp: Optional[float],
+        duration: Optional[float],
         local_endpoint: Optional[Endpoint] = None,
         remote_endpoint: Optional[Endpoint] = None,
         debug: bool = False,
         shared: bool = False,
-        annotations: Optional[Dict[str, float]] = None,
-        tags: Optional[Dict[str, str]] = None,
+        annotations: Optional[Dict[str, Optional[float]]] = None,
+        tags: Optional[Dict[str, Optional[str]]] = None,
     ):
         """Creates a new Span.
 
@@ -123,11 +124,14 @@ class Span:
         :return: newly generated _V1Span
         :rtype: _V1Span
         """
-        annotations = OrderedDict([])
+        annotations: MutableMapping[str, Optional[float]] = OrderedDict([])
+        assert self.timestamp is not None
         if self.kind == Kind.CLIENT:
+            assert self.duration is not None
             annotations["cs"] = self.timestamp
             annotations["cr"] = self.timestamp + self.duration
         elif self.kind == Kind.SERVER:
+            assert self.duration is not None
             annotations["sr"] = self.timestamp
             annotations["ss"] = self.timestamp + self.duration
         elif self.kind == Kind.PRODUCER:

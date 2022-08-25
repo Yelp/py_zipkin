@@ -12,7 +12,10 @@ from py_zipkin.util import unsigned_hex_to_signed_int
 
 
 thrift_filepath = os.path.join(os.path.dirname(__file__), "zipkinCore.thrift")
-zipkin_core = thriftpy2.load(thrift_filepath, module_name="zipkinCore_thrift")
+# load this as `zipkinCore` so that thrift-pyi generation matches
+zipkinCore = thriftpy2.load(thrift_filepath, module_name="zipkinCore_thrift")
+# rename to pythonic snake_case
+zipkin_core = zipkinCore
 
 SERVER_ADDR_VAL = "\x01"
 LIST_HEADER_SIZE = 5  # size in bytes of the encoded list header
@@ -20,6 +23,8 @@ LIST_HEADER_SIZE = 5  # size in bytes of the encoded list header
 dummy_endpoint = zipkin_core.Endpoint()
 
 Annotation = zipkin_core.Annotation
+Endpoint = zipkin_core.Endpoint
+Span = zipkin_core.Span
 
 
 def create_annotation(timestamp, value, host):

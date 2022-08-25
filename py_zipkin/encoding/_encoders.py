@@ -231,7 +231,7 @@ class _BaseJSONEncoder(IEncoder):
 
 class JSONv1BinaryAnnotation(TypedDict):
     key: str
-    value: Union[bool, str]
+    value: Union[str, bool, None]
     endpoint: JSONEndpoint
 
 
@@ -243,7 +243,7 @@ class JSONv1Annotation(TypedDict):
 
 class JSONv1Span(TypedDict, total=False):
     traceId: str
-    name: str
+    name: Optional[str]
     id: str
     annotations: List[JSONv1Annotation]
     binaryAnnotations: List[JSONv1BinaryAnnotation]
@@ -294,6 +294,7 @@ class _V1JSONEncoder(_BaseJSONEncoder):
         v1_endpoint = self._create_json_endpoint(span.endpoint, True)
 
         for key, timestamp in span.annotations.items():
+            assert timestamp is not None
             json_span["annotations"].append(
                 {
                     "endpoint": v1_endpoint,
@@ -340,6 +341,12 @@ class JSONv2Span(TypedDict, total=False):
     annotations: List[JSONv2Annotation]
 
 
+def _is_dict_str_float(
+    mapping: Dict[str, Optional[float]]
+) -> TypeGuard[Dict[str, float]]:
+    return all(isinstance(value, float) for key, value in mapping.items())
+
+
 class _V2JSONEncoder(_BaseJSONEncoder):
     """JSON encoder for V2 spans."""
 
@@ -380,6 +387,7 @@ class _V2JSONEncoder(_BaseJSONEncoder):
             }
 
         if span.annotations:
+            assert _is_dict_str_float(span.annotations)
             json_span["annotations"] = [
                 {"timestamp": int(timestamp * 1000000), "value": key}
                 for key, timestamp in span.annotations.items()

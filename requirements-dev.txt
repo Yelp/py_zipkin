@@ -1,9 +1,12 @@
 # coveragepy==5.0 fails with `Safety level may not be changed inside a transaction`
 # on python 3.6.0 (xenial)
 coverage<5
+# this is needed to allow thrift-pyi to work. the cause is https://github.com/pallets/jinja/issues/1585
+markupsafe < 2.1
 mock<4  # mock 4.x dropped support for python 2.7
 mypy
 ordereddict
 pytest
 pytest-benchmark[histogram]
+thrift-pyi
 types-protobuf

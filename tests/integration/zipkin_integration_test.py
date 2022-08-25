@@ -95,7 +95,7 @@ def test_span_inside_trace():
         with zipkin.zipkin_span(
             service_name="nested_service",
             span_name="nested_span",
-            annotations={"nested_annotation": 43},
+            annotations={"nested_annotation": 43.0},
             binary_annotations={"nested_key": "nested_value"},
         ):
             pass
@@ -193,7 +193,7 @@ def test_sr_ss_annotation_override(encoding):
         with zipkin.zipkin_span(
             service_name="nested_service",
             span_name="nested_span",
-            annotations={"nested_annotation": 43, "sr": 100, "ss": 300},
+            annotations={"nested_annotation": 43.0, "sr": 100.0, "ss": 300.0},
             binary_annotations={"nested_key": "nested_value"},
             kind=Kind.SERVER,
         ):
