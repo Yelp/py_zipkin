@@ -18,7 +18,7 @@ except ImportError:  # pragma: no cover
     pass
 
 
-def installed():  # pragma: no cover
+def installed() -> bool:  # pragma: no cover
     """Checks whether the protobud library is installed and can be used.
 
     :return: True if everything's fine, False otherwise
