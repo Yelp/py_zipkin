@@ -24,6 +24,9 @@ clean:
 	find . -name '*.pyc' -delete
 	find . -name '__pycache__' -delete
 
+venv: setup.py requirements-dev.txt
+	tox -e venv
+
 update-protobuf:
 	$(MAKE) -C py_zipkin/encoding/protobuf update-protobuf
 
