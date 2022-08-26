@@ -27,6 +27,11 @@ clean:
 venv: setup.py requirements-dev.txt
 	tox -e venv
 
+.PHONY: build-protobuf
+build-protobuf: venv
+	# python_out and mypy_out are both relative to the dir the protobuf definition is in
+	protoc --plugin=protoc-gen-mypy=venv/bin/protoc-gen-mypy --python_out=. --mypy_out=. py_zipkin/encoding/protobuf/zipkin.proto
+
 update-protobuf:
 	$(MAKE) -C py_zipkin/encoding/protobuf update-protobuf
 
