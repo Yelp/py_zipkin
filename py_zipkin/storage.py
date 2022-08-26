@@ -1,23 +1,36 @@
 import logging
 import threading
 from collections import deque
+from typing import Any
+from typing import Deque
+from typing import List
+from typing import Optional
+from typing import TYPE_CHECKING
+
+from py_zipkin.encoding._helpers import Span
+
+if TYPE_CHECKING:  # pragma: no cover
+    from py_zipkin import zipkin
 
 try:  # pragma: no cover
     # Since python 3.7 threadlocal is deprecated in favor of contextvars
     # which also work in asyncio.
     import contextvars
 
-    _contextvars_tracer = contextvars.ContextVar("py_zipkin.Tracer object")
+    _contextvars_tracer: Optional[contextvars.ContextVar] = contextvars.ContextVar(
+        "py_zipkin.Tracer object"
+    )
 except ImportError:  # pragma: no cover
     # The contextvars module was added in python 3.7
     _contextvars_tracer = None
+
 _thread_local_tracer = threading.local()
 
 
 log = logging.getLogger("py_zipkin.storage")
 
 
-def _get_thread_local_tracer():
+def _get_thread_local_tracer() -> "Tracer":
     """Returns the current tracer from thread-local.
 
     If there's no current tracer it'll create a new one.
@@ -29,7 +42,7 @@ def _get_thread_local_tracer():
     return _thread_local_tracer.tracer
 
 
-def _set_thread_local_tracer(tracer):
+def _set_thread_local_tracer(tracer: "Tracer") -> None:
     """Sets the current tracer in thread-local.
 
     :param tracer: current tracer.
@@ -38,13 +51,14 @@ def _set_thread_local_tracer(tracer):
     _thread_local_tracer.tracer = tracer
 
 
-def _get_contextvars_tracer():  # pragma: no cover
+def _get_contextvars_tracer() -> "Tracer":  # pragma: no cover
     """Returns the current tracer from contextvars.
 
     If there's no current tracer it'll create a new one.
     :returns: current tracer.
     :rtype: Tracer
     """
+    assert _contextvars_tracer is not None
     try:
         return _contextvars_tracer.get()
     except LookupError:
@@ -52,52 +66,53 @@ def _get_contextvars_tracer():  # pragma: no cover
         return _contextvars_tracer.get()
 
 
-def _set_contextvars_tracer(tracer):  # pragma: no cover
+def _set_contextvars_tracer(tracer: "Tracer") -> None:  # pragma: no cover
     """Sets the current tracer in contextvars.
 
     :param tracer: current tracer.
     :type tracer: Tracer
     """
+    assert _contextvars_tracer is not None
     _contextvars_tracer.set(tracer)
 
 
 class Tracer:
-    def __init__(self):
+    def __init__(self) -> None:
         self._is_transport_configured = False
-        self._span_storage = SpanStorage()
+        self._span_storage: Deque[Span] = SpanStorage()
         self._context_stack = Stack()
 
-    def get_zipkin_attrs(self):
+    def get_zipkin_attrs(self) -> Any:
         return self._context_stack.get()
 
-    def push_zipkin_attrs(self, ctx):
+    def push_zipkin_attrs(self, ctx: Any) -> Any:
         self._context_stack.push(ctx)
 
-    def pop_zipkin_attrs(self):
+    def pop_zipkin_attrs(self) -> Any:
         return self._context_stack.pop()
 
-    def add_span(self, span):
+    def add_span(self, span: Span) -> None:
         self._span_storage.append(span)
 
-    def get_spans(self):
+    def get_spans(self) -> Deque[Span]:
         return self._span_storage
 
-    def clear(self):
+    def clear(self) -> None:
         self._span_storage.clear()
 
-    def set_transport_configured(self, configured):
+    def set_transport_configured(self, configured: bool) -> None:
         self._is_transport_configured = configured
 
-    def is_transport_configured(self):
+    def is_transport_configured(self) -> bool:
         return self._is_transport_configured
 
-    def zipkin_span(self, *argv, **kwargs):
-        from py_zipkin.zipkin import zipkin_span
+    def zipkin_span(self, *argv: Any, **kwargs: Any) -> "zipkin.zipkin_span":
+        from py_zipkin import zipkin
 
         kwargs["_tracer"] = self
-        return zipkin_span(*argv, **kwargs)
+        return zipkin.zipkin_span(*argv, **kwargs)
 
-    def copy(self):
+    def copy(self) -> "Tracer":
         """Return a copy of this instance, but with a deep-copied
         _context_stack.  The use-case is for passing a copy of a Tracer into
         a new thread context.
@@ -121,25 +136,39 @@ class Stack:
        Stack will be removed in version 1.0.
     """
 
-    def __init__(self, storage=None):
+    def __init__(self, storage: List[Any] = None) -> None:
         if storage is not None:
             log.warning("Passing a storage object to Stack is deprecated.")
-            self._storage = storage
+            self.__storage: List[Any] = storage
         else:
-            self._storage = []
+            self.__storage = []
 
-    def push(self, item):
+    # this pattern is currently necessary due to
+    # https://github.com/python/mypy/issues/4125
+    @property
+    def _storage(self) -> List[Any]:
+        return self.__storage
+
+    @_storage.setter
+    def _storage(self, value: List[Any]) -> None:  # pragma: no cover
+        self.__storage = value
+
+    @_storage.deleter
+    def _storage(self) -> None:  # pragma: no cover
+        del self.__storage
+
+    def push(self, item: Any) -> Any:
         self._storage.append(item)
 
-    def pop(self):
+    def pop(self) -> Any:
         if self._storage:
             return self._storage.pop()
 
-    def get(self):
+    def get(self) -> Any:
         if self._storage:
             return self._storage[-1]
 
-    def copy(self):
+    def copy(self) -> "Stack":
         # Return a new Stack() instance with a deep copy of our stack contents
         the_copy = self.__class__()
         the_copy._storage = self._storage[:]
@@ -166,8 +195,16 @@ class ThreadLocalStack(Stack):
         )
 
     @property
-    def _storage(self):
+    def _storage(self) -> List[Any]:
         return get_default_tracer()._context_stack._storage
+
+    @_storage.setter
+    def _storage(self, value: List[Any]) -> None:  # pragma: no cover
+        get_default_tracer()._context_stack._storage = value
+
+    @_storage.deleter
+    def _storage(self) -> None:  # pragma: no cover
+        del get_default_tracer()._context_stack._storage
 
 
 class SpanStorage(deque):
@@ -181,7 +218,7 @@ class SpanStorage(deque):
     pass
 
 
-def default_span_storage():
+def default_span_storage() -> Deque[Span]:
     log.warning(
         "default_span_storage is deprecated. See DEPRECATIONS.rst for"
         "details on how to migrate to using Tracer."
@@ -189,7 +226,7 @@ def default_span_storage():
     return get_default_tracer()._span_storage
 
 
-def has_default_tracer():
+def has_default_tracer() -> bool:
     """Is there a default tracer created already?
 
     :returns: Is there a default tracer created already?
@@ -203,7 +240,7 @@ def has_default_tracer():
     return hasattr(_thread_local_tracer, "tracer")
 
 
-def get_default_tracer():
+def get_default_tracer() -> Tracer:
     """Return the current default Tracer.
 
     For now it'll get it from thread-local in Python 2.7 to 3.6 and from
@@ -218,7 +255,7 @@ def get_default_tracer():
     return _get_thread_local_tracer()
 
 
-def set_default_tracer(tracer):
+def set_default_tracer(tracer: Tracer) -> None:
     """Sets the current default Tracer.
 
     For now it'll get it from thread-local in Python 2.7 to 3.6 and from
@@ -228,6 +265,6 @@ def set_default_tracer(tracer):
     :rtype: Tracer
     """
     if _contextvars_tracer:
-        return _set_contextvars_tracer(tracer)
+        _set_contextvars_tracer(tracer)
 
-    return _set_thread_local_tracer(tracer)
+    _set_thread_local_tracer(tracer)
