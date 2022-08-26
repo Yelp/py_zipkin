@@ -5,6 +5,7 @@ coverage<5
 markupsafe < 2.1
 mock<4  # mock 4.x dropped support for python 2.7
 mypy
+mypy-protobuf
 ordereddict
 pytest
 pytest-benchmark[histogram]

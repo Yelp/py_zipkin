@@ -5,6 +5,8 @@ from typing import List
 from typing import Optional
 from typing import TypedDict
 
+from typing_extensions import TypeGuard
+
 from py_zipkin.encoding._helpers import Endpoint
 from py_zipkin.encoding._helpers import Span
 from py_zipkin.encoding._types import Kind
@@ -46,7 +48,7 @@ class ProtobufSpanArgsDict(TypedDict, total=False):
     trace_id: bytes
     parent_id: bytes
     id: bytes
-    kind: "zipkin_pb2.Span.Kind"
+    kind: "zipkin_pb2.Span._Kind.ValueType"
     name: str
     timestamp: int
     duration: int
@@ -56,6 +58,10 @@ class ProtobufSpanArgsDict(TypedDict, total=False):
     tags: Dict[str, str]
     debug: bool
     shared: bool
+
+
+def _is_dict_str_str(mapping: Dict[str, Optional[str]]) -> TypeGuard[Dict[str, str]]:
+    return all(isinstance(value, str) for _, value in mapping.items())
 
 
 def create_protobuf_span(span: Span) -> "zipkin_pb2.Span":
@@ -101,6 +107,7 @@ def create_protobuf_span(span: Span) -> "zipkin_pb2.Span":
         pb_kwargs["annotations"] = _convert_annotations(span.annotations)
 
     if len(span.tags) > 0:
+        assert _is_dict_str_str(span.tags)
         pb_kwargs["tags"] = span.tags
 
     if span.debug:
@@ -138,13 +145,13 @@ def _hex_to_bytes(hex_id: str) -> bytes:
         return high_bin + low_bin
 
 
-def _get_protobuf_kind(kind: Kind) -> "Optional[zipkin_pb2.Span.Kind]":
+def _get_protobuf_kind(kind: Kind) -> "Optional[zipkin_pb2.Span._Kind.ValueType]":
     """Converts py_zipkin's Kind to Protobuf's Kind.
 
     :param kind: py_zipkin's Kind.
     :type kind: py_zipkin.Kind
     :return: correcponding protobuf's kind value.
-    :rtype: zipkin_pb2.Span.Kind
+    :rtype: zipkin_pb2.Span._Kind.ValueType
     """
     if kind == Kind.CLIENT:
         return zipkin_pb2.Span.CLIENT
@@ -180,7 +187,7 @@ def _convert_endpoint(endpoint: Endpoint) -> "zipkin_pb2.Endpoint":
 
 
 def _convert_annotations(
-    annotations: Dict[str, float]
+    annotations: Dict[str, Optional[float]]
 ) -> "List[zipkin_pb2.Annotation]":
     """Converts py_zipkin's annotations dict to protobuf.
 
@@ -191,6 +198,7 @@ def _convert_annotations(
     """
     pb_annotations = []
     for value, ts in annotations.items():
+        assert ts is not None
         pb_annotations.append(
             zipkin_pb2.Annotation(timestamp=int(ts * 1000 * 1000), value=value)
         )
