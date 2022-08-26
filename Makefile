@@ -12,7 +12,7 @@ install:
 	pip install .
 
 install-hooks:
-	tox -e pre-commit -- install -f --install-hooks
+	tox -e pre-commit
 
 test:
 	tox
