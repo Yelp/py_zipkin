@@ -24,7 +24,7 @@ from py_zipkin.util import ZipkinAttrs
 LOGGING_END_KEY = "py_zipkin.logging_end"
 
 
-TransportHandler = Union[BaseTransportHandler, Callable[[bytes], None]]
+TransportHandler = Union[BaseTransportHandler, Callable[[Union[str, bytes]], None]]
 
 
 class ZipkinLoggingContext:
@@ -45,13 +45,13 @@ class ZipkinLoggingContext:
         report_root_timestamp: float,
         get_tracer: Callable[[], Tracer],
         service_name: str,
-        binary_annotations: Optional[Dict[str, str]] = None,
+        binary_annotations: Optional[Dict[str, Optional[str]]] = None,
         add_logging_annotation: bool = False,
         client_context: bool = False,
         max_span_batch_size: Optional[int] = None,
         firehose_handler: TransportHandler = None,
         encoding: Optional[Encoding] = None,
-        annotations: Optional[Dict[str, float]] = None,
+        annotations: Optional[Dict[str, Optional[float]]] = None,
     ):
         self.zipkin_attrs = zipkin_attrs
         self.endpoint = endpoint
@@ -69,6 +69,7 @@ class ZipkinLoggingContext:
         self.annotations = annotations or {}
 
         self.remote_endpoint = None
+        assert encoding is not None
         self.encoder = get_encoder(encoding)
 
     def start(self) -> "ZipkinLoggingContext":
@@ -116,6 +117,7 @@ class ZipkinLoggingContext:
 
             # Collect, annotate, and log client spans from the logging handler
             for span in self._get_tracer()._span_storage:
+                assert span.local_endpoint is not None
                 span.local_endpoint = copy_endpoint_with_new_service_name(
                     self.endpoint,
                     span.local_endpoint.service_name,
@@ -189,7 +191,7 @@ class ZipkinBatchSender:
             self.flush()
 
     def _reset_queue(self) -> None:
-        self.queue: List[bytes] = []
+        self.queue: List[Union[str, bytes]] = []
         self.current_size = 0
 
     def add_span(self, internal_span: Span) -> None:

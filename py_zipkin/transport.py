@@ -1,4 +1,5 @@
 from typing import Optional
+from typing import Union
 from urllib.request import Request
 from urllib.request import urlopen
 
@@ -22,14 +23,14 @@ class BaseTransportHandler:
         """
         raise NotImplementedError("get_max_payload_bytes is not implemented")
 
-    def send(self, payload: bytes) -> None:  # pragma: no cover
+    def send(self, payload: Union[bytes, str]) -> None:  # pragma: no cover
         """Sends the encoded payload over the transport.
 
         :argument payload: encoded list of spans.
         """
         raise NotImplementedError("send is not implemented")
 
-    def __call__(self, payload: bytes) -> None:
+    def __call__(self, payload: Union[bytes, str]) -> None:
         """Internal wrapper around `send`. Do not override.
 
         Mostly used to keep backward compatibility with older transports
@@ -90,11 +91,14 @@ class SimpleHTTPTransport(BaseTransportHandler):
         elif encoding == Encoding.V2_PROTO3:
             return "/api/v2/spans", "application/x-protobuf"
 
-    def send(self, payload):
-        path, content_type = self._get_path_content_type(payload)
+    def send(self, payload: Union[str, bytes]) -> None:
+        encoded_payload = (
+            payload.encode("utf-8") if isinstance(payload, str) else payload
+        )
+        path, content_type = self._get_path_content_type(encoded_payload)
         url = "http://{}:{}{}".format(self.address, self.port, path)
 
-        req = Request(url, payload, {"Content-Type": content_type})
+        req = Request(url, encoded_payload, {"Content-Type": content_type})
         response = urlopen(req)
 
         assert response.getcode() == 202

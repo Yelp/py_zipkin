@@ -209,7 +209,8 @@ def create_endpoint(
 
 
 def copy_endpoint_with_new_service_name(
-    endpoint: Endpoint, new_service_name: str
+    endpoint: Endpoint,
+    new_service_name: Optional[str],
 ) -> Endpoint:
     """Creates a copy of a given endpoint with a new service name.
 
