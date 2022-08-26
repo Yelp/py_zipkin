@@ -43,7 +43,7 @@ class BaseTransportHandler:
 
 
 class SimpleHTTPTransport(BaseTransportHandler):
-    def __init__(self, address, port):
+    def __init__(self, address: str, port: int) -> None:
         """A simple HTTP transport for zipkin.
 
         This is not production ready (not async, no retries) but
@@ -69,10 +69,10 @@ class SimpleHTTPTransport(BaseTransportHandler):
         self.address = address
         self.port = port
 
-    def get_max_payload_bytes(self):
+    def get_max_payload_bytes(self) -> Optional[int]:
         return None
 
-    def _get_path_content_type(self, payload):
+    def _get_path_content_type(self, payload: Union[str, bytes]):
         """Choose the right api path and content type depending on the encoding.
 
         This is not something you'd need to do generally when writing your own
@@ -80,7 +80,10 @@ class SimpleHTTPTransport(BaseTransportHandler):
         Since this is a generic transport, we need to make it compatible with
         any encoding instead.
         """
-        encoding = detect_span_version_and_encoding(payload)
+        encoded_payload = (
+            payload.encode("utf-8") if isinstance(payload, str) else payload
+        )
+        encoding = detect_span_version_and_encoding(encoded_payload)
 
         if encoding == Encoding.V1_JSON:
             return "/api/v1/spans", "application/json"
