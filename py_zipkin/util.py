@@ -17,7 +17,7 @@ class ZipkinAttrs(NamedTuple):
     """
 
     trace_id: str
-    span_id: str
+    span_id: Optional[str]
     parent_span_id: Optional[str]
     flags: str
     is_sampled: bool
@@ -93,7 +93,7 @@ def create_attrs_for_span(
     span_id: Optional[str] = None,
     use_128bit_trace_id: bool = False,
     flags: Optional[str] = None,
-):
+) -> ZipkinAttrs:
     """Creates a set of zipkin attributes for a span.
 
     :param sample_rate: Float between 0.0 and 100.0 to determine sampling rate

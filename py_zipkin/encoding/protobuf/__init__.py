@@ -84,6 +84,7 @@ def create_protobuf_span(span: Span) -> "zipkin_pb2.Span":
     if span.parent_id:
         pb_kwargs["parent_id"] = _hex_to_bytes(span.parent_id)
 
+    assert span.span_id is not None
     pb_kwargs["id"] = _hex_to_bytes(span.span_id)
 
     pb_kind = _get_protobuf_kind(span.kind)

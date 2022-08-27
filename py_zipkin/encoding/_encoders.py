@@ -244,7 +244,7 @@ class JSONv1Annotation(TypedDict):
 class JSONv1Span(TypedDict, total=False):
     traceId: str
     name: Optional[str]
-    id: str
+    id: Optional[str]
     annotations: List[JSONv1Annotation]
     binaryAnnotations: List[JSONv1BinaryAnnotation]
     parentId: str
@@ -328,7 +328,7 @@ class JSONv2Annotation(TypedDict):
 
 class JSONv2Span(TypedDict, total=False):
     traceId: str
-    id: str
+    id: Optional[str]
     name: str
     parentId: str
     timestamp: int

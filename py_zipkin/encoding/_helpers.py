@@ -20,7 +20,7 @@ class _V1Span(NamedTuple):
     trace_id: str
     name: Optional[str]
     parent_id: Optional[str]
-    id: str
+    id: Optional[str]
     timestamp: Optional[float]
     duration: Optional[float]
     endpoint: Optional[Endpoint]
@@ -37,7 +37,7 @@ class Span:
         trace_id: str,
         name: Optional[str],
         parent_id: Optional[str],
-        span_id: str,
+        span_id: Optional[str],
         kind: Kind,
         timestamp: Optional[float],
         duration: Optional[float],
