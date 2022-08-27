@@ -175,7 +175,7 @@ def create_http_headers(
     context_stack: Stack = None,
     tracer: Tracer = None,
     new_span_id: bool = False,
-) -> Dict[str, str]:
+) -> Dict[str, Optional[str]]:
     """
     Generate the headers for a new zipkin span.
 
@@ -199,7 +199,7 @@ def create_http_headers(
         return {}
 
     if new_span_id:
-        span_id = generate_random_64bit_string()
+        span_id: Optional[str] = generate_random_64bit_string()
         parent_span_id = zipkin_attrs.span_id
     else:
         span_id = zipkin_attrs.span_id

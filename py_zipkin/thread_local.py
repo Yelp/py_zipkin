@@ -1,15 +1,16 @@
 import logging
-from typing import Any
 from typing import Deque
 from typing import List
+from typing import Optional
 
 from py_zipkin.encoding._helpers import Span
 from py_zipkin.storage import get_default_tracer
+from py_zipkin.util import ZipkinAttrs
 
 log = logging.getLogger("py_zipkin.thread_local")
 
 
-def get_thread_local_zipkin_attrs() -> List[Any]:
+def get_thread_local_zipkin_attrs() -> List[ZipkinAttrs]:
     """A wrapper to return _thread_local.zipkin_attrs
 
     Returns a list of ZipkinAttrs objects, used for intra-process context
@@ -50,7 +51,7 @@ def get_thread_local_span_storage() -> Deque[Span]:
     return get_default_tracer()._span_storage
 
 
-def get_zipkin_attrs() -> Any:
+def get_zipkin_attrs() -> Optional[ZipkinAttrs]:
     """Get the topmost level zipkin attributes stored.
 
     .. deprecated::
@@ -69,7 +70,7 @@ def get_zipkin_attrs() -> Any:
     return ThreadLocalStack().get()
 
 
-def pop_zipkin_attrs() -> Any:
+def pop_zipkin_attrs() -> Optional[ZipkinAttrs]:
     """Pop the topmost level zipkin attributes, if present.
 
     .. deprecated::
@@ -88,7 +89,7 @@ def pop_zipkin_attrs() -> Any:
     return ThreadLocalStack().pop()
 
 
-def push_zipkin_attrs(zipkin_attr: Any) -> None:
+def push_zipkin_attrs(zipkin_attr: ZipkinAttrs) -> None:
     """Stores the zipkin attributes to thread local.
 
     .. deprecated::

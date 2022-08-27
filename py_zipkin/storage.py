@@ -8,6 +8,7 @@ from typing import Optional
 from typing import TYPE_CHECKING
 
 from py_zipkin.encoding._helpers import Span
+from py_zipkin.util import ZipkinAttrs
 
 if TYPE_CHECKING:  # pragma: no cover
     from py_zipkin import zipkin
@@ -82,13 +83,13 @@ class Tracer:
         self._span_storage: Deque[Span] = SpanStorage()
         self._context_stack = Stack()
 
-    def get_zipkin_attrs(self) -> Any:
+    def get_zipkin_attrs(self) -> Optional[ZipkinAttrs]:
         return self._context_stack.get()
 
-    def push_zipkin_attrs(self, ctx: Any) -> Any:
+    def push_zipkin_attrs(self, ctx: ZipkinAttrs) -> None:
         self._context_stack.push(ctx)
 
-    def pop_zipkin_attrs(self) -> Any:
+    def pop_zipkin_attrs(self) -> Optional[ZipkinAttrs]:
         return self._context_stack.pop()
 
     def add_span(self, span: Span) -> None:
@@ -136,37 +137,39 @@ class Stack:
        Stack will be removed in version 1.0.
     """
 
-    def __init__(self, storage: List[Any] = None) -> None:
+    def __init__(self, storage: List[ZipkinAttrs] = None) -> None:
         if storage is not None:
             log.warning("Passing a storage object to Stack is deprecated.")
-            self.__storage: List[Any] = storage
+            self.__storage: List[ZipkinAttrs] = storage
         else:
             self.__storage = []
 
     # this pattern is currently necessary due to
     # https://github.com/python/mypy/issues/4125
     @property
-    def _storage(self) -> List[Any]:
+    def _storage(self) -> List[ZipkinAttrs]:
         return self.__storage
 
     @_storage.setter
-    def _storage(self, value: List[Any]) -> None:  # pragma: no cover
+    def _storage(self, value: List[ZipkinAttrs]) -> None:  # pragma: no cover
         self.__storage = value
 
     @_storage.deleter
     def _storage(self) -> None:  # pragma: no cover
         del self.__storage
 
-    def push(self, item: Any) -> Any:
+    def push(self, item: ZipkinAttrs) -> None:
         self._storage.append(item)
 
-    def pop(self) -> Any:
+    def pop(self) -> Optional[ZipkinAttrs]:
         if self._storage:
             return self._storage.pop()
+        return None
 
-    def get(self) -> Any:
+    def get(self) -> Optional[ZipkinAttrs]:
         if self._storage:
             return self._storage[-1]
+        return None
 
     def copy(self) -> "Stack":
         # Return a new Stack() instance with a deep copy of our stack contents
@@ -195,11 +198,11 @@ class ThreadLocalStack(Stack):
         )
 
     @property
-    def _storage(self) -> List[Any]:
+    def _storage(self) -> List[ZipkinAttrs]:
         return get_default_tracer()._context_stack._storage
 
     @_storage.setter
-    def _storage(self, value: List[Any]) -> None:  # pragma: no cover
+    def _storage(self, value: List[ZipkinAttrs]) -> None:  # pragma: no cover
         get_default_tracer()._context_stack._storage = value
 
     @_storage.deleter
