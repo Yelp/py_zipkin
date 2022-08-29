@@ -1,6 +1,7 @@
 import json
 from typing import Dict
 from typing import List
+from typing import Mapping
 from typing import Optional
 from typing import TypedDict
 from typing import Union
@@ -81,6 +82,16 @@ class IEncoder:
         raise NotImplementedError()
 
 
+def _is_mapping_str_float(
+    mapping: Mapping[str, Optional[float]]
+) -> TypeGuard[Mapping[str, float]]:
+    return all(isinstance(value, float) for key, value in mapping.items())
+
+
+def _is_dict_str_str(mapping: Dict[str, Optional[str]]) -> TypeGuard[Dict[str, str]]:
+    return all(isinstance(value, str) for key, value in mapping.items())
+
+
 class _V1ThriftEncoder(IEncoder):
     """Thrift encoder for V1 spans."""
 
@@ -102,7 +113,7 @@ class _V1ThriftEncoder(IEncoder):
         self,
         remote_endpoint: Endpoint,
         kind: Kind,
-        binary_annotations: List[thrift.Annotation],
+        binary_annotations: List[thrift.BinaryAnnotation],
     ) -> None:
         thrift_remote_endpoint = thrift.create_endpoint(
             remote_endpoint.port,
@@ -110,10 +121,11 @@ class _V1ThriftEncoder(IEncoder):
             remote_endpoint.ipv4,
             remote_endpoint.ipv6,
         )
+        # these attributes aren't yet supported by thrift-pyi
         if kind == Kind.CLIENT:
-            key = thrift.zipkin_core.SERVER_ADDR
+            key = thrift.zipkin_core.SERVER_ADDR  # type: ignore[attr-defined]
         elif kind == Kind.SERVER:
-            key = thrift.zipkin_core.CLIENT_ADDR
+            key = thrift.zipkin_core.CLIENT_ADDR  # type: ignore[attr-defined]
 
         binary_annotations.append(
             thrift.create_binary_annotation(
@@ -135,11 +147,13 @@ class _V1ThriftEncoder(IEncoder):
             span.endpoint.ipv6,
         )
 
+        assert _is_mapping_str_float(span.annotations)
         thrift_annotations = thrift.annotation_list_builder(
             span.annotations,
             thrift_endpoint,
         )
 
+        assert _is_dict_str_str(span.binary_annotations)
         thrift_binary_annotations = thrift.binary_annotation_list_builder(
             span.binary_annotations,
             thrift_endpoint,
@@ -153,6 +167,7 @@ class _V1ThriftEncoder(IEncoder):
                 thrift_binary_annotations,
             )
 
+        assert span.id is not None
         thrift_span = thrift.create_span(
             span.id,
             span.parent_id,

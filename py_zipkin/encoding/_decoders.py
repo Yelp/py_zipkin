@@ -102,8 +102,8 @@ class _V1ThriftDecoder(IDecoder):
             # ignore is required due to https://github.com/unmade/thrift-pyi/issues/25
             ipv6 = socket.inet_ntop(
                 socket.AF_INET6,
-                thrift_endpoint.ipv6,
-            )  # type: ignore[arg-type]
+                thrift_endpoint.ipv6,  # type: ignore[arg-type]
+            )
 
         return Endpoint(
             service_name=thrift_endpoint.service_name,
