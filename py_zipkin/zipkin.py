@@ -1,16 +1,30 @@
 import functools
 import logging
 import time
+from types import TracebackType
+from typing import Any
+from typing import Callable
+from typing import cast
+from typing import Dict
+from typing import Optional
+from typing import Tuple
+from typing import Type
+from typing import TypeVar
 
 from py_zipkin import Encoding
 from py_zipkin import Kind
 from py_zipkin import storage
 from py_zipkin.encoding._helpers import create_endpoint
+from py_zipkin.encoding._helpers import Endpoint
 from py_zipkin.encoding._helpers import Span
 from py_zipkin.exception import ZipkinError
+from py_zipkin.logging_helper import TransportHandler
 from py_zipkin.logging_helper import ZipkinLoggingContext
 from py_zipkin.request_helpers import create_http_headers
 from py_zipkin.storage import get_default_tracer
+from py_zipkin.storage import SpanStorage
+from py_zipkin.storage import Stack
+from py_zipkin.storage import Tracer
 from py_zipkin.util import create_attrs_for_span
 from py_zipkin.util import generate_random_64bit_string
 from py_zipkin.util import ZipkinAttrs
@@ -18,6 +32,9 @@ from py_zipkin.util import ZipkinAttrs
 log = logging.getLogger(__name__)
 
 ERROR_KEY = "error"
+
+
+F = TypeVar("F", bound=Callable)
 
 
 class zipkin_span:
@@ -79,28 +96,28 @@ class zipkin_span:
 
     def __init__(
         self,
-        service_name,
-        span_name="span",
-        zipkin_attrs=None,
-        transport_handler=None,
-        max_span_batch_size=None,
-        annotations=None,
-        binary_annotations=None,
-        port=0,
-        sample_rate=None,
-        include=None,
-        add_logging_annotation=False,
-        report_root_timestamp=False,
-        use_128bit_trace_id=False,
-        host=None,
-        context_stack=None,
-        span_storage=None,
-        firehose_handler=None,
-        kind=None,
-        timestamp=None,
-        duration=None,
-        encoding=Encoding.V2_JSON,
-        _tracer=None,
+        service_name: str,
+        span_name: str = "span",
+        zipkin_attrs: Optional[ZipkinAttrs] = None,
+        transport_handler: Optional[TransportHandler] = None,
+        max_span_batch_size: Optional[int] = None,
+        annotations: Optional[Dict[str, Optional[float]]] = None,
+        binary_annotations: Optional[Dict[str, Optional[str]]] = None,
+        port: int = 0,
+        sample_rate: Optional[float] = None,
+        include: Optional[str] = None,
+        add_logging_annotation: bool = False,
+        report_root_timestamp: bool = False,
+        use_128bit_trace_id: bool = False,
+        host: Optional[str] = None,
+        context_stack: Optional[Stack] = None,
+        span_storage: Optional[SpanStorage] = None,
+        firehose_handler: Optional[TransportHandler] = None,
+        kind: Kind = None,
+        timestamp: Optional[float] = None,
+        duration: Optional[float] = None,
+        encoding: Encoding = Encoding.V2_JSON,
+        _tracer: Tracer = None,
     ):
         """Logs a zipkin span. If this is the root span, then a zipkin
         trace is started as well.
@@ -198,12 +215,12 @@ class zipkin_span:
         self._tracer = _tracer
 
         self._is_local_root_span = False
-        self.logging_context = None
+        self.logging_context: Optional[ZipkinLoggingContext] = None
         self.do_pop_attrs = False
         # Spans that log a 'cs' timestamp can additionally record a
         # 'sa' binary annotation that shows where the request is going.
-        self.remote_endpoint = None
-        self.zipkin_attrs = None
+        self.remote_endpoint: Optional[Endpoint] = None
+        self.zipkin_attrs: Optional[ZipkinAttrs] = None
 
         # It used to  be possible to override timestamp and duration by passing
         # in the cs/cr or sr/ss annotations. We want to keep backward compatibility
@@ -212,6 +229,8 @@ class zipkin_span:
         # This doesn't fit well with v2 spans since those annotations are gone, so
         # we also log a deprecation warning.
         if "sr" in self.annotations and "ss" in self.annotations:
+            assert self.annotations["ss"] is not None
+            assert self.annotations["sr"] is not None
             self.duration = self.annotations["ss"] - self.annotations["sr"]
             self.timestamp = self.annotations["sr"]
             log.warning(
@@ -219,6 +238,8 @@ class zipkin_span:
                 "use the timestamp and duration parameters."
             )
         if "cr" in self.annotations and "cs" in self.annotations:
+            assert self.annotations["cr"] is not None
+            assert self.annotations["cs"] is not None
             self.duration = self.annotations["cr"] - self.annotations["cs"]
             self.timestamp = self.annotations["cs"]
             log.warning(
@@ -257,7 +278,7 @@ class zipkin_span:
             log.warning("context_stack is deprecated. Set local_storage instead.")
             self.get_tracer()._context_stack = self._context_stack
 
-    def __call__(self, f):
+    def __call__(self, f: F) -> F:
         @functools.wraps(f)
         def decorated(*args, **kwargs):
             with zipkin_span(
@@ -286,9 +307,9 @@ class zipkin_span:
             ):
                 return f(*args, **kwargs)
 
-        return decorated
+        return cast(F, decorated)
 
-    def get_tracer(self):
+    def get_tracer(self) -> Tracer:
         if self._tracer is not None:
             return self._tracer
         else:
@@ -297,7 +318,7 @@ class zipkin_span:
     def __enter__(self):
         return self.start()
 
-    def _generate_kind(self, kind, include):
+    def _generate_kind(self, kind: Optional[Kind], include: Optional[str]) -> Kind:
         # If `kind` is not set, then we generate it from `include`.
         # This code maintains backward compatibility with old versions of py_zipkin
         # which used include rather than kind to identify client / server spans.
@@ -320,7 +341,7 @@ class zipkin_span:
         # If both kind and include are unset, then it's a local span.
         return Kind.LOCAL
 
-    def _get_current_context(self):
+    def _get_current_context(self) -> Tuple[bool, Optional[ZipkinAttrs]]:
         """Returns the current ZipkinAttrs and generates new ones if needed.
 
         :returns: (report_root_timestamp, zipkin_attrs)
@@ -404,7 +425,7 @@ class zipkin_span:
 
         return False, None
 
-    def start(self):
+    def start(self) -> "zipkin_span":
         """Enter the new span context. All annotations logged inside this
         context will be attributed to this span. All new spans generated
         inside this context will have this span as their parent.
@@ -465,10 +486,20 @@ class zipkin_span:
 
         return self
 
-    def __exit__(self, _exc_type, _exc_value, _exc_traceback):
+    def __exit__(
+        self,
+        _exc_type: Optional[Type[BaseException]],
+        _exc_value: Optional[BaseException],
+        _exc_traceback: TracebackType,
+    ) -> None:
         self.stop(_exc_type, _exc_value, _exc_traceback)
 
-    def stop(self, _exc_type=None, _exc_value=None, _exc_traceback=None):
+    def stop(
+        self,
+        _exc_type: Optional[Type[BaseException]] = None,
+        _exc_value: Optional[BaseException] = None,
+        _exc_traceback: TracebackType = None,
+    ) -> None:
         """Exit the span context. Zipkin attrs are pushed onto the
         threadlocal stack regardless of sampling, so they always need to be
         popped off. The actual logging of spans depends on sampling and that
@@ -486,6 +517,7 @@ class zipkin_span:
 
         # Add the error annotation if an exception occurred
         if any((_exc_type, _exc_value, _exc_traceback)):
+            assert _exc_type is not None
             try:
                 error_msg = "{}: {}".format(_exc_type.__name__, _exc_value)
             except TypeError:
@@ -520,6 +552,7 @@ class zipkin_span:
             duration = end_timestamp - self.start_timestamp
 
         endpoint = create_endpoint(self.port, self.service_name, self.host)
+        assert self.zipkin_attrs is not None
         self.get_tracer().add_span(
             Span(
                 trace_id=self.zipkin_attrs.trace_id,
@@ -536,7 +569,9 @@ class zipkin_span:
             )
         )
 
-    def update_binary_annotations(self, extra_annotations):
+    def update_binary_annotations(
+        self, extra_annotations: Dict[str, Optional[str]]
+    ) -> None:
         """Updates the binary annotations for the current span."""
         if not self.logging_context:
             # This is not the root span, so binary annotations will be added
@@ -547,7 +582,7 @@ class zipkin_span:
             # the binary annotations for the logging context directly.
             self.logging_context.tags.update(extra_annotations)
 
-    def add_annotation(self, value, timestamp=None):
+    def add_annotation(self, value: str, timestamp: Optional[float] = None) -> None:
         """Add an annotation for the current span
 
         The timestamp defaults to "now", but may be specified.
@@ -569,10 +604,10 @@ class zipkin_span:
 
     def add_sa_binary_annotation(
         self,
-        port=0,
-        service_name="unknown",
-        host="127.0.0.1",
-    ):
+        port: int = 0,
+        service_name: str = "unknown",
+        host: str = "127.0.0.1",
+    ) -> None:
         """Adds a 'sa' binary annotation to the current span.
 
         'sa' binary annotations are useful for situations where you need to log
@@ -606,7 +641,7 @@ class zipkin_span:
                 raise ValueError("SA annotation already set.")
             self.logging_context.remote_endpoint = remote_endpoint
 
-    def override_span_name(self, name):
+    def override_span_name(self, name: str) -> None:
         """Overrides the current span name.
 
         This is useful if you don't know the span name yet when you create the
@@ -622,7 +657,7 @@ class zipkin_span:
             self.logging_context.span_name = name
 
 
-def _validate_args(kwargs):
+def _validate_args(kwargs: Dict[str, Any]) -> None:
     if "kind" in kwargs:
         raise ValueError(
             '"kind" is not valid in this context. '
@@ -636,7 +671,7 @@ class zipkin_client_span(zipkin_span):
     Subclass of :class:`zipkin_span` using only annotations relevant to clients
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Logs a zipkin span with client annotations.
 
         See :class:`zipkin_span` for arguments
@@ -653,7 +688,7 @@ class zipkin_server_span(zipkin_span):
     Subclass of :class:`zipkin_span` using only annotations relevant to servers
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         """Logs a zipkin span with server annotations.
 
         See :class:`zipkin_span` for arguments
@@ -664,7 +699,9 @@ class zipkin_server_span(zipkin_span):
         super().__init__(*args, **kwargs)
 
 
-def create_http_headers_for_new_span(context_stack=None, tracer=None):
+def create_http_headers_for_new_span(
+    context_stack: Stack = None, tracer: Tracer = None
+) -> Dict[str, Optional[str]]:
     """
     Generate the headers for a new zipkin span.
 

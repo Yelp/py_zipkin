@@ -41,7 +41,7 @@ class ZipkinLoggingContext:
         zipkin_attrs: ZipkinAttrs,
         endpoint: Endpoint,
         span_name: str,
-        transport_handler: TransportHandler,
+        transport_handler: Optional[TransportHandler],
         report_root_timestamp: float,
         get_tracer: Callable[[], Tracer],
         service_name: str,
@@ -49,7 +49,7 @@ class ZipkinLoggingContext:
         add_logging_annotation: bool = False,
         client_context: bool = False,
         max_span_batch_size: Optional[int] = None,
-        firehose_handler: TransportHandler = None,
+        firehose_handler: Optional[TransportHandler] = None,
         encoding: Optional[Encoding] = None,
         annotations: Optional[Dict[str, Optional[float]]] = None,
     ):
@@ -68,7 +68,7 @@ class ZipkinLoggingContext:
         self.firehose_handler = firehose_handler
         self.annotations = annotations or {}
 
-        self.remote_endpoint = None
+        self.remote_endpoint: Optional[Endpoint] = None
         assert encoding is not None
         self.encoder = get_encoder(encoding)
 
@@ -152,7 +152,7 @@ class ZipkinBatchSender:
 
     def __init__(
         self,
-        transport_handler: TransportHandler,
+        transport_handler: Optional[TransportHandler],
         max_portion_size: Optional[int],
         encoder: IEncoder,
     ) -> None:
