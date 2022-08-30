@@ -28,9 +28,6 @@ else:
     # load this as `zipkinCore` so that thrift-pyi generation matches
     zipkinCore = thriftpy2.load(thrift_filepath, module_name="zipkinCore_thrift")
 
-# rename to pythonic snake_case
-zipkin_core = zipkinCore
-
 SERVER_ADDR_VAL = "\x01"
 LIST_HEADER_SIZE = 5  # size in bytes of the encoded list header
 
@@ -108,7 +105,7 @@ def create_endpoint(
     # unsigned types, so we have to convert the value.
     port = struct.unpack("h", struct.pack("H", port))[0]
     # type ignore due to https://github.com/unmade/thrift-pyi/issues/25
-    return zipkin_core.Endpoint(
+    return zipkinCore.Endpoint(
         ipv4=ipv4_int,
         ipv6=ipv6_binary,  # type: ignore[arg-type]
         port=port,
@@ -137,12 +134,12 @@ def annotation_list_builder(
     annotations: Mapping[str, float], host: "zipkinCore.Endpoint"
 ) -> List["zipkinCore.Annotation"]:
     """
-    Reformat annotations dict to return list of corresponding zipkin_core objects.
+    Reformat annotations dict to return list of corresponding zipkinCore objects.
 
     :param annotations: dict containing key as annotation name,
                         value being timestamp in seconds(float).
     :type host: :class:`zipkinCore.Endpoint`
-    :returns: a list of annotation zipkin_core objects
+    :returns: a list of annotation zipkinCore objects
     :rtype: list
     """
     return [
@@ -155,13 +152,13 @@ def binary_annotation_list_builder(
     binary_annotations: Dict[str, str], host: "zipkinCore.Endpoint"
 ) -> List["zipkinCore.BinaryAnnotation"]:
     """
-    Reformat binary annotations dict to return list of zipkin_core objects. The
+    Reformat binary annotations dict to return list of zipkinCore objects. The
     value of the binary annotations MUST be in string format.
 
     :param binary_annotations: dict with key, value being the name and value
                                of the binary annotation being logged.
     :type host: :class:`zipkinCore.Endpoint`
-    :returns: a list of binary annotation zipkin_core objects
+    :returns: a list of binary annotation zipkinCore objects
     :rtype: list
     """
     # TODO: Remove the type hard-coding of STRING to take it as a param option.
@@ -221,7 +218,7 @@ def create_span(
     }
     if parent_span_id:
         span_dict["parent_id"] = unsigned_hex_to_signed_int(parent_span_id)
-    return zipkin_core.Span(**span_dict)
+    return zipkinCore.Span(**span_dict)
 
 
 def span_to_bytes(thrift_span: "zipkinCore.Span") -> bytes:

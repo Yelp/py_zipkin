@@ -11,7 +11,7 @@ from py_zipkin import Encoding
 from py_zipkin import Kind
 from py_zipkin import thrift
 from py_zipkin import zipkin
-from py_zipkin.thrift import zipkin_core
+from py_zipkin.thrift import zipkinCore
 from py_zipkin.util import generate_random_64bit_string
 from py_zipkin.zipkin import ZipkinAttrs
 from tests.test_helpers import MockTransportHandler
@@ -22,7 +22,7 @@ def _decode_binary_thrift_objs(obj):
     trans = TMemoryBuffer(obj)
     _, size = read_list_begin(trans)
     for _ in range(size):
-        span = zipkin_core.Span()
+        span = zipkinCore.Span()
         span.read(TBinaryProtocol(trans))
         spans.append(span)
     return spans
@@ -102,7 +102,7 @@ def check_v1_thrift(obj, zipkin_attrs, inner_span_id, ts):
         thrift.create_binary_annotation(
             "sa",
             "\x01",
-            zipkin_core.AnnotationType.BOOL,
+            zipkinCore.AnnotationType.BOOL,
             thrift.create_endpoint(
                 port=8888,
                 service_name="sa_service",

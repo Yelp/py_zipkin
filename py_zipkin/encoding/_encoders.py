@@ -124,15 +124,15 @@ class _V1ThriftEncoder(IEncoder):
         )
         # these attributes aren't yet supported by thrift-pyi
         if kind == Kind.CLIENT:
-            key = thrift.zipkin_core.SERVER_ADDR  # type: ignore[attr-defined]
+            key = thrift.zipkinCore.SERVER_ADDR  # type: ignore[attr-defined]
         elif kind == Kind.SERVER:
-            key = thrift.zipkin_core.CLIENT_ADDR  # type: ignore[attr-defined]
+            key = thrift.zipkinCore.CLIENT_ADDR  # type: ignore[attr-defined]
 
         binary_annotations.append(
             thrift.create_binary_annotation(
                 key=key,
                 value=thrift.SERVER_ADDR_VAL,
-                annotation_type=thrift.zipkin_core.AnnotationType.BOOL,
+                annotation_type=thrift.zipkinCore.AnnotationType.BOOL,
                 host=thrift_remote_endpoint,
             )
         )

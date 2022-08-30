@@ -9,7 +9,7 @@ from py_zipkin.encoding._encoders import IEncoder
 from py_zipkin.instrumentations import python_threads
 from py_zipkin.storage import Tracer
 from py_zipkin.testing import MockTransportHandler
-from py_zipkin.thrift import zipkin_core
+from py_zipkin.thrift import zipkinCore
 from py_zipkin.util import generate_random_128bit_string
 from py_zipkin.util import generate_random_64bit_string
 from py_zipkin.zipkin import ZipkinAttrs
@@ -105,7 +105,7 @@ def generate_single_thrift_span():
             thrift.create_binary_annotation(
                 "key",
                 "value",
-                zipkin_core.AnnotationType.STRING,
+                zipkinCore.AnnotationType.STRING,
                 host,
             ),
         ],
