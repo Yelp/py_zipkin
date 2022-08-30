@@ -106,7 +106,7 @@ class SimpleHTTPTransport(BaseTransportHandler):
             payload.encode("utf-8") if isinstance(payload, str) else payload
         )
         path, content_type = self._get_path_content_type(encoded_payload)
-        url = "http://{}:{}{}".format(self.address, self.port, path)
+        url = f"http://{self.address}:{self.port}{path}"
 
         req = Request(url, encoded_payload, {"Content-Type": content_type})
         response = urlopen(req)

@@ -33,7 +33,7 @@ def get_encoder(encoding: Encoding) -> "IEncoder":
         return _V2JSONEncoder()
     if encoding == Encoding.V2_PROTO3:
         return _V2ProtobufEncoder()
-    raise ZipkinError("Unknown encoding: {}".format(encoding))
+    raise ZipkinError(f"Unknown encoding: {encoding}")
 
 
 class IEncoder:
