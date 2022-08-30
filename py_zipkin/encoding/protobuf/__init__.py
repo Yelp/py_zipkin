@@ -3,8 +3,8 @@ import struct
 from typing import Dict
 from typing import List
 from typing import Optional
-from typing import TypedDict
 
+from typing_extensions import TypedDict
 from typing_extensions import TypeGuard
 
 from py_zipkin.encoding._helpers import Endpoint

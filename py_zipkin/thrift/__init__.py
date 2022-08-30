@@ -6,13 +6,13 @@ from typing import List
 from typing import Mapping
 from typing import Optional
 from typing import TYPE_CHECKING
-from typing import TypedDict
 
 import thriftpy2
 from thriftpy2.protocol import TBinaryProtocol
 from thriftpy2.protocol.binary import write_list_begin
 from thriftpy2.thrift import TType
 from thriftpy2.transport import TMemoryBuffer
+from typing_extensions import TypedDict
 
 from py_zipkin.util import unsigned_hex_to_signed_int
 
