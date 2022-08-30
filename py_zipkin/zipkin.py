@@ -487,11 +487,11 @@ class zipkin_span:
         # Add the error annotation if an exception occurred
         if any((_exc_type, _exc_value, _exc_traceback)):
             try:
-                error_msg = "{}: {}".format(_exc_type.__name__, _exc_value)
+                error_msg = f"{_exc_type.__name__}: {_exc_value}"
             except TypeError:
                 # This sometimes happens when an exception raises when calling
                 # __str__ on it.
-                error_msg = "{}: {!r}".format(_exc_type.__name__, _exc_value)
+                error_msg = f"{_exc_type.__name__}: {_exc_value!r}"
             self.update_binary_annotations({ERROR_KEY: error_msg})
 
         # Logging context is only initialized for "root" spans of the local
@@ -501,7 +501,7 @@ class zipkin_span:
             try:
                 self.logging_context.stop()
             except Exception as ex:
-                err_msg = "Error emitting zipkin trace. {}".format(repr(ex))
+                err_msg = f"Error emitting zipkin trace. {repr(ex)}"
                 log.error(err_msg)
             finally:
                 self.logging_context = None

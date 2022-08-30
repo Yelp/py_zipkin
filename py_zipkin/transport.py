@@ -91,7 +91,7 @@ class SimpleHTTPTransport(BaseTransportHandler):
 
     def send(self, payload):
         path, content_type = self._get_path_content_type(payload)
-        url = "http://{}:{}{}".format(self.address, self.port, path)
+        url = f"http://{self.address}:{self.port}{path}"
 
         req = Request(url, payload, {"Content-Type": content_type})
         response = urlopen(req)
