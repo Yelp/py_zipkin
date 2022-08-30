@@ -34,7 +34,7 @@ build-protobuf: venv
 
 .PHONY: update-protobuf
 update-protobuf:
-	curl -L https://raw.githubusercontent.com/openzipkin/zipkin-api/master/zipkin.proto > zipkin.proto
+	curl -L https://raw.githubusercontent.com/openzipkin/zipkin-api/master/zipkin.proto > py_zipkin/encoding/protobuf/zipkin.proto
 	$(MAKE) build-protobuf
 
 .PHONY: black
