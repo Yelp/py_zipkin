@@ -113,7 +113,7 @@ class _V1ThriftEncoder(IEncoder):
         self,
         remote_endpoint: Endpoint,
         kind: Kind,
-        binary_annotations: List[thrift.BinaryAnnotation],
+        binary_annotations: List[thrift.zipkinCore.BinaryAnnotation],
     ) -> None:
         assert remote_endpoint.port is not None
         thrift_remote_endpoint = thrift.create_endpoint(

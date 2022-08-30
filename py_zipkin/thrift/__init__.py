@@ -33,14 +33,9 @@ LIST_HEADER_SIZE = 5  # size in bytes of the encoded list header
 
 dummy_endpoint = zipkinCore.Endpoint()
 
-Annotation = zipkinCore.Annotation
-BinaryAnnotation = zipkinCore.BinaryAnnotation
-Endpoint = zipkinCore.Endpoint
-Span = zipkinCore.Span
-
 
 def create_annotation(
-    timestamp: int, value: str, host: Endpoint
+    timestamp: int, value: str, host: "zipkinCore.Endpoint"
 ) -> "zipkinCore.Annotation":
     """
     Create a zipkin annotation object
@@ -55,7 +50,10 @@ def create_annotation(
 
 
 def create_binary_annotation(
-    key: str, value: str, annotation_type: "zipkinCore.AnnotationType", host: Endpoint
+    key: str,
+    value: str,
+    annotation_type: "zipkinCore.AnnotationType",
+    host: "zipkinCore.Endpoint",
 ) -> "zipkinCore.BinaryAnnotation":
     """
     Create a zipkin binary annotation object
