@@ -91,9 +91,7 @@ class Span:
         self.tags = tags or {}
 
         if not isinstance(kind, Kind):
-            raise ZipkinError(
-                "Invalid kind value {}. Must be of type Kind.".format(kind)
-            )
+            raise ZipkinError(f"Invalid kind value {kind}. Must be of type Kind.")
 
         if local_endpoint and not isinstance(local_endpoint, Endpoint):
             raise ZipkinError("Invalid local_endpoint value. Must be of type Endpoint.")

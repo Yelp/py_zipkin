@@ -31,10 +31,10 @@ def get_decoder(encoding):
     if encoding == Encoding.V1_THRIFT:
         return _V1ThriftDecoder()
     if encoding == Encoding.V1_JSON:
-        raise NotImplementedError("{} decoding not yet implemented".format(encoding))
+        raise NotImplementedError(f"{encoding} decoding not yet implemented")
     if encoding == Encoding.V2_JSON:
-        raise NotImplementedError("{} decoding not yet implemented".format(encoding))
-    raise ZipkinError("Unknown encoding: {}".format(encoding))
+        raise NotImplementedError(f"{encoding} decoding not yet implemented")
+    raise ZipkinError(f"Unknown encoding: {encoding}")
 
 
 class IDecoder:
