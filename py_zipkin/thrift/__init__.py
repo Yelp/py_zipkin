@@ -28,6 +28,9 @@ else:
     # load this as `zipkinCore` so that thrift-pyi generation matches
     zipkinCore = thriftpy2.load(thrift_filepath, module_name="zipkinCore_thrift")
 
+# keep this interface in case it's used
+zipkin_core = zipkinCore
+
 SERVER_ADDR_VAL = "\x01"
 LIST_HEADER_SIZE = 5  # size in bytes of the encoded list header
 
