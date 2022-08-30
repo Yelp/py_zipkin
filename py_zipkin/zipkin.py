@@ -34,7 +34,7 @@ log = logging.getLogger(__name__)
 ERROR_KEY = "error"
 
 
-F = TypeVar("F", bound=Callable)
+F = TypeVar("F", bound=Callable[..., Any])
 
 
 class zipkin_span:

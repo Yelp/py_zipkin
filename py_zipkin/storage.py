@@ -1,6 +1,5 @@
 import logging
 import threading
-from collections import deque
 from typing import Any
 from typing import Deque
 from typing import List
@@ -18,9 +17,9 @@ try:  # pragma: no cover
     # which also work in asyncio.
     import contextvars
 
-    _contextvars_tracer: Optional[contextvars.ContextVar] = contextvars.ContextVar(
-        "py_zipkin.Tracer object"
-    )
+    _contextvars_tracer: Optional[
+        contextvars.ContextVar["Tracer"]
+    ] = contextvars.ContextVar("py_zipkin.Tracer object")
 except ImportError:  # pragma: no cover
     # The contextvars module was added in python 3.7
     _contextvars_tracer = None
@@ -80,7 +79,7 @@ def _set_contextvars_tracer(tracer: "Tracer") -> None:  # pragma: no cover
 class Tracer:
     def __init__(self) -> None:
         self._is_transport_configured = False
-        self._span_storage: Deque[Span] = SpanStorage()
+        self._span_storage = SpanStorage()
         self._context_stack = Stack()
 
     def get_zipkin_attrs(self) -> Optional[ZipkinAttrs]:
@@ -95,7 +94,7 @@ class Tracer:
     def add_span(self, span: Span) -> None:
         self._span_storage.append(span)
 
-    def get_spans(self) -> Deque[Span]:
+    def get_spans(self) -> "SpanStorage":
         return self._span_storage
 
     def clear(self) -> None:
@@ -210,7 +209,7 @@ class ThreadLocalStack(Stack):
         del get_default_tracer()._context_stack._storage
 
 
-class SpanStorage(deque):
+class SpanStorage(Deque[Span]):
     """Stores the list of completed spans ready to be sent.
 
     .. deprecated::
@@ -221,7 +220,7 @@ class SpanStorage(deque):
     pass
 
 
-def default_span_storage() -> Deque[Span]:
+def default_span_storage() -> SpanStorage:
     log.warning(
         "default_span_storage is deprecated. See DEPRECATIONS.rst for"
         "details on how to migrate to using Tracer."
