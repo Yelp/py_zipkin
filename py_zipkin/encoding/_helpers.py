@@ -106,11 +106,11 @@ class Span:
                 "Invalid remote_endpoint value. Must be of type Endpoint."
             )
 
-    def __eq__(self, other: object):  # pragma: no cover
+    def __eq__(self, other: object) -> bool:  # pragma: no cover
         """Compare function to help assert span1 == span2 in py3"""
         return self.__dict__ == other.__dict__
 
-    def __cmp__(self, other: "Span"):  # pragma: no cover
+    def __cmp__(self, other: "Span") -> int:  # pragma: no cover
         """Compare function to help assert span1 == span2 in py2"""
         return self.__dict__ == other.__dict__
 

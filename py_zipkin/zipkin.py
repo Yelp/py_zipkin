@@ -280,7 +280,7 @@ class zipkin_span:
 
     def __call__(self, f: F) -> F:
         @functools.wraps(f)
-        def decorated(*args, **kwargs):
+        def decorated(*args: Any, **kwargs: Any) -> Any:
             with zipkin_span(
                 service_name=self.service_name,
                 span_name=self.span_name,
@@ -315,7 +315,7 @@ class zipkin_span:
         else:
             return get_default_tracer()
 
-    def __enter__(self):
+    def __enter__(self) -> "zipkin_span":
         return self.start()
 
     def _generate_kind(self, kind: Optional[Kind], include: Optional[str]) -> Kind:

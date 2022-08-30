@@ -78,7 +78,12 @@ def create_binary_annotation(
     )
 
 
-def create_endpoint(port=0, service_name="unknown", ipv4=None, ipv6=None):
+def create_endpoint(
+    port: int = 0,
+    service_name: Optional[str] = "unknown",
+    ipv4: Optional[str] = None,
+    ipv6: Optional[str] = None,
+) -> "zipkinCore.Endpoint":
     """Create a zipkin Endpoint object.
 
     An Endpoint object holds information about the network context of a span.
@@ -102,9 +107,10 @@ def create_endpoint(port=0, service_name="unknown", ipv4=None, ipv6=None):
     # Zipkin passes unsigned values in signed types because Thrift has no
     # unsigned types, so we have to convert the value.
     port = struct.unpack("h", struct.pack("H", port))[0]
+    # type ignore due to https://github.com/unmade/thrift-pyi/issues/25
     return zipkin_core.Endpoint(
         ipv4=ipv4_int,
-        ipv6=ipv6_binary,
+        ipv6=ipv6_binary,  # type: ignore[arg-type]
         port=port,
         service_name=service_name,
     )
@@ -187,7 +193,7 @@ def create_span(
     binary_annotations: List["zipkinCore.BinaryAnnotation"],
     timestamp_s: Optional[float],
     duration_s: Optional[float],
-):
+) -> "zipkinCore.Span":
     """Takes a bunch of span attributes and returns a thriftpy2 representation
     of the span. Timestamps passed in are in seconds, they're converted to
     microseconds before thrift encoding.

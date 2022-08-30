@@ -115,6 +115,7 @@ class _V1ThriftEncoder(IEncoder):
         kind: Kind,
         binary_annotations: List[thrift.BinaryAnnotation],
     ) -> None:
+        assert remote_endpoint.port is not None
         thrift_remote_endpoint = thrift.create_endpoint(
             remote_endpoint.port,
             remote_endpoint.service_name,
@@ -140,6 +141,7 @@ class _V1ThriftEncoder(IEncoder):
         """Encodes the current span to thrift."""
         span = v2_span.build_v1_span()
         assert span.endpoint is not None
+        assert span.endpoint.port is not None
         thrift_endpoint = thrift.create_endpoint(
             span.endpoint.port,
             span.endpoint.service_name,
@@ -194,6 +196,10 @@ class JSONEndpoint(TypedDict, total=False):
     ipv6: Optional[str]
 
 
+def _is_str_list(any_str_list: List[Union[str, bytes]]) -> TypeGuard[List[str]]:
+    return all(isinstance(element, str) for element in any_str_list)
+
+
 class _BaseJSONEncoder(IEncoder):
     """V1 and V2 JSON encoders need many common helper functions"""
 
@@ -239,8 +245,9 @@ class _BaseJSONEncoder(IEncoder):
 
         return json_endpoint
 
-    def encode_queue(self, queue):
+    def encode_queue(self, queue: List[Union[str, bytes]]) -> str:
         """Concatenates the list to a JSON list"""
+        assert _is_str_list(queue)
         return "[" + ",".join(queue) + "]"
 
 

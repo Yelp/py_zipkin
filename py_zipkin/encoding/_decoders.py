@@ -24,7 +24,7 @@ _DROP_ANNOTATIONS = {"cs", "sr", "ss", "cr"}
 log = logging.getLogger("py_zipkin.encoding")
 
 
-def get_decoder(encoding) -> "IDecoder":
+def get_decoder(encoding: Encoding) -> "IDecoder":
     """Creates encoder object for the given encoding.
 
     :param encoding: desired output encoding protocol
@@ -245,11 +245,13 @@ class _V1ThriftDecoder(IDecoder):
                 thrift_span.binary_annotations,
             )
 
+        assert thrift_span.trace_id is not None
         trace_id = self._convert_trace_id_to_string(
             thrift_span.trace_id,
             thrift_span.trace_id_high,
         )
 
+        assert thrift_span.id is not None
         return Span(
             trace_id=trace_id,
             name=thrift_span.name,
@@ -265,7 +267,9 @@ class _V1ThriftDecoder(IDecoder):
             tags=tags,
         )
 
-    def _convert_trace_id_to_string(self, trace_id, trace_id_high=None):
+    def _convert_trace_id_to_string(
+        self, trace_id: int, trace_id_high: Optional[int] = None
+    ) -> str:
         """
         Converts the provided traceId hex value with optional high bits
         to a string.
@@ -286,7 +290,7 @@ class _V1ThriftDecoder(IDecoder):
         self._write_hex_long(result, 0, trace_id)
         return result.decode("utf8")
 
-    def _convert_unsigned_long_to_lower_hex(self, value):
+    def _convert_unsigned_long_to_lower_hex(self, value: int) -> str:
         """
         Converts the provided unsigned long value to a hex string.
 
@@ -298,7 +302,7 @@ class _V1ThriftDecoder(IDecoder):
         self._write_hex_long(result, 0, value)
         return result.decode("utf8")
 
-    def _write_hex_long(self, data, pos, value):
+    def _write_hex_long(self, data: bytearray, pos: int, value: int) -> None:
         """
         Writes an unsigned long value across a byte array.
 
@@ -318,6 +322,6 @@ class _V1ThriftDecoder(IDecoder):
         self._write_hex_byte(data, pos + 12, (value >> 8) & 0xFF)
         self._write_hex_byte(data, pos + 14, (value & 0xFF))
 
-    def _write_hex_byte(self, data, pos, byte):
+    def _write_hex_byte(self, data: bytearray, pos: int, byte: int) -> None:
         data[pos + 0] = ord(_HEX_DIGITS[int((byte >> 4) & 0xF)])
         data[pos + 1] = ord(_HEX_DIGITS[int(byte & 0xF)])

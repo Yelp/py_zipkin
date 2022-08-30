@@ -191,7 +191,7 @@ class ThreadLocalStack(Stack):
        ThreadLocalStack will be removed in version 1.0.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         log.warning(
             "ThreadLocalStack is deprecated. See DEPRECATIONS.rst for"
             "details on how to migrate to using Tracer."

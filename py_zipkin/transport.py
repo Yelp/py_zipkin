@@ -1,4 +1,5 @@
 from typing import Optional
+from typing import Tuple
 from typing import Union
 from urllib.request import Request
 from urllib.request import urlopen
@@ -42,6 +43,10 @@ class BaseTransportHandler:
         self.send(payload)
 
 
+class UnknownEncoding(Exception):
+    """Exception class for when encountering an unknown Encoding"""
+
+
 class SimpleHTTPTransport(BaseTransportHandler):
     def __init__(self, address: str, port: int) -> None:
         """A simple HTTP transport for zipkin.
@@ -72,7 +77,7 @@ class SimpleHTTPTransport(BaseTransportHandler):
     def get_max_payload_bytes(self) -> Optional[int]:
         return None
 
-    def _get_path_content_type(self, payload: Union[str, bytes]):
+    def _get_path_content_type(self, payload: Union[str, bytes]) -> Tuple[str, str]:
         """Choose the right api path and content type depending on the encoding.
 
         This is not something you'd need to do generally when writing your own
@@ -93,6 +98,8 @@ class SimpleHTTPTransport(BaseTransportHandler):
             return "/api/v2/spans", "application/json"
         elif encoding == Encoding.V2_PROTO3:
             return "/api/v2/spans", "application/x-protobuf"
+        else:  # pragma: nocover
+            raise UnknownEncoding(f"Unknown encoding: {encoding}")
 
     def send(self, payload: Union[str, bytes]) -> None:
         encoded_payload = (
