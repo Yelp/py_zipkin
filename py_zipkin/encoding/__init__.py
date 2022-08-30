@@ -14,7 +14,7 @@ from py_zipkin.exception import ZipkinError
 _V2_ATTRIBUTES = ["tags", "localEndpoint", "remoteEndpoint", "shared", "kind"]
 
 
-def detect_span_version_and_encoding(message: bytes) -> Encoding:
+def detect_span_version_and_encoding(message: Union[bytes, str]) -> Encoding:
     """Returns the span type and encoding for the message provided.
 
     The logic in this function is a Python port of
