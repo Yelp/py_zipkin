@@ -23,7 +23,10 @@ setup(
     long_description='\n\n'.join((read('README.md'), read('CHANGELOG.rst'))),
     long_description_content_type="text/markdown",
     packages=find_packages(exclude=('tests*', 'testing*', 'tools*')),
-    package_data={'': ['*.thrift']},
+    package_data={
+        '': ['*.thrift'],
+        'yelp_lib': ['py.typed'],
+    },
     python_requires='>=3.6',
     install_requires=[
         'thriftpy2>=0.4.0',
