@@ -1,29 +1,32 @@
 import socket
-from collections import namedtuple
 from collections import OrderedDict
+from typing import Dict
+from typing import MutableMapping
+from typing import NamedTuple
+from typing import Optional
 
 from py_zipkin.encoding._types import Kind
 from py_zipkin.exception import ZipkinError
 
 
-Endpoint = namedtuple("Endpoint", ["service_name", "ipv4", "ipv6", "port"])
+class Endpoint(NamedTuple):
+    service_name: Optional[str]
+    ipv4: Optional[str]
+    ipv6: Optional[str]
+    port: Optional[int]
 
 
-_V1Span = namedtuple(
-    "V1Span",
-    [
-        "trace_id",
-        "name",
-        "parent_id",
-        "id",
-        "timestamp",
-        "duration",
-        "endpoint",
-        "annotations",
-        "binary_annotations",
-        "remote_endpoint",
-    ],
-)
+class _V1Span(NamedTuple):
+    trace_id: str
+    name: Optional[str]
+    parent_id: Optional[str]
+    id: Optional[str]
+    timestamp: Optional[float]
+    duration: Optional[float]
+    endpoint: Optional[Endpoint]
+    annotations: MutableMapping[str, Optional[float]]
+    binary_annotations: Dict[str, Optional[str]]
+    remote_endpoint: Optional[Endpoint]
 
 
 class Span:
@@ -31,19 +34,19 @@ class Span:
 
     def __init__(
         self,
-        trace_id,
-        name,
-        parent_id,
-        span_id,
-        kind,
-        timestamp,
-        duration,
-        local_endpoint=None,
-        remote_endpoint=None,
-        debug=False,
-        shared=False,
-        annotations=None,
-        tags=None,
+        trace_id: str,
+        name: Optional[str],
+        parent_id: Optional[str],
+        span_id: Optional[str],
+        kind: Kind,
+        timestamp: Optional[float],
+        duration: Optional[float],
+        local_endpoint: Optional[Endpoint] = None,
+        remote_endpoint: Optional[Endpoint] = None,
+        debug: bool = False,
+        shared: bool = False,
+        annotations: Optional[Dict[str, Optional[float]]] = None,
+        tags: Optional[Dict[str, Optional[str]]] = None,
     ):
         """Creates a new Span.
 
@@ -101,29 +104,32 @@ class Span:
                 "Invalid remote_endpoint value. Must be of type Endpoint."
             )
 
-    def __eq__(self, other):  # pragma: no cover
+    def __eq__(self, other: object) -> bool:  # pragma: no cover
         """Compare function to help assert span1 == span2 in py3"""
         return self.__dict__ == other.__dict__
 
-    def __cmp__(self, other):  # pragma: no cover
+    def __cmp__(self, other: "Span") -> int:  # pragma: no cover
         """Compare function to help assert span1 == span2 in py2"""
         return self.__dict__ == other.__dict__
 
-    def __str__(self):  # pragma: no cover
+    def __str__(self) -> str:  # pragma: no cover
         """Compare function to nicely print Span rather than just the pointer"""
         return str(self.__dict__)
 
-    def build_v1_span(self):
+    def build_v1_span(self) -> _V1Span:
         """Builds and returns a V1 Span.
 
         :return: newly generated _V1Span
         :rtype: _V1Span
         """
-        annotations = OrderedDict([])
+        annotations: MutableMapping[str, Optional[float]] = OrderedDict([])
+        assert self.timestamp is not None
         if self.kind == Kind.CLIENT:
+            assert self.duration is not None
             annotations["cs"] = self.timestamp
             annotations["cr"] = self.timestamp + self.duration
         elif self.kind == Kind.SERVER:
+            assert self.duration is not None
             annotations["sr"] = self.timestamp
             annotations["ss"] = self.timestamp + self.duration
         elif self.kind == Kind.PRODUCER:
@@ -150,7 +156,12 @@ class Span:
         )
 
 
-def create_endpoint(port=None, service_name=None, host=None, use_defaults=True):
+def create_endpoint(
+    port: Optional[int] = None,
+    service_name: Optional[str] = None,
+    host: Optional[str] = None,
+    use_defaults: bool = True,
+) -> Endpoint:
     """Creates a new Endpoint object.
 
     :param port: TCP/UDP port. Defaults to 0.
@@ -195,7 +206,10 @@ def create_endpoint(port=None, service_name=None, host=None, use_defaults=True):
     return Endpoint(ipv4=ipv4, ipv6=ipv6, port=port, service_name=service_name)
 
 
-def copy_endpoint_with_new_service_name(endpoint, new_service_name):
+def copy_endpoint_with_new_service_name(
+    endpoint: Endpoint,
+    new_service_name: Optional[str],
+) -> Endpoint:
     """Creates a copy of a given endpoint with a new service name.
 
     :param endpoint: existing Endpoint object

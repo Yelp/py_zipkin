@@ -28,8 +28,11 @@ repos:
     hooks:
     -   id: black
         language_version: python3.7
-        exclude: setup.py
         args: [--target-version, py35]
+        exclude: (?x)^(
+            setup.py|
+            py_zipkin/encoding/protobuf/zipkin_pb2.pyi
+          )$
 -   repo: https://gitlab.com/pycqa/flake8
     rev: 4.0.1
     hooks:

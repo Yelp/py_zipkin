@@ -1,25 +1,37 @@
 import socket
 import struct
+from typing import Dict
+from typing import List
+from typing import Optional
 
+from typing_extensions import TypedDict
+from typing_extensions import TypeGuard
+
+from py_zipkin.encoding._helpers import Endpoint
+from py_zipkin.encoding._helpers import Span
 from py_zipkin.encoding._types import Kind
 from py_zipkin.util import unsigned_hex_to_signed_int
 
 try:
     from py_zipkin.encoding.protobuf import zipkin_pb2
 except ImportError:  # pragma: no cover
-    zipkin_pb2 = None
+    pass
 
 
-def installed():
+def installed() -> bool:  # pragma: no cover
     """Checks whether the protobud library is installed and can be used.
 
     :return: True if everything's fine, False otherwise
     :rtype: bool
     """
-    return zipkin_pb2 is not None
+    try:
+        _ = zipkin_pb2
+        return True
+    except NameError:
+        return False
 
 
-def encode_pb_list(pb_spans):
+def encode_pb_list(pb_spans: "List[zipkin_pb2.Span]") -> bytes:
     """Encode list of protobuf Spans to binary.
 
     :param pb_spans: list of protobuf Spans.
@@ -32,7 +44,27 @@ def encode_pb_list(pb_spans):
     return pb_list.SerializeToString()
 
 
-def create_protobuf_span(span):
+class ProtobufSpanArgsDict(TypedDict, total=False):
+    trace_id: bytes
+    parent_id: bytes
+    id: bytes
+    kind: "zipkin_pb2.Span._Kind.ValueType"
+    name: str
+    timestamp: int
+    duration: int
+    local_endpoint: "zipkin_pb2.Endpoint"
+    remote_endpoint: "zipkin_pb2.Endpoint"
+    annotations: "List[zipkin_pb2.Annotation]"
+    tags: Dict[str, str]
+    debug: bool
+    shared: bool
+
+
+def _is_dict_str_str(mapping: Dict[str, Optional[str]]) -> TypeGuard[Dict[str, str]]:
+    return all(isinstance(value, str) for _, value in mapping.items())
+
+
+def create_protobuf_span(span: Span) -> "zipkin_pb2.Span":
     """Converts a py_zipkin Span in a protobuf Span.
 
     :param span: py_zipkin Span to convert.
@@ -45,13 +77,14 @@ def create_protobuf_span(span):
     # So we can't create a zipkin_pb2.Span here and then set the appropriate
     # fields since `pb_span.local_endpoint = zipkin_pb2.Endpoint` fails.
     # Instead we just create the kwargs and pass them in to the Span constructor.
-    pb_kwargs = {}
+    pb_kwargs: ProtobufSpanArgsDict = {}
 
     pb_kwargs["trace_id"] = _hex_to_bytes(span.trace_id)
 
     if span.parent_id:
         pb_kwargs["parent_id"] = _hex_to_bytes(span.parent_id)
 
+    assert span.span_id is not None
     pb_kwargs["id"] = _hex_to_bytes(span.span_id)
 
     pb_kind = _get_protobuf_kind(span.kind)
@@ -75,6 +108,7 @@ def create_protobuf_span(span):
         pb_kwargs["annotations"] = _convert_annotations(span.annotations)
 
     if len(span.tags) > 0:
+        assert _is_dict_str_str(span.tags)
         pb_kwargs["tags"] = span.tags
 
     if span.debug:
@@ -86,7 +120,7 @@ def create_protobuf_span(span):
     return zipkin_pb2.Span(**pb_kwargs)
 
 
-def _hex_to_bytes(hex_id):
+def _hex_to_bytes(hex_id: str) -> bytes:
     """Encodes to hexadecimal ids to big-endian binary.
 
     :param hex_id: hexadecimal id to encode.
@@ -112,13 +146,13 @@ def _hex_to_bytes(hex_id):
         return high_bin + low_bin
 
 
-def _get_protobuf_kind(kind):
+def _get_protobuf_kind(kind: Kind) -> "Optional[zipkin_pb2.Span._Kind.ValueType]":
     """Converts py_zipkin's Kind to Protobuf's Kind.
 
     :param kind: py_zipkin's Kind.
     :type kind: py_zipkin.Kind
     :return: correcponding protobuf's kind value.
-    :rtype: zipkin_pb2.Span.Kind
+    :rtype: zipkin_pb2.Span._Kind.ValueType
     """
     if kind == Kind.CLIENT:
         return zipkin_pb2.Span.CLIENT
@@ -131,7 +165,7 @@ def _get_protobuf_kind(kind):
     return None
 
 
-def _convert_endpoint(endpoint):
+def _convert_endpoint(endpoint: Endpoint) -> "zipkin_pb2.Endpoint":
     """Converts py_zipkin's Endpoint to Protobuf's Endpoint.
 
     :param endpoint: py_zipkins' endpoint to convert.
@@ -153,7 +187,9 @@ def _convert_endpoint(endpoint):
     return pb_endpoint
 
 
-def _convert_annotations(annotations):
+def _convert_annotations(
+    annotations: Dict[str, Optional[float]]
+) -> "List[zipkin_pb2.Annotation]":
     """Converts py_zipkin's annotations dict to protobuf.
 
     :param annotations: annotations dict.
@@ -163,6 +199,7 @@ def _convert_annotations(annotations):
     """
     pb_annotations = []
     for value, ts in annotations.items():
+        assert ts is not None
         pb_annotations.append(
             zipkin_pb2.Annotation(timestamp=int(ts * 1000 * 1000), value=value)
         )

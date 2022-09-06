@@ -202,7 +202,7 @@ class TestV1ThriftEncoder:
             thrift.create_binary_annotation(
                 key="ca",
                 value=thrift.SERVER_ADDR_VAL,
-                annotation_type=thrift.zipkin_core.AnnotationType.BOOL,
+                annotation_type=thrift.zipkinCore.AnnotationType.BOOL,
                 host=thrift.create_endpoint(0, "test_server", "127.0.0.1", None),
             )
         ]
@@ -218,7 +218,7 @@ class TestV1ThriftEncoder:
             thrift.create_binary_annotation(
                 key="sa",
                 value=thrift.SERVER_ADDR_VAL,
-                annotation_type=thrift.zipkin_core.AnnotationType.BOOL,
+                annotation_type=thrift.zipkinCore.AnnotationType.BOOL,
                 host=thrift.create_endpoint(0, "test_server", "127.0.0.1", None),
             )
         ]

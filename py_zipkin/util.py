@@ -1,25 +1,29 @@
 import random
 import struct
 import time
-from collections import namedtuple
+from typing import NamedTuple
+from typing import Optional
 
 
-"""
-Holds the basic attributes needed to log a zipkin trace
+class ZipkinAttrs(NamedTuple):
+    """
+    Holds the basic attributes needed to log a zipkin trace
 
-:param trace_id: Unique trace id
-:param span_id: Span Id of the current request span
-:param parent_span_id: Parent span Id of the current request span
-:param flags: stores flags header. Currently unused
-:param is_sampled: pre-computed bool whether the trace should be logged
-"""
-ZipkinAttrs = namedtuple(
-    "ZipkinAttrs",
-    ["trace_id", "span_id", "parent_span_id", "flags", "is_sampled"],
-)
+    :param trace_id: Unique trace id
+    :param span_id: Span Id of the current request span
+    :param parent_span_id: Parent span Id of the current request span
+    :param flags: stores flags header. Currently unused
+    :param is_sampled: pre-computed bool whether the trace should be logged
+    """
+
+    trace_id: str
+    span_id: Optional[str]
+    parent_span_id: Optional[str]
+    flags: str
+    is_sampled: bool
 
 
-def generate_random_64bit_string():
+def generate_random_64bit_string() -> str:
     """Returns a 64 bit UTF-8 encoded string. In the interests of simplicity,
     this is always cast to a `str` instead of (in py2 land) a unicode string.
     Certain clients (I'm looking at you, Twisted) don't enjoy unicode headers.
@@ -29,7 +33,7 @@ def generate_random_64bit_string():
     return f"{random.getrandbits(64):016x}"
 
 
-def generate_random_128bit_string():
+def generate_random_128bit_string() -> str:
     """Returns a 128 bit UTF-8 encoded string. Follows the same conventions
     as generate_random_64bit_string().
 
@@ -44,7 +48,7 @@ def generate_random_128bit_string():
     return f"{(t << 96) | lower_96:032x}"
 
 
-def unsigned_hex_to_signed_int(hex_string):
+def unsigned_hex_to_signed_int(hex_string: str) -> int:
     """Converts a 64-bit hex string to a signed int value.
 
     This is due to the fact that Apache Thrift only has signed values.
@@ -59,7 +63,7 @@ def unsigned_hex_to_signed_int(hex_string):
     return struct.unpack("q", struct.pack("Q", int(hex_string, 16)))[0]
 
 
-def signed_int_to_unsigned_hex(signed_int):
+def signed_int_to_unsigned_hex(signed_int: int) -> str:
     """Converts a signed int value to a 64-bit hex string.
 
     Examples:
@@ -75,7 +79,7 @@ def signed_int_to_unsigned_hex(signed_int):
     return hex_string
 
 
-def _should_sample(sample_rate):
+def _should_sample(sample_rate: float) -> bool:
     if sample_rate == 0.0:
         return False  # save a die roll
     elif sample_rate == 100.0:
@@ -84,12 +88,12 @@ def _should_sample(sample_rate):
 
 
 def create_attrs_for_span(
-    sample_rate=100.0,
-    trace_id=None,
-    span_id=None,
-    use_128bit_trace_id=False,
-    flags=None,
-):
+    sample_rate: float = 100.0,
+    trace_id: Optional[str] = None,
+    span_id: Optional[str] = None,
+    use_128bit_trace_id: bool = False,
+    flags: Optional[str] = None,
+) -> ZipkinAttrs:
     """Creates a set of zipkin attributes for a span.
 
     :param sample_rate: Float between 0.0 and 100.0 to determine sampling rate

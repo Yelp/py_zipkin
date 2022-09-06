@@ -11,7 +11,7 @@ from py_zipkin.encoding._types import Encoding
 from py_zipkin.encoding._types import Kind
 from py_zipkin.exception import ZipkinError
 from py_zipkin.thrift import create_binary_annotation
-from py_zipkin.thrift import zipkin_core
+from py_zipkin.thrift import zipkinCore
 from py_zipkin.util import generate_random_128bit_string
 from py_zipkin.util import generate_random_64bit_string
 from tests.test_helpers import generate_list_of_spans
@@ -135,7 +135,7 @@ class TestV1ThriftDecoder:
         decoder = _V1ThriftDecoder()
         local_host = thrift.create_endpoint(8888, "test_service", "10.0.0.1", None)
         remote_host = thrift.create_endpoint(9999, "rem_service", "10.0.0.2", None)
-        ann_type = zipkin_core.AnnotationType
+        ann_type = zipkinCore.AnnotationType
         thrift_binary_annotations = [
             create_binary_annotation("key1", True, ann_type.BOOL, local_host),
             create_binary_annotation("key2", "val2", ann_type.STRING, local_host),
@@ -162,7 +162,7 @@ class TestV1ThriftDecoder:
     def test__convert_from_thrift_binary_annotations_unicode(self):
         decoder = _V1ThriftDecoder()
         local_host = thrift.create_endpoint(8888, "test_service", "10.0.0.1", None)
-        ann_type = zipkin_core.AnnotationType
+        ann_type = zipkinCore.AnnotationType
         thrift_binary_annotations = [
             create_binary_annotation("key1", "再见", ann_type.STRING, local_host),
             create_binary_annotation("key2", "val2", ann_type.STRING, local_host),

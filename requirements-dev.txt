@@ -2,6 +2,10 @@
 # on python 3.6.0 (xenial)
 coverage<5
 mock<4  # mock 4.x dropped support for python 2.7
+mypy-protobuf
 ordereddict
 pytest
 pytest-benchmark[histogram]
+# thrift-pyi has only ever supported python 3.7+
+thrift-pyi; python_version > "3.7"
+types-protobuf

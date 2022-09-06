@@ -1,3 +1,6 @@
+from typing import Optional
+from typing import Tuple
+from typing import Union
 from urllib.request import Request
 from urllib.request import urlopen
 
@@ -6,7 +9,7 @@ from py_zipkin.encoding import Encoding
 
 
 class BaseTransportHandler:
-    def get_max_payload_bytes(self):  # pragma: no cover
+    def get_max_payload_bytes(self) -> Optional[int]:  # pragma: no cover
         """Returns the maximum payload size for this transport.
 
         Most transports have a maximum packet size that can be sent. For example,
@@ -21,14 +24,14 @@ class BaseTransportHandler:
         """
         raise NotImplementedError("get_max_payload_bytes is not implemented")
 
-    def send(self, payload):  # pragma: no cover
+    def send(self, payload: Union[bytes, str]) -> None:  # pragma: no cover
         """Sends the encoded payload over the transport.
 
         :argument payload: encoded list of spans.
         """
         raise NotImplementedError("send is not implemented")
 
-    def __call__(self, payload):
+    def __call__(self, payload: Union[bytes, str]) -> None:
         """Internal wrapper around `send`. Do not override.
 
         Mostly used to keep backward compatibility with older transports
@@ -40,8 +43,12 @@ class BaseTransportHandler:
         self.send(payload)
 
 
+class UnknownEncoding(Exception):
+    """Exception class for when encountering an unknown Encoding"""
+
+
 class SimpleHTTPTransport(BaseTransportHandler):
-    def __init__(self, address, port):
+    def __init__(self, address: str, port: int) -> None:
         """A simple HTTP transport for zipkin.
 
         This is not production ready (not async, no retries) but
@@ -67,10 +74,10 @@ class SimpleHTTPTransport(BaseTransportHandler):
         self.address = address
         self.port = port
 
-    def get_max_payload_bytes(self):
+    def get_max_payload_bytes(self) -> Optional[int]:
         return None
 
-    def _get_path_content_type(self, payload):
+    def _get_path_content_type(self, payload: Union[str, bytes]) -> Tuple[str, str]:
         """Choose the right api path and content type depending on the encoding.
 
         This is not something you'd need to do generally when writing your own
@@ -78,7 +85,10 @@ class SimpleHTTPTransport(BaseTransportHandler):
         Since this is a generic transport, we need to make it compatible with
         any encoding instead.
         """
-        encoding = detect_span_version_and_encoding(payload)
+        encoded_payload = (
+            payload.encode("utf-8") if isinstance(payload, str) else payload
+        )
+        encoding = detect_span_version_and_encoding(encoded_payload)
 
         if encoding == Encoding.V1_JSON:
             return "/api/v1/spans", "application/json"
@@ -88,12 +98,17 @@ class SimpleHTTPTransport(BaseTransportHandler):
             return "/api/v2/spans", "application/json"
         elif encoding == Encoding.V2_PROTO3:
             return "/api/v2/spans", "application/x-protobuf"
+        else:  # pragma: nocover
+            raise UnknownEncoding(f"Unknown encoding: {encoding}")
 
-    def send(self, payload):
-        path, content_type = self._get_path_content_type(payload)
+    def send(self, payload: Union[str, bytes]) -> None:
+        encoded_payload = (
+            payload.encode("utf-8") if isinstance(payload, str) else payload
+        )
+        path, content_type = self._get_path_content_type(encoded_payload)
         url = f"http://{self.address}:{self.port}{path}"
 
-        req = Request(url, payload, {"Content-Type": content_type})
+        req = Request(url, encoded_payload, {"Content-Type": content_type})
         response = urlopen(req)
 
         assert response.getcode() == 202

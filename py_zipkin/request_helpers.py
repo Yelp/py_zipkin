@@ -1,6 +1,12 @@
 import logging
+from typing import Dict
+from typing import Optional
+
+from typing_extensions import TypedDict
 
 from py_zipkin.storage import get_default_tracer
+from py_zipkin.storage import Stack
+from py_zipkin.storage import Tracer
 from py_zipkin.util import _should_sample
 from py_zipkin.util import create_attrs_for_span
 from py_zipkin.util import generate_random_64bit_string
@@ -9,7 +15,14 @@ from py_zipkin.util import ZipkinAttrs
 log = logging.getLogger(__name__)
 
 
-def _parse_single_header(b3_header):
+class B3JSON(TypedDict):
+    trace_id: Optional[str]
+    span_id: Optional[str]
+    parent_span_id: Optional[str]
+    sampled_str: Optional[str]
+
+
+def _parse_single_header(b3_header: str) -> B3JSON:
     """
     Parse out and return the data necessary for generating ZipkinAttrs.
 
@@ -19,7 +32,12 @@ def _parse_single_header(b3_header):
         'parent_span_id':       str or None
         'sampled_str':          '0', '1', 'd', or None (defer)
     """
-    parsed = dict.fromkeys(("trace_id", "span_id", "parent_span_id", "sampled_str"))
+    parsed: B3JSON = {
+        "trace_id": None,
+        "span_id": None,
+        "parent_span_id": None,
+        "sampled_str": None,
+    }
 
     # b3={TraceId}-{SpanId}-{SamplingState}-{ParentSpanId}
     #      (last 2 fields optional)
@@ -55,7 +73,7 @@ def _parse_single_header(b3_header):
     return parsed
 
 
-def _parse_multi_header(headers):
+def _parse_multi_header(headers: Dict[str, str]) -> B3JSON:
     """
     Parse out and return the data necessary for generating ZipkinAttrs.
 
@@ -65,7 +83,7 @@ def _parse_multi_header(headers):
         'parent_span_id':       str or None
         'sampled_str':          '0', '1', 'd', or None (defer)
     """
-    parsed = {
+    parsed: B3JSON = {
         "trace_id": headers.get("X-B3-TraceId", None),
         "span_id": headers.get("X-B3-SpanId", None),
         "parent_span_id": headers.get("X-B3-ParentSpanId", None),
@@ -81,7 +99,7 @@ def _parse_multi_header(headers):
     if parsed["sampled_str"] not in (None, "1", "0", "d"):
         raise ValueError("Got invalid X-B3-Sampled: %s" % parsed["sampled_str"])
     for k in ("trace_id", "span_id", "parent_span_id"):
-        if parsed[k] == "":
+        if parsed[k] == "":  # type: ignore[literal-required]
             raise ValueError("Got empty-string %r" % k)
     if parsed["trace_id"] and not parsed["span_id"]:
         raise ValueError("Got X-B3-TraceId but not X-B3-SpanId")
@@ -96,8 +114,10 @@ def _parse_multi_header(headers):
 
 
 def extract_zipkin_attrs_from_headers(
-    headers, sample_rate=100.0, use_128bit_trace_id=False
-):
+    headers: Dict[str, str],
+    sample_rate: float = 100.0,
+    use_128bit_trace_id: bool = False,
+) -> Optional[ZipkinAttrs]:
     """
     Implements extraction of B3 headers per:
         https://github.com/openzipkin/b3-propagation
@@ -152,10 +172,10 @@ def extract_zipkin_attrs_from_headers(
 
 
 def create_http_headers(
-    context_stack=None,
-    tracer=None,
-    new_span_id=False,
-):
+    context_stack: Stack = None,
+    tracer: Tracer = None,
+    new_span_id: bool = False,
+) -> Dict[str, Optional[str]]:
     """
     Generate the headers for a new zipkin span.
 
@@ -179,7 +199,7 @@ def create_http_headers(
         return {}
 
     if new_span_id:
-        span_id = generate_random_64bit_string()
+        span_id: Optional[str] = generate_random_64bit_string()
         parent_span_id = zipkin_attrs.span_id
     else:
         span_id = zipkin_attrs.span_id
