@@ -25,7 +25,7 @@ setup(
     packages=find_packages(exclude=('tests*', 'testing*', 'tools*')),
     package_data={
         '': ['*.thrift'],
-        'yelp_lib': ['py.typed'],
+        'py_zipkin': ['py.typed'],
     },
     python_requires='>=3.6',
     install_requires=[
