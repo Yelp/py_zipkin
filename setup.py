@@ -26,6 +26,8 @@ setup(
     package_data={
         '': ['*.thrift'],
         'py_zipkin': ['py.typed'],
+        'py_zipkin.thrift': ['*.pyi'],
+        'py_zipkin.encoding.protobuf': ['*.pyi'],
     },
     python_requires='>=3.6',
     install_requires=[
