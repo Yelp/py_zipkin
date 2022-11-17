@@ -29,7 +29,7 @@ setup(
     },
     python_requires='>=3.6',
     install_requires=[
-        'thriftpy2>=0.4.0',
+        'thriftpy2>=0.4.0,<0.4.14',
         'typing-extensions>=3.10.0.0',
     ],
     extras_require={
