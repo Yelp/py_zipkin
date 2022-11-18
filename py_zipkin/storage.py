@@ -136,7 +136,7 @@ class Stack:
        Stack will be removed in version 1.0.
     """
 
-    def __init__(self, storage: List[ZipkinAttrs] = None) -> None:
+    def __init__(self, storage: Optional[List[ZipkinAttrs]] = None) -> None:
         if storage is not None:
             log.warning("Passing a storage object to Stack is deprecated.")
             self.__storage: List[ZipkinAttrs] = storage

@@ -2,7 +2,6 @@
 # on python 3.6.0 (xenial)
 coverage<5
 mock<4  # mock 4.x dropped support for python 2.7
-mypy<0.982  # TODO fix failures
 mypy-protobuf
 ordereddict
 pytest
