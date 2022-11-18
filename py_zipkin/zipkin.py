@@ -113,11 +113,11 @@ class zipkin_span:
         context_stack: Optional[Stack] = None,
         span_storage: Optional[SpanStorage] = None,
         firehose_handler: Optional[TransportHandler] = None,
-        kind: Kind = None,
+        kind: Optional[Kind] = None,
         timestamp: Optional[float] = None,
         duration: Optional[float] = None,
         encoding: Encoding = Encoding.V2_JSON,
-        _tracer: Tracer = None,
+        _tracer: Optional[Tracer] = None,
     ):
         """Logs a zipkin span. If this is the root span, then a zipkin
         trace is started as well.
@@ -498,7 +498,7 @@ class zipkin_span:
         self,
         _exc_type: Optional[Type[BaseException]] = None,
         _exc_value: Optional[BaseException] = None,
-        _exc_traceback: TracebackType = None,
+        _exc_traceback: Optional[TracebackType] = None,
     ) -> None:
         """Exit the span context. Zipkin attrs are pushed onto the
         threadlocal stack regardless of sampling, so they always need to be
@@ -700,7 +700,7 @@ class zipkin_server_span(zipkin_span):
 
 
 def create_http_headers_for_new_span(
-    context_stack: Stack = None, tracer: Tracer = None
+    context_stack: Optional[Stack] = None, tracer: Optional[Tracer] = None
 ) -> Dict[str, Optional[str]]:
     """
     Generate the headers for a new zipkin span.

@@ -172,8 +172,8 @@ def extract_zipkin_attrs_from_headers(
 
 
 def create_http_headers(
-    context_stack: Stack = None,
-    tracer: Tracer = None,
+    context_stack: Optional[Stack] = None,
+    tracer: Optional[Tracer] = None,
     new_span_id: bool = False,
 ) -> Dict[str, Optional[str]]:
     """
