@@ -248,7 +248,7 @@ class _BaseJSONEncoder(IEncoder):
     def encode_queue(self, queue: List[Union[str, bytes]]) -> str:
         """Concatenates the list to a JSON list"""
         assert _is_str_list(queue)
-        return "[" + ",".join(queue) + "]"
+        return ("[" + ",".join(queue) + "]").encode()
 
 
 class JSONv1BinaryAnnotation(TypedDict):

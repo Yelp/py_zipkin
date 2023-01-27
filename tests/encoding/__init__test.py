@@ -19,7 +19,6 @@ def test_detect_span_version_and_encoding(encoding):
 
     if encoding in [Encoding.V1_JSON, Encoding.V2_JSON]:
         assert type(spans) == old_type
-        spans = spans.encode()
         assert detect_span_version_and_encoding(spans) == encoding
 
 
