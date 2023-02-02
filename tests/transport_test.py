@@ -26,7 +26,6 @@ class TestSimpleHTTPTransport:
     @pytest.mark.parametrize(
         "encoding,path,content_type",
         [
-            (Encoding.V1_THRIFT, "/api/v1/spans", "application/x-thrift"),
             (Encoding.V1_JSON, "/api/v1/spans", "application/json"),
             (Encoding.V2_JSON, "/api/v2/spans", "application/json"),
             (Encoding.V2_PROTO3, "/api/v2/spans", "application/x-protobuf"),

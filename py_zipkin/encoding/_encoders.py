@@ -1,14 +1,12 @@
 import json
 from typing import Dict
 from typing import List
-from typing import Mapping
 from typing import Optional
 from typing import Union
 
 from typing_extensions import TypedDict
 from typing_extensions import TypeGuard
 
-from py_zipkin import thrift
 from py_zipkin.encoding import protobuf
 from py_zipkin.encoding._helpers import Endpoint
 from py_zipkin.encoding._helpers import Span
@@ -26,7 +24,7 @@ def get_encoder(encoding: Encoding) -> "IEncoder":
     :rtype: IEncoder
     """
     if encoding == Encoding.V1_THRIFT:
-        return _V1ThriftEncoder()
+        raise NotImplementedError(f"{encoding} encoding no longer supported")
     if encoding == Encoding.V1_JSON:
         return _V1JSONEncoder()
     if encoding == Encoding.V2_JSON:
@@ -80,113 +78,6 @@ class IEncoder:
         :rtype: str or bytes
         """
         raise NotImplementedError()
-
-
-def _is_mapping_str_float(
-    mapping: Mapping[str, Optional[float]]
-) -> TypeGuard[Mapping[str, float]]:
-    return all(isinstance(value, float) for key, value in mapping.items())
-
-
-def _is_dict_str_str(mapping: Dict[str, Optional[str]]) -> TypeGuard[Dict[str, str]]:
-    return all(isinstance(value, str) for key, value in mapping.items())
-
-
-class _V1ThriftEncoder(IEncoder):
-    """Thrift encoder for V1 spans."""
-
-    def fits(
-        self,
-        current_count: int,
-        current_size: int,
-        max_size: int,
-        new_span: Union[str, bytes],
-    ) -> bool:
-        """Checks if the new span fits in the max payload size.
-
-        Thrift lists have a fixed-size header and no delimiters between elements
-        so it's easy to compute the list size.
-        """
-        return thrift.LIST_HEADER_SIZE + current_size + len(new_span) <= max_size
-
-    def encode_remote_endpoint(
-        self,
-        remote_endpoint: Endpoint,
-        kind: Kind,
-        binary_annotations: List[thrift.zipkinCore.BinaryAnnotation],
-    ) -> None:
-        assert remote_endpoint.port is not None
-        thrift_remote_endpoint = thrift.create_endpoint(
-            remote_endpoint.port,
-            remote_endpoint.service_name,
-            remote_endpoint.ipv4,
-            remote_endpoint.ipv6,
-        )
-        # these attributes aren't yet supported by thrift-pyi
-        if kind == Kind.CLIENT:
-            key = thrift.zipkinCore.SERVER_ADDR  # type: ignore[attr-defined]
-        elif kind == Kind.SERVER:
-            key = thrift.zipkinCore.CLIENT_ADDR  # type: ignore[attr-defined]
-
-        binary_annotations.append(
-            thrift.create_binary_annotation(
-                key=key,
-                value=thrift.SERVER_ADDR_VAL,
-                annotation_type=thrift.zipkinCore.AnnotationType.BOOL,
-                host=thrift_remote_endpoint,
-            )
-        )
-
-    def encode_span(self, v2_span: Span) -> bytes:
-        """Encodes the current span to thrift."""
-        span = v2_span.build_v1_span()
-        assert span.endpoint is not None
-        assert span.endpoint.port is not None
-        thrift_endpoint = thrift.create_endpoint(
-            span.endpoint.port,
-            span.endpoint.service_name,
-            span.endpoint.ipv4,
-            span.endpoint.ipv6,
-        )
-
-        assert _is_mapping_str_float(span.annotations)
-        thrift_annotations = thrift.annotation_list_builder(
-            span.annotations,
-            thrift_endpoint,
-        )
-
-        assert _is_dict_str_str(span.binary_annotations)
-        thrift_binary_annotations = thrift.binary_annotation_list_builder(
-            span.binary_annotations,
-            thrift_endpoint,
-        )
-
-        # Add sa/ca binary annotations
-        if v2_span.remote_endpoint:
-            self.encode_remote_endpoint(
-                v2_span.remote_endpoint,
-                v2_span.kind,
-                thrift_binary_annotations,
-            )
-
-        assert span.id is not None
-        thrift_span = thrift.create_span(
-            span.id,
-            span.parent_id,
-            span.trace_id,
-            span.name,
-            thrift_annotations,
-            thrift_binary_annotations,
-            span.timestamp,
-            span.duration,
-        )
-
-        encoded_span = thrift.span_to_bytes(thrift_span)
-        return encoded_span
-
-    def encode_queue(self, queue: List[Union[str, bytes]]) -> bytes:
-        """Converts the queue to a thrift list"""
-        return thrift.encode_bytes_list(queue)
 
 
 class JSONEndpoint(TypedDict, total=False):

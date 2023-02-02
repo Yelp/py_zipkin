@@ -4,9 +4,7 @@ from unittest import mock
 import pytest
 
 from py_zipkin import Encoding
-from py_zipkin import thrift
 from py_zipkin.encoding._encoders import _V1JSONEncoder
-from py_zipkin.encoding._encoders import _V1ThriftEncoder
 from py_zipkin.encoding._encoders import _V2JSONEncoder
 from py_zipkin.encoding._encoders import _V2ProtobufEncoder
 from py_zipkin.encoding._encoders import get_encoder
@@ -71,7 +69,6 @@ def test_malformed_host():
 
 
 def test_encoder():
-    assert isinstance(get_encoder(Encoding.V1_THRIFT), _V1ThriftEncoder)
     assert isinstance(get_encoder(Encoding.V1_JSON), _V1JSONEncoder)
     assert isinstance(get_encoder(Encoding.V2_JSON), _V2JSONEncoder)
     assert isinstance(get_encoder(Encoding.V2_PROTO3), _V2ProtobufEncoder)
@@ -183,44 +180,6 @@ class TestV1JSONEncoder:
                 "key": "sa",
                 "value": True,
             }
-        ]
-
-
-class TestV1ThriftEncoder:
-    def test_remote_endpoint(self):
-        encoder = get_encoder(Encoding.V1_THRIFT)
-        remote_endpoint = create_endpoint(service_name="test_server", host="127.0.0.1")
-
-        # For server spans, the remote endpoint is encoded as 'ca'
-        binary_annotations = thrift.binary_annotation_list_builder({}, None)
-        encoder.encode_remote_endpoint(
-            remote_endpoint,
-            Kind.SERVER,
-            binary_annotations,
-        )
-        assert binary_annotations == [
-            thrift.create_binary_annotation(
-                key="ca",
-                value=thrift.SERVER_ADDR_VAL,
-                annotation_type=thrift.zipkinCore.AnnotationType.BOOL,
-                host=thrift.create_endpoint(0, "test_server", "127.0.0.1", None),
-            )
-        ]
-
-        # For client spans, the remote endpoint is encoded as 'sa'
-        binary_annotations = thrift.binary_annotation_list_builder({}, None)
-        encoder.encode_remote_endpoint(
-            remote_endpoint,
-            Kind.CLIENT,
-            binary_annotations,
-        )
-        assert binary_annotations == [
-            thrift.create_binary_annotation(
-                key="sa",
-                value=thrift.SERVER_ADDR_VAL,
-                annotation_type=thrift.zipkinCore.AnnotationType.BOOL,
-                host=thrift.create_endpoint(0, "test_server", "127.0.0.1", None),
-            )
         ]
 
 

@@ -1,31 +1,14 @@
 import json
-from collections import OrderedDict
 from unittest import mock
 
 import pytest
-from thriftpy2.protocol.binary import read_list_begin
-from thriftpy2.protocol.binary import TBinaryProtocol
-from thriftpy2.transport import TMemoryBuffer
 
 from py_zipkin import Encoding
 from py_zipkin import Kind
-from py_zipkin import thrift
 from py_zipkin import zipkin
-from py_zipkin.thrift import zipkinCore
 from py_zipkin.util import generate_random_64bit_string
 from py_zipkin.zipkin import ZipkinAttrs
 from tests.test_helpers import MockTransportHandler
-
-
-def _decode_binary_thrift_objs(obj):
-    spans = []
-    trans = TMemoryBuffer(obj)
-    _, size = read_list_begin(trans)
-    for _ in range(size):
-        span = zipkinCore.Span()
-        span.read(TBinaryProtocol(trans))
-        spans.append(span)
-    return spans
 
 
 def us(seconds):
@@ -84,92 +67,6 @@ def check_v1_json(obj, zipkin_attrs, inner_span_id, ts):
         "binaryAnnotations": [],
         "annotations": [{"endpoint": endpoint, "timestamp": us(ts), "value": "ms"}],
     }
-
-
-def check_v1_thrift(obj, zipkin_attrs, inner_span_id, ts):
-    inner_span, producer_span, root_span = _decode_binary_thrift_objs(obj)
-
-    endpoint = thrift.create_endpoint(
-        port=8080,
-        service_name="test_service_name",
-        ipv4="10.0.0.0",
-    )
-    binary_annotations = thrift.binary_annotation_list_builder(
-        {"some_key": "some_value"},
-        endpoint,
-    )
-    binary_annotations.append(
-        thrift.create_binary_annotation(
-            "sa",
-            "\x01",
-            zipkinCore.AnnotationType.BOOL,
-            thrift.create_endpoint(
-                port=8888,
-                service_name="sa_service",
-                ipv6="2001:0db8:85a3:0000:0000:8a2e:0370:7334",
-            ),
-        )
-    )
-
-    expected_root = thrift.create_span(
-        span_id=zipkin_attrs.span_id,
-        parent_span_id=zipkin_attrs.parent_span_id,
-        trace_id=zipkin_attrs.trace_id,
-        span_name="test_span_name",
-        annotations=thrift.annotation_list_builder(
-            OrderedDict([("cs", ts), ("cr", ts + 10)]),
-            endpoint,
-        ),
-        binary_annotations=binary_annotations,
-        timestamp_s=None,
-        duration_s=None,
-    )
-    # py.test diffs of thrift Spans are pretty useless and hide many things
-    # These prints would only appear on stdout if the test fails and help comparing
-    # the 2 spans.
-    print(root_span)
-    print(expected_root)
-    assert root_span == expected_root
-
-    expected_inner = thrift.create_span(
-        span_id=inner_span_id,
-        parent_span_id=zipkin_attrs.span_id,
-        trace_id=zipkin_attrs.trace_id,
-        span_name="inner_span",
-        annotations=thrift.annotation_list_builder(
-            OrderedDict([("ws", ts)]),
-            endpoint,
-        ),
-        binary_annotations=[],
-        timestamp_s=ts,
-        duration_s=5,
-    )
-    # py.test diffs of thrift Spans are pretty useless and hide many things
-    # These prints would only appear on stdout if the test fails and help comparing
-    # the 2 spans.
-    print(inner_span)
-    print(expected_inner)
-    assert inner_span == expected_inner
-
-    expected_producer = thrift.create_span(
-        span_id=inner_span_id,
-        parent_span_id=zipkin_attrs.span_id,
-        trace_id=zipkin_attrs.trace_id,
-        span_name="producer_span",
-        annotations=thrift.annotation_list_builder(
-            OrderedDict([("ms", ts)]),
-            endpoint,
-        ),
-        binary_annotations=[],
-        timestamp_s=ts,
-        duration_s=10,
-    )
-    # py.test diffs of thrift Spans are pretty useless and hide many things
-    # These prints would only appear on stdout if the test fails and help comparing
-    # the 2 spans.
-    print(producer_span)
-    print(expected_producer)
-    assert producer_span == expected_producer
 
 
 def check_v2_json(obj, zipkin_attrs, inner_span_id, ts):
@@ -231,7 +128,6 @@ def check_v2_json(obj, zipkin_attrs, inner_span_id, ts):
 @pytest.mark.parametrize(
     "encoding,validate_fn",
     [
-        (Encoding.V1_THRIFT, check_v1_thrift),
         (Encoding.V1_JSON, check_v1_json),
         (Encoding.V2_JSON, check_v2_json),
     ],

@@ -1,16 +1,12 @@
 import threading
-import time
 from unittest import mock
 
 from py_zipkin import Kind
-from py_zipkin import thrift
 from py_zipkin import zipkin
 from py_zipkin.encoding._encoders import IEncoder
 from py_zipkin.instrumentations import python_threads
 from py_zipkin.storage import Tracer
 from py_zipkin.testing import MockTransportHandler
-from py_zipkin.thrift import zipkinCore
-from py_zipkin.util import generate_random_128bit_string
 from py_zipkin.util import generate_random_64bit_string
 from py_zipkin.zipkin import ZipkinAttrs
 
@@ -86,34 +82,6 @@ def generate_list_of_spans(encoding):
                     )
 
     return transport_handler.get_payloads()[0], zipkin_attrs, inner_span_id, ts
-
-
-def generate_single_thrift_span():
-    trace_id = generate_random_128bit_string()
-    span_id = generate_random_64bit_string()
-    timestamp_s = round(time.time(), 3)
-    duration_s = 2.0
-    host = thrift.create_endpoint(port=8000, service_name="host")
-    host.ipv4 = 2130706433
-    span = thrift.create_span(
-        span_id=span_id,
-        parent_span_id=None,
-        trace_id=trace_id,
-        span_name="foo",
-        annotations=[thrift.create_annotation(1472470996199000, "cs", host)],
-        binary_annotations=[
-            thrift.create_binary_annotation(
-                "key",
-                "value",
-                zipkinCore.AnnotationType.STRING,
-                host,
-            ),
-        ],
-        timestamp_s=timestamp_s,
-        duration_s=duration_s,
-    )
-
-    return thrift.span_to_bytes(span)
 
 
 class TracingThread(threading.Thread):

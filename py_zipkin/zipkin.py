@@ -186,7 +186,7 @@ class zipkin_span:
         :param duration: Duration in seconds, defaults to the time spent in the
             context. Set this if you want to use a custom duration.
         :type duration: float
-        :param encoding: Output encoding format, defaults to V1 thrift spans.
+        :param encoding: Output encoding format, defaults to V2_JSON spans.
         :type encoding: Encoding
         :param _tracer: Current tracer object. This argument is passed in
             automatically when you create a zipkin_span from a Tracer.
