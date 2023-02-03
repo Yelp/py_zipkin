@@ -24,9 +24,7 @@ setup(
     long_description_content_type="text/markdown",
     packages=find_packages(exclude=('tests*', 'testing*', 'tools*')),
     package_data={
-        '': ['*.thrift'],
         'py_zipkin': ['py.typed'],
-        'py_zipkin.thrift': ['*.pyi'],
         'py_zipkin.encoding.protobuf': ['*.pyi'],
     },
     python_requires='>=3.6',
