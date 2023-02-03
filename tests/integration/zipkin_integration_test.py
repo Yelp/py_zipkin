@@ -275,7 +275,6 @@ def test_service_exits_on_erroneous_span(log_mock):
             span_name="service_span",
             zipkin_attrs=zipkin_attrs,
             transport_handler=mock_transport_handler,
-            encoding=Encoding.V1_THRIFT,
         ):
             pass
 

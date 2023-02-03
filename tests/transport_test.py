@@ -5,6 +5,7 @@ import pytest
 from py_zipkin.encoding import Encoding
 from py_zipkin.transport import SimpleHTTPTransport
 from py_zipkin.zipkin import zipkin_span
+from tests.test_helpers import generate_list_of_spans
 from tests.test_helpers import MockTransportHandler
 
 
@@ -33,19 +34,10 @@ class TestSimpleHTTPTransport:
         ],
     )
     def test__get_path_content_type(self, encoding, path, content_type):
-        transport = MockTransportHandler()
-        with zipkin_span(
-            service_name="my_service",
-            span_name="home",
-            sample_rate=100,
-            transport_handler=transport,
-            encoding=encoding,
-        ):
-            pass
-
-        spans = transport.get_payloads()[0]
         http_transport = SimpleHTTPTransport("localhost", 9411)
-        assert http_transport._get_path_content_type(spans) == (path, content_type)
+        assert http_transport._get_path_content_type(
+            generate_list_of_spans(encoding)[0]
+        ) == (path, content_type)
 
     @mock.patch("py_zipkin.transport.urlopen", autospec=True)
     def test_send(self, mock_urlopen):

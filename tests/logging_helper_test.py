@@ -408,16 +408,16 @@ def test_batch_sender_add_span_many_times(fake_endpoint):
 
 def test_batch_sender_add_span_too_big(fake_endpoint):
     # This time we set max_payload_bytes to 1000, so we have to send more batches.
-    # Each encoded span is 175 bytes, so we can fit 5 of those in 1000 bytes.
+    # Each encoded span is 249 bytes, so we can fit 4 of those in 1000 bytes.
     mock_transport_handler = mock.Mock(spec=MockTransportHandler)
     mock_transport_handler.get_max_payload_bytes = lambda: 1000
     sender = logging_helper.ZipkinBatchSender(
         mock_transport_handler,
         100,
-        get_encoder(Encoding.V1_THRIFT),
+        get_encoder(Encoding.V2_JSON),
     )
     with sender:
-        for _ in range(201):
+        for _ in range(202):
             sender.add_span(
                 Span(
                     trace_id="000000000000000f",
@@ -433,15 +433,15 @@ def test_batch_sender_add_span_too_big(fake_endpoint):
                 )
             )
 
-    # 5 spans per batch, means we need 201 / 4 = 41 batches to send them all.
-    assert mock_transport_handler.call_count == 41
-    for i in range(40):
-        # The first 40 batches have 5 spans of 197 bytes + 5 bytes of
+    # 4 spans per batch, means we need 202 / 3 = 68 batches to send them all.
+    assert mock_transport_handler.call_count == 68
+    for i in range(67):
+        # The first 67 batches have 3 spans of 249 bytes + 4 bytes of
         # list headers = 990 bytes
-        assert len(mock_transport_handler.call_args_list[i][0][0]) == 990
-    # The last batch has a single remaining span of 197 bytes + 5 bytes of
-    # list headers = 202 bytes
-    assert len(mock_transport_handler.call_args_list[40][0][0]) == 202
+        assert len(mock_transport_handler.call_args_list[i][0][0]) == 751
+    # The last batch has a single remaining span of 249 bytes + 2 bytes of
+    # list headers = 253 bytes
+    assert len(mock_transport_handler.call_args_list[67][0][0]) == 251
 
 
 def test_batch_sender_flush_calls_transport_handler_with_correct_params(fake_endpoint):
