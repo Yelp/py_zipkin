@@ -13,6 +13,7 @@ from py_zipkin.encoding._helpers import Span
 from py_zipkin.encoding._types import Encoding
 from py_zipkin.encoding._types import Kind
 from py_zipkin.exception import ZipkinError
+from py_zipkin.util import unsigned_hex_to_signed_int
 
 
 def get_encoder(encoding: Encoding) -> "IEncoder":
@@ -265,6 +266,10 @@ class _V2JSONEncoder(_BaseJSONEncoder):
 
     def encode_span(self, span: Span) -> str:
         """Encodes a single span to JSON."""
+
+        if span.span_id:
+            # validate that this is a hex number
+            unsigned_hex_to_signed_int(span.span_id)
 
         json_span: JSONv2Span = {
             "traceId": span.trace_id,

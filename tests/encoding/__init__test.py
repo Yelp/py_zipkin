@@ -8,7 +8,7 @@ from tests.test_helpers import generate_list_of_spans
 
 @pytest.mark.parametrize(
     "encoding",
-    [Encoding.V1_JSON, Encoding.V2_JSON, Encoding.V2_PROTO3],
+    [Encoding.V1_THRIFT, Encoding.V1_JSON, Encoding.V2_JSON, Encoding.V2_PROTO3],
 )
 def test_detect_span_version_and_encoding(encoding):
     spans, _, _, _ = generate_list_of_spans(encoding)

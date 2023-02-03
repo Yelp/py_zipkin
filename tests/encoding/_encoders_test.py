@@ -69,6 +69,8 @@ def test_malformed_host():
 
 
 def test_encoder():
+    with pytest.raises(NotImplementedError):
+        get_encoder(Encoding.V1_THRIFT)
     assert isinstance(get_encoder(Encoding.V1_JSON), _V1JSONEncoder)
     assert isinstance(get_encoder(Encoding.V2_JSON), _V2JSONEncoder)
     assert isinstance(get_encoder(Encoding.V2_PROTO3), _V2ProtobufEncoder)
