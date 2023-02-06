@@ -1,3 +1,7 @@
+1.2.7 (2023-02-06)
+-------------------
+- Drop support for Python 3.6
+
 1.2.6 (2023-02-06)
 -------------------
 - Drop support for V1_THRIFT encoding
