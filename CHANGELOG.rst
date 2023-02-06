@@ -1,3 +1,7 @@
+1.2.6 (2023-02-06)
+-------------------
+- Drop support for V1_THRIFT encoding
+
 1.0.0 (2022-06-09)
 -------------------
 - Droop Python 2.7 support (minimal supported python version is 3.5)
