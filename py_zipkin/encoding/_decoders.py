@@ -16,7 +16,7 @@ def get_decoder(encoding: Encoding) -> "IDecoder":
     :rtype: IDecoder
     """
     if encoding == Encoding.V1_THRIFT:
-        raise NotImplementedError(f"{encoding} decoding not yet implemented")
+        raise NotImplementedError(f"{encoding} decoding no longer supported")
     if encoding == Encoding.V1_JSON:
         raise NotImplementedError(f"{encoding} decoding not yet implemented")
     if encoding == Encoding.V2_JSON:
