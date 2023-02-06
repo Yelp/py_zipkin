@@ -27,7 +27,7 @@ setup(
         'py_zipkin': ['py.typed'],
         'py_zipkin.encoding.protobuf': ['*.pyi'],
     },
-    python_requires='>=3.6',
+    python_requires='>=3.7',
     install_requires=[
         'typing-extensions>=3.10.0.0',
     ],
@@ -40,7 +40,6 @@ setup(
         "Topic :: Software Development :: Libraries :: Python Modules",
         "License :: OSI Approved :: Apache Software License",
         "Operating System :: OS Independent",
-        "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
     ],
