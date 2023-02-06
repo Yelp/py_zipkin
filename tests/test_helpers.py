@@ -1,16 +1,13 @@
 import threading
-import time
 from unittest import mock
 
 from py_zipkin import Kind
-from py_zipkin import thrift
 from py_zipkin import zipkin
+from py_zipkin.encoding import Encoding
 from py_zipkin.encoding._encoders import IEncoder
 from py_zipkin.instrumentations import python_threads
 from py_zipkin.storage import Tracer
 from py_zipkin.testing import MockTransportHandler
-from py_zipkin.thrift import zipkinCore
-from py_zipkin.util import generate_random_128bit_string
 from py_zipkin.util import generate_random_64bit_string
 from py_zipkin.zipkin import ZipkinAttrs
 
@@ -51,6 +48,37 @@ def generate_list_of_spans(encoding):
     # sometimes returns N and sometimes N+1. This ts value doesn't have that
     # issue afaict, probably since it ends in zeros.
     ts = 1538544126.115900
+
+    if encoding == Encoding.V1_THRIFT:
+        return (
+            b"\x0c\x00\x00\x00\x02\n\x00\x01\xb5ZX\x14\x81.\x07\xfe\x0b\x00\x03\x00"
+            + b"\x00\x00\ninner_span\n\x00\x04\xc6\xcd\x0c\x1fZ\xb0_\xd1\n\x00\x05BM"
+            + b"\xb5\x02p\xed\x8e\xb1\x0f\x00\x06\x0c\x00\x00\x00\x01\n\x00\x01\x00"
+            + b"\x05wL8\x1b\xc0<\x0b\x00\x02\x00\x00\x00\x02ws\x0c\x00\x03\x08\x00"
+            + b"\x01\n\x00\x00\x00\x06\x00\x02\x1f\x90\x0b\x00\x03\x00\x00\x00\x11"
+            + b"test_service_name\x00\x00\x0f\x00\x08\x0c\x00\x00\x00\x00\x02\x00\t"
+            + b"\x00\n\x00\n\x00\x05wL8\x1b\xc0<\n\x00\x0b\x00\x00\x00\x00\x00LK@\x00"
+            + b"\n\x00\x01\xb5ZX\x14\x81.\x07\xfe\x0b\x00\x03\x00\x00\x00\x0e"
+            + b"test_span_name\n\x00\x04BM\xb5\x02p\xed\x8e\xb1\n\x00\x05\xa1kn\xd3"
+            + b"\x0cA\xba\xbd\x0f\x00\x06\x0c\x00\x00\x00\x02\n\x00\x01\x00\x05wL8"
+            + b"\x1b\xc0<\x0b\x00\x02\x00\x00\x00\x02cs\x0c\x00\x03\x08\x00\x01\n\x00"
+            + b"\x00\x00\x06\x00\x02\x1f\x90\x0b\x00\x03\x00\x00\x00\x11"
+            + b"test_service_name\x00\x00\n\x00\x01\x00\x05wL8\xb4V\xbc\x0b\x00\x02"
+            + b"\x00\x00\x00\x02cr\x0c\x00\x03\x08\x00\x01\n\x00\x00\x00\x06\x00\x02"
+            + b"\x1f\x90\x0b\x00\x03\x00\x00\x00\x11test_service_name\x00\x00\x0f\x00"
+            + b"\x08\x0c\x00\x00\x00\x02\x0b\x00\x01\x00\x00\x00\x08some_key\x0b\x00"
+            + b"\x02\x00\x00\x00\nsome_value\x08\x00\x03\x00\x00\x00\x06\x0c\x00\x04"
+            + b"\x08\x00\x01\n\x00\x00\x00\x06\x00\x02\x1f\x90\x0b\x00\x03\x00\x00"
+            + b"\x00\x11test_service_name\x00\x00\x0b\x00\x01\x00\x00\x00\x02sa\x0b"
+            + b"\x00\x02\x00\x00\x00\x01\x01\x08\x00\x03\x00\x00\x00\x00\x0c\x00\x04"
+            + b'\x08\x00\x01\x00\x00\x00\x00\x06\x00\x02"\xb8\x0b\x00\x03\x00\x00\x00'
+            + b"\nsa_service\x0b\x00\x04\x00\x00\x00\x10 \x01\r\xb8\x85\xa3\x00\x00"
+            + b"\x00\x00\x8a.\x03ps4\x00\x00\x02\x00\t\x00\x00",
+            zipkin_attrs,
+            inner_span_id,
+            ts,
+        )
+
     with mock.patch("time.time", autospec=True) as mock_time:
         # zipkin.py start, logging_helper.start, 3 x logging_helper.stop
         # I don't understand why logging_helper.stop would run 3 times, but
@@ -86,34 +114,6 @@ def generate_list_of_spans(encoding):
                     )
 
     return transport_handler.get_payloads()[0], zipkin_attrs, inner_span_id, ts
-
-
-def generate_single_thrift_span():
-    trace_id = generate_random_128bit_string()
-    span_id = generate_random_64bit_string()
-    timestamp_s = round(time.time(), 3)
-    duration_s = 2.0
-    host = thrift.create_endpoint(port=8000, service_name="host")
-    host.ipv4 = 2130706433
-    span = thrift.create_span(
-        span_id=span_id,
-        parent_span_id=None,
-        trace_id=trace_id,
-        span_name="foo",
-        annotations=[thrift.create_annotation(1472470996199000, "cs", host)],
-        binary_annotations=[
-            thrift.create_binary_annotation(
-                "key",
-                "value",
-                zipkinCore.AnnotationType.STRING,
-                host,
-            ),
-        ],
-        timestamp_s=timestamp_s,
-        duration_s=duration_s,
-    )
-
-    return thrift.span_to_bytes(span)
 
 
 class TracingThread(threading.Thread):

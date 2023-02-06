@@ -1,13 +1,7 @@
 import json
-from typing import List
 from typing import Optional
 from typing import Union
 
-from py_zipkin.encoding._decoders import get_decoder
-from py_zipkin.encoding._encoders import get_encoder
-from py_zipkin.encoding._helpers import create_endpoint  # noqa: F401
-from py_zipkin.encoding._helpers import Endpoint  # noqa: F401
-from py_zipkin.encoding._helpers import Span  # noqa: F401
 from py_zipkin.encoding._types import Encoding
 from py_zipkin.exception import ZipkinError
 
@@ -65,7 +59,6 @@ def convert_spans(
     spans: bytes, output_encoding: Encoding, input_encoding: Optional[Encoding] = None
 ) -> Union[str, bytes]:
     """Converts encoded spans to a different encoding.
-
     param spans: encoded input spans.
     type spans: byte array
     param output_encoding: desired output encoding.
@@ -82,14 +75,22 @@ def convert_spans(
     if input_encoding == output_encoding:
         return spans
 
-    decoder = get_decoder(input_encoding)
-    encoder = get_encoder(output_encoding)
-    decoded_spans = decoder.decode_spans(spans)
-    output_spans: List[Union[str, bytes]] = []
+    raise NotImplementedError(
+        f"Conversion from {input_encoding} to "
+        + f"{output_encoding} is not currently supported."
+    )
 
-    # Encode each indivicual span
-    for span in decoded_spans:
-        output_spans.append(encoder.encode_span(span))
+    # TODO: This code is currently unreachable because no decoders are implemented.
+    # Please uncomment after implementing some.
 
-    # Outputs from encoder.encode_span() can be easily concatenated in a list
-    return encoder.encode_queue(output_spans)
+    # decoder = get_decoder(input_encoding)
+    # encoder = get_encoder(output_encoding)
+    # decoded_spans = decoder.decode_spans(spans)
+    # output_spans: List[Union[str, bytes]] = []
+
+    # # Encode each indivicual span
+    # for span in decoded_spans:
+    #     output_spans.append(encoder.encode_span(span))
+
+    # # Outputs from encoder.encode_span() can be easily concatenated in a list
+    # return encoder.encode_queue(output_spans)

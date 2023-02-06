@@ -44,9 +44,8 @@ def test_detect_span_version_and_encoding_unknown_encoding():
 def test_convert_spans_thrift_to_v2_json():
     spans, _, _, _ = generate_list_of_spans(Encoding.V1_THRIFT)
 
-    converted_spans = convert_spans(spans=spans, output_encoding=Encoding.V2_JSON)
-
-    assert detect_span_version_and_encoding(converted_spans) == Encoding.V2_JSON
+    with pytest.raises(NotImplementedError):
+        convert_spans(spans=spans, output_encoding=Encoding.V2_JSON)
 
 
 def test_convert_spans_v2_json_to_v2_json():
