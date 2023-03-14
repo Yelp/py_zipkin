@@ -39,10 +39,10 @@ def patch_threading() -> None:  # pragma: no cover
     def _new_run(self: Any) -> None:
         _Thread_wrap_run(self, partial(_orig_Thread_run, self))
 
-    threading.Thread.start = _new_start  # type: ignore[assignment]
-    threading.Thread.run = _new_run  # type: ignore[assignment]
+    threading.Thread.start = _new_start  # type: ignore[method-assign]
+    threading.Thread.run = _new_run  # type: ignore[method-assign]
 
 
 def unpatch_threading() -> None:  # pragma: no cover
-    threading.Thread.start = _orig_Thread_start  # type: ignore[assignment]
-    threading.Thread.run = _orig_Thread_run  # type: ignore[assignment]
+    threading.Thread.start = _orig_Thread_start  # type: ignore[method-assign]
+    threading.Thread.run = _orig_Thread_run  # type: ignore[method-assign]
