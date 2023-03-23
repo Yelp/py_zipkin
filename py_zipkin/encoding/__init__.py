@@ -2,6 +2,11 @@ import json
 from typing import Optional
 from typing import Union
 
+from py_zipkin.encoding._decoders import get_decoder  # noqa: F401
+from py_zipkin.encoding._encoders import get_encoder  # noqa: F401
+from py_zipkin.encoding._helpers import create_endpoint  # noqa: F401
+from py_zipkin.encoding._helpers import Endpoint  # noqa: F401
+from py_zipkin.encoding._helpers import Span  # noqa: F401
 from py_zipkin.encoding._types import Encoding
 from py_zipkin.exception import ZipkinError
 
