@@ -1,3 +1,8 @@
+1.2.8 (2023-03-23)
+-------------------
+- Add back exports in py_zipkin.encoding
+- Fix mypy tests
+
 1.2.7 (2023-02-06)
 -------------------
 - Drop support for Python 3.6
